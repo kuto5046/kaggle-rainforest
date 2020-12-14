@@ -1,0 +1,29 @@
+seaborn==0.10.1
+# pandas==0.23.4
+
+# 画像
+opencv-python  # ==4.4.0.40
+
+# 音声
+librosa==0.7.2
+SoundFile==0.10.2
+noisereduce==1.1.0
+
+# DL
+# torch==1.6.0
+# torchvision==0.7.0
+torch==1.4.0
+torchvision==0.5.0
+Albumentations==0.4.6
+# catalyst==20.7
+# resnest==0.0.5
+# efficientnet-pytorch==0.6.3
+pytorch-lightning==1.1.0
+
+# ML
+# kaggle==1.5.6
+# optuna==1.5.0
+
+# other
+pathlib==1.0.1
+typing==3.7.4.3

@@ -1,0 +1,13 @@
+version: "3"
+services:
+  jupyter:
+    build: .
+    volumes:
+      - $PWD:/work/
+    ports:
+      - 8888:8888
+    tty: True
+    stdin_open: True 
+    # hostname: docker5046
+    # container_name: ubuntu18-cpu
+    # command: jupyter lab --ip=0.0.0.0 --allow-root --no-browser

@@ -1,0 +1,76 @@
+# cuda10.2) DL frameworkのversionに注意
+# FROM nvidia/cuda:10.1-base-ubuntu18.04
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu16.04
+
+ARG JUPYTER_PASSWORD="whale"
+ARG USER_NAME="kuto"
+ARG USER_PASSWORD="whale"
+
+# install basic dependencies
+RUN apt-get -y update && apt-get install -y \
+    sudo \
+    wget \
+    vim \
+    git \
+    tmux \
+    zip \
+    unzip \
+    gcc \
+    g++ \
+    build-essential \
+    ca-certificates \
+    software-properties-common \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libpng-dev \
+    libfreetype6-dev \
+    libgl1-mesa-dev \
+    libsndfile1
+
+# install miniconda package
+WORKDIR /opt
+
+# download anaconda package and install anaconda
+RUN wget https://repo.continuum.io/archive/Anaconda3-2019.10-Linux-x86_64.sh && \
+sh /opt/Anaconda3-2019.10-Linux-x86_64.sh -b -p /opt/anaconda3 && \
+rm -f Anaconda3-2019.10-Linux-x86_64.sh
+
+# set path
+ENV PATH /opt/anaconda3/bin:$PATH
+
+# make workspace
+RUN mkdir /work
+
+# install common python packages
+COPY ./requirements.txt /work
+
+RUN pip install --upgrade pip setuptools && \
+    pip install -r /work/requirements.txt
+    # pip install torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html && \
+    # pip install https://download.pytorch.org/whl/cu100/torch-1.0.0-cp36-cp36m-linux_x86_64.whl torchvision
+
+
+# enable jupyter extentions
+RUN jupyter contrib nbextension install
+
+# jupyter の config ファイルの作成
+RUN mkdir ~/.jupyter && \
+    echo "c.NotebookApp.open_browser = False\n \
+          c.NotebookApp.ip = '*'\n \
+          c.NotebookApp.token = '${JUPYTER_PASSWORD}'" \
+    | tee -a ${HOME}/.jupyter/jupyter_notebook_config.py
+
+# COPY ~/.kaggle/kaggle.json ~/.kaggle/
+# user をルートユーザーから切り替えます
+# ユーザー名とパスワードは arg を使って切り替えることが出来ます (このファイルの先頭を参照)
+RUN groupadd -g 1000 developer && \
+    useradd -g developer -G sudo -m -s /bin/bash ${USER_NAME} && \
+    echo "${USER_NAME}:${USER_PASSWORD}" | chpasswd
+USER ${USER_NAME}
+
+# set working directory
+WORKDIR /work
+
+# jupyter用にportを開放
+EXPOSE 8888

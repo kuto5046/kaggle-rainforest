@@ -1,0 +1,18 @@
+version: "2.3"
+services:
+  jupyter:
+    build: .
+    volumes:
+      - $PWD:/work/
+    ports:
+      - 8888:8888
+    runtime: nvidia
+    environment: 
+      - NVIDIA_VISIBLE_DEVICES=all
+    # tty: True
+    # stdin_open: True 
+    # hostname: Docker5046
+    # container_name: ubuntu18
+    command: jupyter lab --ip=0.0.0.0 --allow-root --no-browser
+    # command: nvidia-smi
+    # command: bash
