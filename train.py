@@ -1,24 +1,24 @@
-import warnings
-import src.configuration as C
-# import src.models as models
-import torchvision.models as models
-import src.utils as utils
-from pathlib import Path
-
 import os
 import torch
-from torch import nn
+import warnings
+from pathlib import Path
 from datetime import datetime
+
+import hydra
+from torch import nn
 import torch.nn.functional as F
-from torchvision.datasets import MNIST
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
-import pytorch_lightning as pl
+
 from src.models import ResNet
+import src.configuration as C
+import src.utils as utils
+
+import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
-from pytorch_lightning.logging import MLFlowLogger
+from pytorch_lightning.loggers import MLFlowLogger
 
 
 class Learner(pl.LightningModule):
@@ -26,6 +26,7 @@ class Learner(pl.LightningModule):
         super().__init__()
         self.config = config
         self.model = model
+        
 
     def forward(self, x):
         return self.model(x)
@@ -35,8 +36,8 @@ class Learner(pl.LightningModule):
         output = self.foward(x)
         criterion = C.get_criterion(self.config)
         loss = criterion(output, y)
-        # tensorboard_logs = {'train_loss': loss}
-        # return {'train_loss': loss, 'log': tensorboard_logs}
+        self.logger.experiment.whatever_ml_flow_supports()
+
         return loss
     
     def validation_step(self, batch, batch_idx):
@@ -44,8 +45,7 @@ class Learner(pl.LightningModule):
         output = self.forward(x)
         criterion = C.get_criterion(self.config)
         loss = criterion(output, y)
-        # tensorboard_logs = {'val_loss': loss}
-        # return {'val_loss': loss, 'log': tensorboard_logs}
+        self.logger.experiment.whatever_ml_flow_supports()
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -56,12 +56,13 @@ class Learner(pl.LightningModule):
         scheduler = C.get_scheduler(optimizer, self.config)
         return optimizer, scheduler
 
-
+# 関数にconfig(cfg)を渡すデコレータ
+# @hydra.main(config_path='./configs', config_name='ResNet001.yaml')
 def main():
     warnings.filterwarnings('ignore')
 
     # config
-    config = utils.load_config("configs/001.yaml")
+    config = utils.load_config("configs/ResNet001.yaml")
     global_config = config['globals']
 
     # output config
@@ -77,9 +78,11 @@ def main():
     utils.set_seed(global_config['seed'])
     device = C.get_device(global_config["device"])
 
-    # mlf_logger = MLFlowLogger(
-    # experiment_name=config["exp_name"],
-    # tracking_uri="file:/.")
+    # mlflow
+    mlf_logger = MLFlowLogger(
+    experiment_name=config["mlflow"]["experiment_name"],
+    tracking_uri=config["mlflow"]["tracking_uri"],
+    tags=config["mlflow"]["tags"])
 
     # data
     df, datadir = C.get_metadata(config)
@@ -115,7 +118,7 @@ def main():
 
         # train
         trainer = pl.Trainer(
-            logger=tb_logger, 
+            logger=[tb_logger, mlf_logger], 
             checkpoint_callback=checkpoint_callback,
             callbacks=[early_stop_callback],
             gpus=int(torch.cuda.is_available()))

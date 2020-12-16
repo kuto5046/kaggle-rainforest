@@ -63,25 +63,19 @@ def get_split(config: dict):
 
 def get_metadata(config: dict):
     data_config = config["data"]
-    
-    train_tp = pd.read_csv(data_config["train_tp_df_path"]).reset_index(drop=True)
-    train_tp['data_type'] = 'tp'
-    train_fp = pd.read_csv(data_config["train_fp_df_path"]).reset_index(drop=True)
-    train_fp['data_type'] = 'fp'
-    train_tp_audio_path = Path(data_config["train_tp_audio_path"])
-    train_fp_audio_path = Path(data_config["train_fp_audio_path"])
+    train = pd.read_csv(Path(data_config["resample_root"]) / Path(data_config["train_df_path"])).reset_index(drop=True)
+    train_tp = pd.read_csv(Path(data_config["resample_root"]) / Path(data_config["train_tp_df_path"])).reset_index(drop=True)
+    train_fp = pd.read_csv(Path(data_config["resample_root"]) / Path(data_config["train_fp_df_path"])).reset_index(drop=True)
+    train_audio_path = Path(data_config["resample_root"]) / Path(data_config["train_audio_path"])
+    train_tp_audio_path = Path(data_config["resample_root"]) / Path(data_config["train_tp_audio_path"])
+    train_fp_audio_path = Path(data_config["resample_root"]) / Path(data_config["train_fp_audio_path"])
     
     if data_config['use_train_data'] == ['tp']:
-        train_audio_path = {'tp': train_tp_audio_path}
-        return train_tp, train_audio_path
+        return train_tp, train_tp_audio_path
     elif data_config['use_train_data'] == ['fp']:
-        train_audio_path = {'fp': train_fp_audio_path}
-        return train_fp, train_audio_path
+        return train_fp, train_fp_audio_path
     elif data_config['use_train_data'] == ['tp', 'fp']:
-        # TODO 何らかの処理
-        train_whole = pd.concat([train_tp, train_fp])
-        train_audio_path = {'tp':train_tp_audio_path, 'fp':train_fp_audio_path}
-        return train_whole, train_audio_path
+        return train, train_audio_path
     else:
         print("exception error")
 

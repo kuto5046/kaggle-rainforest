@@ -27,6 +27,8 @@ RUN mkdir /work
 # update pip
 COPY ./requirements.txt /work
 
+RUN conda install pytorch torchvision torchaudio cpuonly -c pytorch
+
 RUN pip install --upgrade pip && \
     pip install -r /work/requirements.txt
 

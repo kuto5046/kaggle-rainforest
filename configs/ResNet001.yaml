@@ -11,19 +11,30 @@ globals:
   weights:
   folds:
     - 0
-  debug: True
+  debug: False
+  kaggle: True
 
-
+mlflow:
+    experiment_name: rainforest
+    tracking_uri: file:/
+    tags: 
+      - ResNet
+      - baseline
+  
 data:
+  # root: ../input/rfcx-species-audio-detection/
+  # resample_root: ../input/rainforest-resample-data/
+  root: ./input/
+  resample_root: ./input/
   use_train_data:
-   - tp
+    - tp
    #  - fp 
-  train_tp_df_path: input/resample-train-tp/train_tp.csv
-  train_tp_audio_path: input/resample-train-tp/
-  train_fp_df_path: input/resample-train-fp/train_fp.csv
-  train_fp_audio_path: input/resample-train-fp/
-  sub_df_path: input/birdsong-recognition/sample_submission.csv
-  test_audio_path: input/resample-test/
+  train_tp_df_path: resample-train-tp/train_tp.csv
+  train_tp_audio_path: resample-train-tp/
+  train_fp_df_path: resample-train-fp/train_fp.csv
+  train_fp_audio_path: resample-train-fp/
+  test_audio_path: resample-test/
+  sub_df_path: sample_submission.csv
 
 dataset:
   name: SpectrogramDataset

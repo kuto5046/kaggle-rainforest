@@ -34,7 +34,7 @@ class SpectrogramDataset(data.Dataset):
         wav_name = sample["resampled_filename"]
         species_id = sample["species_id"]
 
-        y, sr = sf.read(self.datadir / species_id / wav_name)
+        y, sr = sf.read(self.datadir / str(species_id) / wav_name)
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
