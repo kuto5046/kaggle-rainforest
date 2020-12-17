@@ -63,12 +63,12 @@ def get_split(config: dict):
 
 def get_metadata(config: dict):
     data_config = config["data"]
-    train = pd.read_csv(Path(data_config["resample_root"]) / Path(data_config["train_df_path"])).reset_index(drop=True)
-    train_tp = pd.read_csv(Path(data_config["resample_root"]) / Path(data_config["train_tp_df_path"])).reset_index(drop=True)
-    train_fp = pd.read_csv(Path(data_config["resample_root"]) / Path(data_config["train_fp_df_path"])).reset_index(drop=True)
-    train_audio_path = Path(data_config["resample_root"]) / Path(data_config["train_audio_path"])
-    train_tp_audio_path = Path(data_config["resample_root"]) / Path(data_config["train_tp_audio_path"])
-    train_fp_audio_path = Path(data_config["resample_root"]) / Path(data_config["train_fp_audio_path"])
+    train = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_df_path"])).reset_index(drop=True)
+    train_tp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_tp_df_path"])).reset_index(drop=True)
+    train_fp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_fp_df_path"])).reset_index(drop=True)
+    train_audio_path = Path(data_config["root"]) / Path(data_config["train_audio_path"])
+    train_tp_audio_path = Path(data_config["root"]) / Path(data_config["train_tp_audio_path"])
+    train_fp_audio_path = Path(data_config["root"]) / Path(data_config["train_fp_audio_path"])
     
     if data_config['use_train_data'] == ['tp']:
         return train_tp, train_tp_audio_path
@@ -79,6 +79,12 @@ def get_metadata(config: dict):
     else:
         print("exception error")
 
+def get_test_metadata(config: dict):
+    data_config = config["data"]
+    sub = pd.read_csv(Path(data_config["root"]) / Path(data_config["sub_df_path"])).reset_index(drop=True)
+    test_audio_path = Path(data_config["root"]) / Path(data_config["test_audio_path"])
+
+    return sub, test_audio_path
 
 
 def get_loader(df: pd.DataFrame,
@@ -93,6 +99,31 @@ def get_loader(df: pd.DataFrame,
         loader_config = config["loader"][phase]
 
         dataset = datasets.SpectrogramDataset(
+            df,
+            datadir=datadir,
+            img_size=dataset_config["img_size"],
+            waveform_transforms=waveform_transforms,
+            spectrogram_transforms=spectrogram_transforms,
+            melspectrogram_parameters=melspectrogram_parameters)
+    else:
+        raise NotImplementedError
+
+    loader = data.DataLoader(dataset, **loader_config)
+    return loader
+
+def get_testloader(df: pd.DataFrame,
+               datadir: Path,
+               config: dict,
+               phase: str):
+
+    dataset_config = config["dataset"]
+    if dataset_config["name"] == "SpectrogramDataset":
+        waveform_transforms = get_waveform_transforms(config)
+        spectrogram_transforms = get_spectrogram_transforms(config)
+        melspectrogram_parameters = dataset_config["params"]
+        loader_config = config["loader"][phase]
+
+        dataset = datasets.SpectrogramTestDataset(
             df,
             datadir=datadir,
             img_size=dataset_config["img_size"],

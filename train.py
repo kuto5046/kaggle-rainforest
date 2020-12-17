@@ -3,8 +3,12 @@ import torch
 import warnings
 from pathlib import Path
 from datetime import datetime
+import pandas as pd
+import numpy as np
 
+import tqdm
 import hydra
+import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split
@@ -34,7 +38,7 @@ class Learner(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         output = self.forward(x)
-        output = output[self.config["loss"]["type"]]
+        output = output[self.config["globals"]["output_type"]]
         criterion = C.get_criterion(self.config)
         loss = criterion(output, y)
         self.log('train_loss', loss)
@@ -44,15 +48,20 @@ class Learner(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         output = self.forward(x)
-        output = output[self.config["loss"]["type"]]
+        output = output[self.config["globals"]["output_type"]]
         criterion = C.get_criterion(self.config)
         loss = criterion(output, y)
         self.log('val_loss', loss)
 
         return loss
 
-    def test_step(self, batch, batch_idx):
-        return self.validation_step(batch, batch_idx)
+    # def test_step(self, batch, batch_idx):
+    #     x, _ = batch
+    #     output = self.forward(x)
+    #     output = output[self.config["globals"]["output_type"]]
+
+    #     return output
+
 
     def configure_optimizers(self):
         optimizer = C.get_optimizer(self.model, self.config)
@@ -79,16 +88,17 @@ def main():
     # utils config
     logger = utils.get_logger(output_dir/ "output.log")
     utils.set_seed(global_config['seed'])
-    # device = C.get_device(global_config["device"])
+    device = C.get_device(global_config["device"])
 
     # mlflow
-    os.makedirsconfig["mlflow"]["tracking_uri"], (exist_ok=True)
+    os.makedirs(config["mlflow"]["tracking_uri"], exist_ok=True)
     mlf_logger = MLFlowLogger(
     experiment_name=config["mlflow"]["experiment_name"],
     tracking_uri=config["mlflow"]["tracking_uri"])
     
     # data
     df, datadir = C.get_metadata(config)
+    sub_df, test_datadir = C.get_test_metadata(config)
     splitter = C.get_split(config)
     
 
@@ -109,12 +119,16 @@ def main():
         }
 
         # callback
-        tb_logger = TensorBoardLogger(save_dir=output_dir, name=global_config['model_name'], version=f'fold_{fold + 1}')
+        model_name = global_config['model_name']
+        # tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name, version=f'fold_{fold + 1}')
         early_stop_callback = EarlyStopping(monitor='val_loss')
+
         checkpoint_callback = ModelCheckpoint(
-            filepath=tb_logger.log_dir + "/{epoch:02d}-{val_metric:.4f}", 
-            monitor='val_metric')
-        
+            monitor='val_loss',
+            dirpath=output_dir,
+            filename=f'{model_name}-{fold:1d}')
+
+       
         # model
         model = ResNet(config)
         learner = Learner(model, config)
@@ -129,6 +143,28 @@ def main():
             fast_dev_run=global_config["debug"])
         
         trainer.fit(learner, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
+
+
+    # load checkpoint
+    model = Learner(None, config)
+    checkpoint = torch.load('/content/lightning_logs/version_0/checkpoints/_ckpt_epoch_6.ckpt')
+    model.load_state_dict(checkpoint['state_dict'])
+
+    # 推論結果出力
+    preds = []
+    model.eval()
+    test_loader = C.get_testloader(sub_df, test_datadir, config, phase="test")
+    with torch.no_grad():
+        for x in tqdm(test_loader):
+            x = x.to(device)
+            output = model(x)
+            output = output[config["globals"]["output_type"]] 
+            preds.append(output.detach().cpu().numpy())
+    preds = np.vstack(preds)
+
+    # make submission file
+    sub_df
+    sub.head()
 
 
 if __name__ == '__main__':

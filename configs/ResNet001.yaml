@@ -1,10 +1,11 @@
 globals:
   seed: 42
   device: cuda
-  num_epochs: 100
+  num_epochs: 1
   output_dir: output
   minimize_metric: False
   model_name: ResNet
+  output_type: multiclass_proba
   weights:
   folds:
     - 0
@@ -13,22 +14,21 @@ globals:
 
 mlflow:
     experiment_name: rainforest
-    tracking_uri: file:./mlflow
+    tracking_uri: file:/.
   
 data:
-  root: ./input/rfcx-species-audio-detection/
-  resample_root: ./input/rainforest-resample-data/
+  root: ./
   use_train_data:
     - tp
    #  - fp 
-  train_df_path: resample-train/train.csv
-  train_audio_path: resample-train/
-  train_tp_df_path: resample-train-tp/train_tp.csv
-  train_tp_audio_path: resample-train-tp/
-  train_fp_df_path: resample-train-fp/train_fp.csv
-  train_fp_audio_path: resample-train-fp/
-  test_audio_path: resample-test/
-  sub_df_path: sample_submission.csv
+  train_df_path: input/rainforest-resample-data/resample-train/train.csv
+  train_audio_path: input/rainforest-resample-data/resample-train/
+  train_tp_df_path: input/rainforest-resample-data/resample-train-tp/train_tp.csv
+  train_tp_audio_path: input/rainforest-resample-data/resample-train-tp/
+  train_fp_df_path: input/rainforest-resample-data/resample-train-fp/train_fp.csv
+  train_fp_audio_path: input/rainforest-resample-data/resample-train-fp/
+  test_audio_path: input/rainforest-resample-data/resample-test/
+  sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
 
 dataset:
   name: SpectrogramDataset
@@ -67,10 +67,14 @@ model:
 
 loader:
   train:
-    batch_size: 3
+    batch_size: 32
     shuffle: True
     num_workers: 4
   valid:
-    batch_size: 3
+    batch_size: 50
+    shuffle: False
+    num_workers: 4
+  test:
+    batch_size: 40
     shuffle: False
     num_workers: 4

@@ -36,9 +36,10 @@ flac → mp3に変換することで軽量化する
 trainのcsvは２種類存在する
 |    |    |    |
 | --- | --- | --- |
-| train_fp.csv | false positiveデータ(鳴いていないんだけど鳴いているとラベルつけしているデータ)|  7781 |
-| train_tp.csv | true positiveデータ(通常の正解データ) | | 
+| train_fp.csv | false positive | ノイジーなラベルづけ？ |  7781 |
+| train_tp.csv | true positive | expertがflagやidをラベリング？ | - | 
 
+https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/197866　
 baselineとしてはtpデータのみでやってみる
 訓練用のメタデータには時間ラベルも振ってあるが予測は音声ファイル単位で良い
 
@@ -76,3 +77,8 @@ trainを使う場合はgroupkfoldでtpとfpのバランスが同じになるよ�
 train_fpの使い方がキモな気がする
 self supervised learningが有効？
 
+## [2020/12/17]
+train_tp, train_fpの解釈が間違っていた。
+
+tpとfpの両方にあるaudioが存在している
+<div align="center"><img src="./img/002.png" title="result ε scheduling"></div>
