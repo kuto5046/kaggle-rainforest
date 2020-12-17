@@ -95,7 +95,7 @@ class SpectrogramTestDataset(data.Dataset):
         sample = self.df.loc[idx, :]
         recording_id = sample["recording_id"]
 
-        y, sr = sf.read(self.datadir / recording_id / "wav")
+        y, sr = sf.read(self.datadir / f"{recording_id}.wav")
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
