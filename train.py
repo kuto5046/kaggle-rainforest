@@ -33,19 +33,22 @@ class Learner(pl.LightningModule):
     
     def training_step(self, batch, batch_idx):
         x, y = batch
-        output = self.foward(x)
+        output = self.forward(x)
+        output = output[self.config["loss"]["type"]]
         criterion = C.get_criterion(self.config)
         loss = criterion(output, y)
-        self.logger.experiment.whatever_ml_flow_supports()
+        self.log('train_loss', loss)
 
         return loss
     
     def validation_step(self, batch, batch_idx):
         x, y = batch
         output = self.forward(x)
+        output = output[self.config["loss"]["type"]]
         criterion = C.get_criterion(self.config)
         loss = criterion(output, y)
-        self.logger.experiment.whatever_ml_flow_supports()
+        self.log('val_loss', loss)
+
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -54,7 +57,7 @@ class Learner(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = C.get_optimizer(self.model, self.config)
         scheduler = C.get_scheduler(optimizer, self.config)
-        return optimizer, scheduler
+        return [optimizer], [scheduler]
 
 # 関数にconfig(cfg)を渡すデコレータ
 # @hydra.main(config_path='./configs', config_name='ResNet001.yaml')
@@ -76,14 +79,14 @@ def main():
     # utils config
     logger = utils.get_logger(output_dir/ "output.log")
     utils.set_seed(global_config['seed'])
-    device = C.get_device(global_config["device"])
+    # device = C.get_device(global_config["device"])
 
     # mlflow
+    os.makedirsconfig["mlflow"]["tracking_uri"], (exist_ok=True)
     mlf_logger = MLFlowLogger(
     experiment_name=config["mlflow"]["experiment_name"],
-    tracking_uri=config["mlflow"]["tracking_uri"],
-    tags=config["mlflow"]["tags"])
-
+    tracking_uri=config["mlflow"]["tracking_uri"])
+    
     # data
     df, datadir = C.get_metadata(config)
     splitter = C.get_split(config)
@@ -107,7 +110,7 @@ def main():
 
         # callback
         tb_logger = TensorBoardLogger(save_dir=output_dir, name=global_config['model_name'], version=f'fold_{fold + 1}')
-        early_stop_callback = EarlyStopping()
+        early_stop_callback = EarlyStopping(monitor='val_loss')
         checkpoint_callback = ModelCheckpoint(
             filepath=tb_logger.log_dir + "/{epoch:02d}-{val_metric:.4f}", 
             monitor='val_metric')
@@ -118,10 +121,12 @@ def main():
 
         # train
         trainer = pl.Trainer(
-            logger=[tb_logger, mlf_logger], 
+            logger=[mlf_logger], 
             checkpoint_callback=checkpoint_callback,
             callbacks=[early_stop_callback],
-            gpus=int(torch.cuda.is_available()))
+            max_epochs=global_config["num_epochs"],
+            gpus=int(torch.cuda.is_available()),
+            fast_dev_run=global_config["debug"])
         
         trainer.fit(learner, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
 

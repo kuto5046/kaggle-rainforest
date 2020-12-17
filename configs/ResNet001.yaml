@@ -2,33 +2,27 @@ globals:
   seed: 42
   device: cuda
   num_epochs: 100
-  output_dir: ../output/
-  main_metric: epoch_f1
+  output_dir: output
   minimize_metric: False
-  input_key: image
-  input_target_key: targets
   model_name: ResNet
   weights:
   folds:
     - 0
-  debug: False
-  kaggle: True
+  debug: True
+  kaggle: False
 
 mlflow:
     experiment_name: rainforest
-    tracking_uri: file:/
-    tags: 
-      - ResNet
-      - baseline
+    tracking_uri: file:./mlflow
   
 data:
-  # root: ../input/rfcx-species-audio-detection/
-  # resample_root: ../input/rainforest-resample-data/
-  root: ./input/
-  resample_root: ./input/
+  root: ./input/rfcx-species-audio-detection/
+  resample_root: ./input/rainforest-resample-data/
   use_train_data:
     - tp
    #  - fp 
+  train_df_path: resample-train/train.csv
+  train_audio_path: resample-train/
   train_tp_df_path: resample-train-tp/train_tp.csv
   train_tp_audio_path: resample-train-tp/
   train_fp_df_path: resample-train-fp/train_fp.csv
@@ -39,7 +33,6 @@ data:
 dataset:
   name: SpectrogramDataset
   img_size: 224
-  data_dir: ../input/train/
   params:
     n_mels: 128
     fmin: 20
@@ -47,6 +40,7 @@ dataset:
 
 loss:
   name: BCELoss
+  type: multiclass_proba
   params:
 
 optimizer:
@@ -73,10 +67,10 @@ model:
 
 loader:
   train:
-    batch_size: 100
+    batch_size: 3
     shuffle: True
-    num_workers: 12
+    num_workers: 4
   valid:
-    batch_size: 256
+    batch_size: 3
     shuffle: False
-    num_workers: 12
+    num_workers: 4

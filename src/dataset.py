@@ -66,13 +66,11 @@ class SpectrogramDataset(data.Dataset):
         image = np.moveaxis(image, 2, 0)
         image = (image / 255.0).astype(np.float32)
 
-        labels = np.zeros(len(self.df['species_id'].unique()), dtype=int)
-        labels[species_id] = 1
+        labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
+        labels[species_id] = 1.0
 
-        return {
-            "image": image,
-            "targets": labels
-        }
+        return image, labels
+
 
 
 def mono_to_color(X: np.ndarray,

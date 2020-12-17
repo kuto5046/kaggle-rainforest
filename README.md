@@ -49,4 +49,30 @@ fpはAという鳥がいないのにいるといっている状態
 2. 鳥Bが鳴いているのにラベルが付与されていない？場合は鳥Bの予測にもノイズとなる  
 2はどうなんだろう？  
 
+## [2020/12/16]
+GitHub Actionsでkaggle datasetsに自分のコードを自動更新更新するようにした  
+https://zenn.dev/hattan0523/articles/c55dfd51bb81e5 
+とても便利  
+
+Circle CIバージョンも試したい  
+https://qiita.com/cfiken/items/a36b5742e9d26e0b4567  
+
+
+hydraを使うとオブジェクトも全てconfigファイルで設定できるようにすることができる
+lightningやmlflowなど色々導入しているので後からの方が良さそう
+
+datasetsを
+- train
+- train_tp
+- train_fp(データめっちゃ多い)
+の３つに分けて作成した
+
+trainは混ぜこぜ  
+train_tpは綺麗なラベル  
+train_fpはノイジーなラベル  
+
+trainを使う場合はgroupkfoldでtpとfpのバランスが同じになるように学習をさせた方がいい？
+
+train_fpの使い方がキモな気がする
+self supervised learningが有効？
 
