@@ -19,12 +19,12 @@ class ResNet(nn.Module):
         pretrained = model_config['pretrained']
         num_classes = model_config['num_classes']
 
-        self.model = torchvision.models.resnet50(pretrained=pretrained)
-        layers = list(self.model.children())[:-2]  # 後ろ２層を除く(adaptiveAvgpooling(1,1)とlinear)
+        model = torchvision.models.resnet50(pretrained=pretrained)
+        layers = list(model.children())[:-2]  # 後ろ２層を除く(adaptiveAvgpooling(1,1)とlinear)
         layers.append(nn.AdaptiveMaxPool2d(1))  # 後ろに追加 この処理で(1,1) → 1に変換している
         self.encoder = nn.Sequential(*layers)  # 1chで出力するencoder
 
-        in_features = self.model.fc.in_features  # 最終層の入力ch
+        in_features = model.fc.in_features  # 最終層の入力ch
 
         # 最終層のch数合わせ(１層で一気に行ってはだめ？)
         self.classifier = nn.Sequential(
