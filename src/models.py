@@ -60,7 +60,7 @@ class ResNeSt(nn.Module):
         del model.fc
         model.fc = nn.Sequential(
             nn.Linear(2048, 1024),
-            nn.ReLU(),Î
+            nn.ReLU(),
             nn.Dropout(p=0.2),
             nn.Linear(1024, 1024),
             nn.ReLU(),
