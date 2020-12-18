@@ -1,5 +1,5 @@
 # kaggle-rainforest
-<div align="center"><img src="./img/001.png" title="result ε scheduling"></div>
+<div align="center"><img src="./img/001.png"></div>
 https://www.kaggle.com/c/rfcx-species-audio-detection/overview 
 
 ## [2020/12/12]
@@ -44,13 +44,9 @@ baselineとしてはtpデータのみでやってみる
 訓練用のメタデータには時間ラベルも振ってあるが予測は音声ファイル単位で良い
 
 #### fpデータはどのように使えそう？
-fpはAという鳥がいないのにいるといっている状態  
-これをそのまま使ってしまうと２つの意味でノイズとなってしまう  
-1. 鳥Bの鳴き声を鳥Aと学習してしまうので鳥Aの予測においてノイズとなる  
-2. 鳥Bが鳴いているのにラベルが付与されていない？場合は鳥Bの予測にもノイズとなる  
-2はどうなんだろう？  
+tpで学習したモデルの予測値とfpのラベルが一致しているときは利用するとか？  
 
-## [2020/12/16]
+### [2020/12/16]
 GitHub Actionsでkaggle datasetsに自分のコードを自動更新更新するようにした  
 https://zenn.dev/hattan0523/articles/c55dfd51bb81e5 
 とても便利  
@@ -77,8 +73,72 @@ trainを使う場合はgroupkfoldでtpとfpのバランスが同じになるよ�
 train_fpの使い方がキモな気がする
 self supervised learningが有効？
 
-## [2020/12/17]
-train_tp, train_fpの解釈が間違っていた。
+### [2020/12/17]
+train_tp, train_fpの解釈が間違っていたので修正。
 
 tpとfpの両方にあるaudioが存在している
-<div align="center"><img src="./img/002.png" title="result ε scheduling"></div>
+<div align="center"><img src="./img/002.png"></div>
+
+
+### [2020/12/18]
+tmax, tmin, fmax, fminを使ってlabel付けする
+
+tmin, tmaxがラベルづけの時間方向の値
+fmin, fmaxがラベルづけの周波数方向の値
+
+resampleだけでなく時間軸方向をclipしたデータセットをあらかじめ作る？
+
+label付けされている時間  
+tp
+<div align="center"><img src="./img/003.png"></div>
+fp
+<div align="center"><img src="./img/004.png"></div>
+0.5~4sが多め
+
+labelの最初の時間  
+tp
+<div align="center"><img src="./img/005.png"></div>
+fp
+<div align="center"><img src="./img/006.png"></div>
+まちまちの一様分布
+fpの方が最初の方にlabelが集まっている？  
+
+ResNetでclipなしだとかなり低い
+てかこんな低いもん？
+→LB見るとそこらへんのスコアも見られるのでこんなもんかな
+<div align="center"><img src="./img/007.png"></div>
+
+
+### clipのやり方
+<div align="center"><img src="./img/008.png"></div>
+良いアイデアと思ったら既に実装あったので利用する
+clipに関しては以下のdiscussionで3種類提案されている
+アライさんが言及しているものを取り入れた方がセカンダリーラベルを扱えるので
+一緒に生息している鳥とかを特定するのに良いかも?
+https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/200922#1102470
+
+
+### lossについて
+アライさんのbirdcallのPANNS solutionではBCELossが使われていた(outputがlogititの場合はBCElogitsLoss)
+とりあえずBCELossで進めてみる
+
+
+### output_typeについて
+nnの出力として
+- logits
+- multilabel_proba(sigmoid)
+- multiclass_proba(softmax)
+がある
+
+今回のタスクでは
+最終的なaudioに複数の鳥があると思うのでmultilabel_probaが良さげ？
+
+pannsではclipwiseが使われている
+output_dict = {
+    "framewise_output": framewise_output,
+    "segmentwise_output": segmentwise_output,
+    "logit": logit,
+    "framewise_logit": framewise_logit,
+    "clipwise_output": clipwise_output
+}
+
