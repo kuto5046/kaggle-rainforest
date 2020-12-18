@@ -62,8 +62,8 @@ class SpectrogramDataset(data.Dataset):
     # こちらはlabelに限定しているのでアライさんの処理は不要
     def clip_audio1(self, y, sr, idx, effective_length, main_species_id):
         # dfから時間ラベルをflame単位で取得しclip
-        t_min = self.df.t_min.values[idx]*sr
-        t_max = self.df.t_max.values[idx]*sr
+        t_min = int(np.round(self.df.t_min.values[idx]*sr))
+        t_max = int(np.round(self.df.t_max.values[idx]*sr))
         y = y[t_min:t_max]
 
         len_y = len(y)
