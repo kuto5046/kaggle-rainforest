@@ -113,6 +113,7 @@ class SpectrogramDataset(data.Dataset):
             ending = len(y)
         beginning = ending - effective_length
         y = y[beginning:ending].astype(np.float32)
+        assert len(y)==effective_length, f"not much audio length in {idx}. The length of y is {len(y)} not {effective_length}."
 
         # TODO 以下アライさんが追加した部分
         # https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/200922#1102470
