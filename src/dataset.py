@@ -25,6 +25,7 @@ class SpectrogramDataset(data.Dataset):
         self.waveform_transforms = waveform_transforms
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
+        self.count = 0
 
     def __len__(self):
         return len(self.df)
@@ -37,15 +38,15 @@ class SpectrogramDataset(data.Dataset):
         y, sr = sf.read(self.datadir / str(main_species_id) / wav_name)
         effective_length = sr * PERIOD
 
-        # 破損しているデータは除去
-        count = 0
+        # 破損しているデータはskip
+        
         if len(y) == 0:
-            count += 1
-            print(f"num_unknown_audio: {count}")
-            continue
+            self.count += 1
+            print(f"num_unknown_audio: {self.count}")
+            print(f"wav_name: {wav_name}")
 
-        # y, labels = self.clip_time_audio1(y, sr, idx, effective_length, main_species_id)
-        y, labels = self.clip_time_audio2(y, sr, idx, effective_length, main_species_id)
+        y, labels = self.clip_time_audio1(y, sr, idx, effective_length, main_species_id)
+        # y, labels = self.clip_time_audio2(y, sr, idx, effective_length, main_species_id)
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
@@ -121,7 +122,7 @@ class SpectrogramDataset(data.Dataset):
         beginning = ending - effective_length
 
         y = y[beginning:ending].astype(np.float32)
-        assert len(y)==effective_length, f"not much audio length in {idx}. The length of y is {len(y)} not {effective_length}."
+        # assert len(y)==effective_length, f"not much audio length in {idx}. The length of y is {len(y)} not {effective_length}."
 
         # TODO 以下アライさんが追加した部分
         # https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/200922#1102470
