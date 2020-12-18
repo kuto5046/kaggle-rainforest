@@ -44,10 +44,10 @@ class SpectrogramDataset(data.Dataset):
             y = self.waveform_transforms(y)
 
         # dataframeから周波数帯域を取り出し更新
-        # fmin = self.df.f_min.values[idx]*0.9  # buffer
-        # fmax = self.df.f_max.values[idx]*1.1  # buffer
-        # self.melspectrogram_parameters["fmin"] = fmin
-        # self.melspectrogram_parameters["fmax"] = fmax
+        fmin = self.df.f_min.values[idx]*0.9  # buffer
+        fmax = self.df.f_max.values[idx]*1.1  # buffer
+        self.melspectrogram_parameters["fmin"] = fmin
+        self.melspectrogram_parameters["fmax"] = fmax
 
         melspec = librosa.feature.melspectrogram(y, sr=sr, **self.melspectrogram_parameters)
         melspec = librosa.power_to_db(melspec).astype(np.float32)

@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 import torchvision
 from src.dataset import SpectrogramDataset
 # import src.configuration as C
-
+from resnest.torch import resnest50
 
 class ResNet(nn.Module):
     def __init__(self, config):
@@ -47,3 +47,35 @@ class ResNet(nn.Module):
             "multilabel_proba": multilabel_proba
         }
 
+
+class ResNeSt(nn.Module):
+    def __init__(self, config):
+        super(ResNeSt, self).__init__()
+        self.config = config
+        model_config = config['model']
+        pretrained = model_config['pretrained']
+        num_classes = model_config['num_classes']
+
+        model = resnest50(pretrained=pretrained)
+        del model.fc
+        model.fc = nn.Sequential(
+            nn.Linear(2048, 1024),
+            nn.ReLU(),Î
+            nn.Dropout(p=0.2),
+            nn.Linear(1024, 1024),
+            nn.ReLU(),
+            nn.Dropout(p=0.2),
+            nn.Linear(1024, num_classes)
+)
+
+
+    def forward(self, x):
+        x = self.model(x)
+
+        multiclass_proba = F.softmax(x, dim=1)
+        multilabel_proba = F.sigmoid(x)
+        return {
+            "logits": x,
+            "multiclass_proba": multiclass_proba,
+            "multilabel_proba": multilabel_proba
+        }

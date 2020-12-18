@@ -4,7 +4,7 @@ globals:
   num_epochs: 1
   output_dir: output
   minimize_metric: False
-  model_name: ResNet
+  model_name: ResNest
   output_type: multilabel_proba
   weights:
   folds:
@@ -41,8 +41,10 @@ dataset:
     fmax: 16000
 
 loss:
-  name: BCELoss
+  name: BCEWithLogitLoss
+  num_classes: 24
   params:
+    pos_weight: None
 
 optimizer:
   name: Adam
@@ -62,7 +64,7 @@ split:
     shuffle: True
 
 model:
-  name: resnet50
+  name: resnest50
   pretrained: True
   num_classes: 24
 

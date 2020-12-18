@@ -138,10 +138,11 @@ def main():
     device = C.get_device(global_config["device"])
 
     # logger
-    os.makedirs(config["mlflow"]["tracking_uri"], exist_ok=True)
+    # os.makedirs(config["mlflow"]["tracking_uri"], exist_ok=True)
+    config["mlflow"]["tags"]["timestamp"] = timestamp
     mlf_logger = MLFlowLogger(
     experiment_name=config["mlflow"]["experiment_name"],
-    tracking_uri=config["mlflow"]["tracking_uri"])
+    tags=config["mlflow"]["tags"])
 
     model_name = global_config['model_name']
     tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name)
@@ -206,7 +207,7 @@ def main():
         # load checkpoint
         model = ResNet(config)
         model = Learner(model, config)
-        ckpt = torch.load(output_dir / f"ResNet-{i}.ckpt")
+        ckpt = torch.load(checkpoint_callback.best_model_path)
         model.load_state_dict(ckpt['state_dict'])
 
         # 推論結果出力
