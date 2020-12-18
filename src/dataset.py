@@ -37,15 +37,15 @@ class SpectrogramDataset(data.Dataset):
         y, sr = sf.read(self.datadir / str(main_species_id) / wav_name)
         effective_length = sr * PERIOD
 
-        y, labels = self.clip_time_audio1(y, sr, idx, effective_length, main_species_id)
-        # y, labels = self.clip_time_audio2(y, sr, idx, effective_length, main_species_id)
+        # y, labels = self.clip_time_audio1(y, sr, idx, effective_length, main_species_id)
+        y, labels = self.clip_time_audio2(y, sr, idx, effective_length, main_species_id)
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
 
         # dataframeから周波数帯域を取り出し更新
-        fmin = int(np.round(self.df.f_min.values[idx]))*0.9  # buffer
-        fmax = int(np.round(self.df.f_max.values[idx]))*1.1  # buffer
+        fmin = self.df.f_min.values[idx]*0.9  # buffer
+        fmax = self.df.f_max.values[idx]*1.1  # buffer
         self.melspectrogram_parameters["fmin"] = fmin
         self.melspectrogram_parameters["fmax"] = fmax
 
