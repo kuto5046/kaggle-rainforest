@@ -32,25 +32,16 @@ class SpectrogramDataset(data.Dataset):
     def __getitem__(self, idx: int):
         sample = self.df.loc[idx, :]
         wav_name = sample["resampled_filename"]
-        species_id = sample["species_id"]
+        main_species_id = sample["species_id"]
 
         y, sr = sf.read(self.datadir / str(species_id) / wav_name)
+        effective_length = sr * PERIOD
+
+        y, labels = self.clip_audio1(y, sr, idx, effective_length, main_species_id)
+        # y, labels = self.clip_audio2(y, sr, idx, effective_length, main_species_id)
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
-        else:
-            len_y = len(y)
-            effective_length = sr * PERIOD
-            if len_y < effective_length:
-                new_y = np.zeros(effective_length, dtype=y.dtype)
-                start = np.random.randint(effective_length - len_y)
-                new_y[start:start + len_y] = y
-                y = new_y.astype(np.float32)
-            elif len_y > effective_length:
-                start = np.random.randint(len_y - effective_length)
-                y = y[start:start + effective_length].astype(np.float32)
-            else:
-                y = y.astype(np.float32)
 
         melspec = librosa.feature.melspectrogram(y, sr=sr, **self.melspectrogram_parameters)
         melspec = librosa.power_to_db(melspec).astype(np.float32)
@@ -66,11 +57,81 @@ class SpectrogramDataset(data.Dataset):
         image = np.moveaxis(image, 2, 0)
         image = (image / 255.0).astype(np.float32)
 
-        labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
-        labels[species_id] = 1.0
-
         return image, labels
 
+    # こちらはlabelに限定しているのでアライさんの処理は不要
+    def clip_audio1(self, y, sr, idx, effective_length, main_species_id):
+        # dfから時間ラベルをflame単位で取得しclip
+        t_min = self.df.t_min.values[idx]*sr
+        t_max = self.df.t_max.values[idx]*sr
+        y = y[t_min:t_max]
+
+        len_y = len(y)
+        effective_length = sr * PERIOD
+        if len_y < effective_length:
+            new_y = np.zeros(effective_length, dtype=y.dtype)
+            start = np.random.randint(effective_length - len_y)
+            new_y[start:start + len_y] = y
+            y = new_y.astype(np.float32)
+        elif len_y > effective_length:
+            start = np.random.randint(len_y - effective_length)
+            y = y[start:start + effective_length].astype(np.float32)
+        else:
+            y = y.astype(np.float32)
+
+        labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
+        labels[main_species_id] = 1.0
+        
+        return y, labels
+
+    # こちらはlabel付けにバッファを取っているのでアライさんの処理が必要
+    def clip_audio2(self, y, sr, idx, effective_length, main_species_id):
+
+        t_min = self.df.t_min.values[idx]*sr
+        t_max = self.df.t_max.values[idx]*sr
+
+        # Positioning sound slice
+        t_center = np.round((t_min + t_max) / 2)
+        
+        # 開始点の仮決定 
+        beginning = t_center - effective_length / 2
+        # overしたらaudioの最初からとする
+        if beginning < 0:
+            beginning = 0
+        beginning = np.random.randint(beginning, t_center)
+
+        # 開始点と終了点の決定
+        ending = beginning + effective_length
+        # overしたらaudioの最後までとする
+        if ending > len(y):
+            ending = len(y)
+        beginning = ending - effective_length
+        y = y[beginning:ending].astype(np.float32)
+
+        # TODO 以下アライさんが追加した部分
+        # https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/200922#1102470
+
+        # flame→time変換
+        beginning_time = beginning / sr
+        ending_time = ending / sr
+
+        # dfには同じrecording_idだけどclipしたt内に別のラベルがあるものもある
+        # そこでそれには正しいidを付けたい
+        recording_id = self.df.loc[idx, "recording_id"]
+        query_string = f"recording_id == '{recording_id}' & "
+        query_string += f"t_min < {ending_time} & t_max > {beginning_time}"
+
+        # 同じrecording_idのものを
+        all_tp_events = self.df.query(query_string)
+
+        labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
+        for species_id in all_tp_events["species_id"].unique():
+            if species_id == main_species_id:
+                labels[int(species_id)] = 1.0  # main label
+            else:
+                labels[int(species_id)] = 0.5  # secondaly label
+        
+        return y, labels
 
 
 class SpectrogramTestDataset(data.Dataset):
@@ -158,3 +219,4 @@ def mono_to_color(X: np.ndarray,
         # Just zero
         V = np.zeros_like(Xstd, dtype=np.uint8)
     return V
+
