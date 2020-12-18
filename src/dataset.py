@@ -36,7 +36,11 @@ class SpectrogramDataset(data.Dataset):
 
         y, sr = sf.read(self.datadir / str(main_species_id) / wav_name)
         effective_length = sr * PERIOD
-
+        if idx == 115:
+            print(self.datadir)
+            print(main_species_id)
+            print(wav_name)
+            print("Y:", len(y))
         # y, labels = self.clip_time_audio1(y, sr, idx, effective_length, main_species_id)
         y, labels = self.clip_time_audio2(y, sr, idx, effective_length, main_species_id)
 
@@ -97,8 +101,9 @@ class SpectrogramDataset(data.Dataset):
         t_min = self.df.t_min.values[idx]*sr
         t_max = self.df.t_max.values[idx]*sr
         if idx==115:
-            print(t_min)
-            print(t_max)
+            print("len y", len(y))
+            print("t min", t_min)
+            print("t max", t_max)
 
         # Positioning sound slice
         t_center = np.round((t_min + t_max) / 2)
@@ -111,7 +116,7 @@ class SpectrogramDataset(data.Dataset):
         beginning = np.random.randint(beginning, t_center)
 
         if idx==115:
-            print(beginning)
+            print("beginning", beginning)
 
         # 開始点と終了点の決定
         ending = beginning + effective_length
