@@ -5,19 +5,19 @@ globals:
   output_dir: output
   minimize_metric: False
   model_name: ResNet
-  output_type: multiclass_proba
+  output_type: multilabel_proba
   weights:
   folds:
     - 0
   debug: True
-  kaggle: False
+  kaggle: True
 
 mlflow:
     experiment_name: rainforest
-    tracking_uri: file:/.
+    tracking_uri: mlflow
   
 data:
-  root: ./
+  root: ../
   use_train_data:
     - tp
    #  - fp 
@@ -40,7 +40,6 @@ dataset:
 
 loss:
   name: BCELoss
-  type: multiclass_proba
   params:
 
 optimizer:

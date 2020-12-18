@@ -25,6 +25,57 @@ from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import MLFlowLogger
 
 
+# LRAP. Instance-level average
+# Assume float preds [BxC], labels [BxC] of 0 or 1
+def LRAP(preds, labels):
+    # Ranks of the predictions
+    ranked_classes = torch.argsort(preds, dim=-1, descending=True)
+    # i, j corresponds to rank of prediction in row i
+    class_ranks = torch.zeros_like(ranked_classes)
+    for i in range(ranked_classes.size(0)):
+        for j in range(ranked_classes.size(1)):
+            class_ranks[i, ranked_classes[i][j]] = j + 1
+    # Mask out to only use the ranks of relevant GT labels
+    ground_truth_ranks = class_ranks * labels + (1e6) * (1 - labels)
+    # All the GT ranks are in front now
+    sorted_ground_truth_ranks, _ = torch.sort(ground_truth_ranks, dim=-1, descending=False)
+    pos_matrix = torch.tensor(np.array([i+1 for i in range(labels.size(-1))])).unsqueeze(0)
+    score_matrix = pos_matrix / sorted_ground_truth_ranks
+    score_mask_matrix, _ = torch.sort(labels, dim=-1, descending=True)
+    scores = score_matrix * score_mask_matrix
+    score = (scores.sum(-1) / labels.sum(-1)).mean()
+    return score.item()
+
+# label-level average
+# Assume float preds [BxC], labels [BxC] of 0 or 1
+def LWLRAP(preds, labels):
+    # Ranks of the predictions
+    ranked_classes = torch.argsort(preds, dim=-1, descending=True)
+    # i, j corresponds to rank of prediction in row i
+    class_ranks = torch.zeros_like(ranked_classes)
+    for i in range(ranked_classes.size(0)):
+        for j in range(ranked_classes.size(1)):
+            class_ranks[i, ranked_classes[i][j]] = j + 1
+    # Mask out to only use the ranks of relevant GT labels
+    ground_truth_ranks = class_ranks * labels + (1e6) * (1 - labels)
+    # All the GT ranks are in front now
+    sorted_ground_truth_ranks, _ = torch.sort(ground_truth_ranks, dim=-1, descending=False)
+    # Number of GT labels per instance
+    num_labels = labels.sum(-1)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    pos_matrix = torch.tensor(np.array([i+1 for i in range(labels.size(-1))])).unsqueeze(0).to(device)
+    score_matrix = pos_matrix / sorted_ground_truth_ranks
+    score_mask_matrix, _ = torch.sort(labels, dim=-1, descending=True)
+    scores = score_matrix * score_mask_matrix
+    score = scores.sum() / labels.sum()
+    return score.item()
+
+# Sample usage
+# y_true = torch.tensor(np.array([[1, 1, 0], [1, 0, 1], [0, 0, 1]]))
+# y_score = torch.tensor(np.random.randn(3, 3))
+# print(LRAP(y_score, y_true), LWLRAP(y_score, y_true))
+
+
 class Learner(pl.LightningModule):
     def __init__(self, model, config):
         super().__init__()
@@ -41,8 +92,9 @@ class Learner(pl.LightningModule):
         output = output[self.config["globals"]["output_type"]]
         criterion = C.get_criterion(self.config)
         loss = criterion(output, y)
-        self.log('train_loss', loss)
-
+        lwlrap = LWLRAP(output, y)
+        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('train_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         return loss
     
     def validation_step(self, batch, batch_idx):
@@ -51,22 +103,17 @@ class Learner(pl.LightningModule):
         output = output[self.config["globals"]["output_type"]]
         criterion = C.get_criterion(self.config)
         loss = criterion(output, y)
-        self.log('val_loss', loss)
-
+        lwlrap = LWLRAP(output, y)
+        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('val_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         return loss
-
-    # def test_step(self, batch, batch_idx):
-    #     x, _ = batch
-    #     output = self.forward(x)
-    #     output = output[self.config["globals"]["output_type"]]
-
-    #     return output
-
+    
 
     def configure_optimizers(self):
         optimizer = C.get_optimizer(self.model, self.config)
         scheduler = C.get_scheduler(optimizer, self.config)
         return [optimizer], [scheduler]
+
 
 # 関数にconfig(cfg)を渡すデコレータ
 # @hydra.main(config_path='./configs', config_name='ResNet001.yaml')
@@ -120,7 +167,7 @@ def main():
 
         # callback
         model_name = global_config['model_name']
-        # tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name, version=f'fold_{fold + 1}')
+        tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name, version=f'fold_{fold + 1}')
         early_stop_callback = EarlyStopping(monitor='val_loss')
 
         checkpoint_callback = ModelCheckpoint(
@@ -135,7 +182,7 @@ def main():
 
         # train
         trainer = pl.Trainer(
-            logger=[mlf_logger], 
+            logger=[tb_logger, mlf_logger], 
             checkpoint_callback=checkpoint_callback,
             callbacks=[early_stop_callback],
             max_epochs=global_config["num_epochs"],
@@ -144,27 +191,39 @@ def main():
         
         trainer.fit(learner, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
 
-
-    # load checkpoint
-    model = Learner(None, config)
-    checkpoint = torch.load('/content/lightning_logs/version_0/checkpoints/_ckpt_epoch_6.ckpt')
-    model.load_state_dict(checkpoint['state_dict'])
-
-    # 推論結果出力
+    
+    """
+    ##############
+    inference part
+    ##############
+    """
     preds = []
-    model.eval()
-    test_loader = C.get_testloader(sub_df, test_datadir, config, phase="test")
-    with torch.no_grad():
-        for x in tqdm(test_loader):
-            x = x.to(device)
-            output = model(x)
-            output = output[config["globals"]["output_type"]] 
-            preds.append(output.detach().cpu().numpy())
-    preds = np.vstack(preds)
 
-    # make submission file
-    sub_df
-    sub.head()
+    for i in global_config["folds"]:
+        
+        # load checkpoint
+        model = ResNet(config)
+        model = Learner(model, config)
+        ckpt = torch.load(output_dir / f"ResNet-{i}.ckpt")
+        model.load_state_dict(ckpt['state_dict'])
+
+        # 推論結果出力
+        pred = []
+        model.eval().to(device)
+        test_loader = C.get_testloader(sub_df, test_datadir, config, phase="test")
+        
+        with torch.no_grad():
+            for x in tqdm(test_loader):
+                x = x.to(device)
+                output = model(x)
+                output = output[config["globals"]["output_type"]] 
+                pred.append(output.detach().cpu().numpy())
+        pred = np.vstack(pred)
+        preds.append(pred)
+    
+    sub_preds = np.mean(preds, axis=0)
+    sub_df.iloc[:, 1:] = sub_preds
+    sub_df.to_csv(output_dir / "submission.csv", index=False)
 
 
 if __name__ == '__main__':
