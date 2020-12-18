@@ -34,7 +34,7 @@ class SpectrogramDataset(data.Dataset):
         wav_name = sample["resampled_filename"]
         main_species_id = sample["species_id"]
 
-        y, sr = sf.read(self.datadir / str(species_id) / wav_name)
+        y, sr = sf.read(self.datadir / str(main_species_id) / wav_name)
         effective_length = sr * PERIOD
 
         y, labels = self.clip_audio1(y, sr, idx, effective_length, main_species_id)
