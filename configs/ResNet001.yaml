@@ -10,14 +10,14 @@ globals:
   folds:
     - 0
   debug: True
-  kaggle: True
+  kaggle: False
 
 mlflow:
     experiment_name: rainforest
-    tracking_uri: mlflow
+    tracking_uri: mlruns
   
 data:
-  root: ../
+  root: ./
   use_train_data:
     - tp
    #  - fp 

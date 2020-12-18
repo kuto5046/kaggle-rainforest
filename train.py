@@ -104,7 +104,7 @@ class Learner(pl.LightningModule):
         criterion = C.get_criterion(self.config)
         loss = criterion(output, y)
         lwlrap = LWLRAP(output, y)
-        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         self.log('val_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         return loss
     
@@ -137,11 +137,14 @@ def main():
     utils.set_seed(global_config['seed'])
     device = C.get_device(global_config["device"])
 
-    # mlflow
+    # logger
     os.makedirs(config["mlflow"]["tracking_uri"], exist_ok=True)
     mlf_logger = MLFlowLogger(
     experiment_name=config["mlflow"]["experiment_name"],
     tracking_uri=config["mlflow"]["tracking_uri"])
+
+    model_name = global_config['model_name']
+    tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name)
     
     # data
     df, datadir = C.get_metadata(config)
@@ -166,14 +169,13 @@ def main():
         }
 
         # callback
-        model_name = global_config['model_name']
-        tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name, version=f'fold_{fold + 1}')
         early_stop_callback = EarlyStopping(monitor='val_loss')
-
         checkpoint_callback = ModelCheckpoint(
             monitor='val_loss',
+            mode='min',
             dirpath=output_dir,
-            filename=f'{model_name}-{fold:1d}')
+            verbose=True,
+            filename=f'{model_name}-{fold}')
 
        
         # model
