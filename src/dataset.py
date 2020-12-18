@@ -37,11 +37,17 @@ class SpectrogramDataset(data.Dataset):
         y, sr = sf.read(self.datadir / str(main_species_id) / wav_name)
         effective_length = sr * PERIOD
 
-        y, labels = self.clip_audio1(y, sr, idx, effective_length, main_species_id)
-        # y, labels = self.clip_audio2(y, sr, idx, effective_length, main_species_id)
+        y, labels = self.clip_time_audio1(y, sr, idx, effective_length, main_species_id)
+        # y, labels = self.clip_time_audio2(y, sr, idx, effective_length, main_species_id)
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
+
+        # dataframeから周波数帯域を取り出し更新
+        fmin = int(np.round(self.df.f_min.values[idx]))*0.9  # buffer
+        fmax = int(np.round(self.df.f_max.values[idx]))*1.1  # buffer
+        self.melspectrogram_parameters["fmin"] = fmin
+        self.melspectrogram_parameters["fmax"] = fmax
 
         melspec = librosa.feature.melspectrogram(y, sr=sr, **self.melspectrogram_parameters)
         melspec = librosa.power_to_db(melspec).astype(np.float32)
@@ -60,7 +66,7 @@ class SpectrogramDataset(data.Dataset):
         return image, labels
 
     # こちらはlabelに限定しているのでアライさんの処理は不要
-    def clip_audio1(self, y, sr, idx, effective_length, main_species_id):
+    def clip_time_audio1(self, y, sr, idx, effective_length, main_species_id):
         # dfから時間ラベルをflame単位で取得しclip
         t_min = int(np.round(self.df.t_min.values[idx]*sr))
         t_max = int(np.round(self.df.t_max.values[idx]*sr))
@@ -85,7 +91,7 @@ class SpectrogramDataset(data.Dataset):
         return y, labels
 
     # こちらはlabel付けにバッファを取っているのでアライさんの処理が必要
-    def clip_audio2(self, y, sr, idx, effective_length, main_species_id):
+    def clip_time_audio2(self, y, sr, idx, effective_length, main_species_id):
 
         t_min = self.df.t_min.values[idx]*sr
         t_max = self.df.t_max.values[idx]*sr
