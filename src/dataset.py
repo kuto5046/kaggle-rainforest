@@ -39,7 +39,6 @@ class SpectrogramDataset(data.Dataset):
         effective_length = sr * PERIOD
 
         # 破損しているデータはskip
-        
         if len(y) == 0:
             self.count += 1
             print(f"num_unknown_audio: {self.count}")

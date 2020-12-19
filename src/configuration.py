@@ -39,9 +39,7 @@ def get_scheduler(optimizer, config: dict):
 def get_criterion(config: dict):
     loss_config = config["loss"]
     loss_name = loss_config["name"]
-    loss_params = {} if loss_config.get("params") is None else loss_config.get(
-        "params")
-
+    loss_params = {} if loss_config.get("params") is None else loss_config.get("params")
 
     # TODO 要変更
     pos_weight = torch.ones(loss_config["num_classes"])
