@@ -284,7 +284,7 @@ class SpectrogramTestDataset(data.Dataset):
             image = (image / 255.0).astype(np.float32)
             images.append(image)
 
-        labels = None
+        labels = -1  # labelないので-1を返す
         return images, labels
 
 
