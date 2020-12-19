@@ -11,13 +11,9 @@ from src.dataset import SpectrogramDataset
 # import src.configuration as C
 from resnest.torch import resnest50
 
-class ResNet(nn.Module):
-    def __init__(self, config):
-        super(ResNet, self).__init__()
-        self.config = config
-        model_config = config['model']
-        pretrained = model_config['pretrained']
-        num_classes = model_config['num_classes']
+class ResNet50(nn.Module):
+    def __init__(self, pretrained, num_classes):
+        super(ResNet50, self).__init__()
 
         model = torchvision.models.resnet50(pretrained=pretrained)
         layers = list(model.children())[:-2]  # 後ろ２層を除く(adaptiveAvgpooling(1,1)とlinear)
@@ -48,17 +44,13 @@ class ResNet(nn.Module):
         }
 
 
-class ResNeSt(nn.Module):
-    def __init__(self, config):
-        super(ResNeSt, self).__init__()
-        self.config = config
-        model_config = config['model']
-        pretrained = model_config['pretrained']
-        num_classes = model_config['num_classes']
+class ResNeSt50(nn.Module):
+    def __init__(self, pretrained, num_classes):
+        super(ResNeSt50, self).__init__()
 
-        model = resnest50(pretrained=pretrained)
-        del model.fc
-        model.fc = nn.Sequential(
+        self.model = resnest50(pretrained=pretrained)
+        del self.model.fc
+        self.model.fc = nn.Sequential(
             nn.Linear(2048, 1024),
             nn.ReLU(),
             nn.Dropout(p=0.2),
@@ -66,8 +58,7 @@ class ResNeSt(nn.Module):
             nn.ReLU(),
             nn.Dropout(p=0.2),
             nn.Linear(1024, num_classes)
-)
-
+        )
 
     def forward(self, x):
         x = self.model(x)
@@ -79,3 +70,19 @@ class ResNeSt(nn.Module):
             "multiclass_proba": multiclass_proba,
             "multilabel_proba": multilabel_proba
         }
+
+
+def get_model(config):
+    model_config = config["model"]
+    model_name = model_config["name"]
+    model_params = model_config["params"]
+
+    if model_name == "ResNet50":
+        model = ResNet50(**model_params)
+        return model
+    elif model_name == "ResNeSt50":
+        model = ResNeSt50(**model_params)
+        return model
+    else:
+        raise NotImplementedError
+

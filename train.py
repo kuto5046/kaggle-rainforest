@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 
-from src.models import ResNet
+from src.models import get_model
 import src.configuration as C
 import src.utils as utils
 
@@ -77,11 +77,10 @@ def LWLRAP(preds, labels):
 
 
 class Learner(pl.LightningModule):
-    def __init__(self, model, config):
+    def __init__(self, config):
         super().__init__()
         self.config = config
-        self.model = model
-        
+        self.model = get_model(config)
 
     def forward(self, x):
         return self.model(x)
@@ -121,7 +120,7 @@ def main():
     warnings.filterwarnings('ignore')
 
     # config
-    config = utils.load_config("configs/ResNet001.yaml")
+    config = utils.load_config("configs/ResNeSt001.yaml")
     global_config = config['globals']
 
     # output config
@@ -180,8 +179,7 @@ def main():
 
        
         # model
-        model = ResNet(config)
-        learner = Learner(model, config)
+        learner = Learner(config)
 
         # train
         trainer = pl.Trainer(
@@ -205,8 +203,7 @@ def main():
     for i in global_config["folds"]:
         
         # load checkpoint
-        model = ResNet(config)
-        model = Learner(model, config)
+        model = Learner(config)
         ckpt = torch.load(checkpoint_callback.best_model_path)
         model.load_state_dict(ckpt['state_dict'])
 
