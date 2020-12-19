@@ -30,7 +30,7 @@ wav:オリジナルデータ
 mp3:非可逆圧縮形式
 flac:可逆圧縮形式
 
-flac → mp3に変換することで軽量化する
+flac
 
 ### データについて
 trainのcsvは２種類存在する
@@ -117,10 +117,13 @@ clipに関しては以下のdiscussionで3種類提案されている
 一緒に生息している鳥とかを特定するのに良いかも?
 https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/200922#1102470
 
+アライさんは10sのrandom crop
+https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/198132#1095233
 
 ### lossについて
-アライさんのbirdcallのPANNS solutionではBCELossが使われていた(outputがlogititの場合はBCElogitsLoss)
-とりあえずBCELossで進めてみる
+以下のdiscussionをみるにcustom lossが重要そう
+
+https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/198132
 
 
 ### output_typeについて
@@ -142,3 +145,51 @@ output_dict = {
     "clipwise_output": clipwise_output
 }
 
+
+metricの都合上、予測値は大事ではなく順位が重要
+1,0に離散化するのは無しかも
+
+### SRについて
+現在はbirdcallと同じようにSR＝32000で実験している
+公開notebookは48000が多い
+spectrogramsはSR/2までの周波数を捕捉する
+f_maxは14000であることから問題はなさそう
+
+
+### 予測の仕方について
+アライさん
+validation/testでは60sの音声を取り出したのちN(s)単位に分割し予測後各クリップの最大確率を取る
+https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/201920#1107868
+
+
+fffrrt
+accuracyを使っている？
+https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/201920#1104879
+
+
+### [2020/12/19]
+Disucussion top vote5本を読む
+
+#### [train_tp vs. train_fp](https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/197866)  
+train_tp: 専門家によってtmin-tmax内(freqも)に該当の鳥種が含まれていることがチェック済み
+train_fp: 専門家によってtmin-tmax内に該当の鳥種が含まれていないことがチェック済み
+
+time labelのついていない箇所にも鳥が鳴いている可能性はある
+
+fpのflagは相互相関アルゴリズムによって検出されたもの
+tpとfpのflagには正の相関がある
+
+訓練時はsegment labelで行うがtestはfile labelで行う
+
+segment外では対象以外の鳥の鳴き声もある
+
+#### [Best Single Model CV-LB](https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/198132)  
+
+
+
+lossとmodelのoutputをlogitsにしてresnestに変更すると
+CV 0.5 → 0.7
+になった
+ただしtestのところが問題あり
+
+testデータは全て1分(破損しているものもあるので要チェック)

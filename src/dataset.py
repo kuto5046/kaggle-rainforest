@@ -148,7 +148,11 @@ class SpectrogramDataset(data.Dataset):
         
         return y, labels
 
-
+"""
+1. audioから60s取り出す(testはもともと60s)
+2. 10s単位に切り出して予測
+3. 集計して最大確率を取る(最大確率とはどういうこと？)
+"""
 class SpectrogramTestDataset(data.Dataset):
     def __init__(self,
                  df: pd.DataFrame,
@@ -157,6 +161,7 @@ class SpectrogramTestDataset(data.Dataset):
                  waveform_transforms=None,
                  spectrogram_transforms=None,
                  melspectrogram_parameters={}):
+
         self.df = df
         self.datadir = datadir
         self.img_size = img_size
@@ -234,4 +239,3 @@ def mono_to_color(X: np.ndarray,
         # Just zero
         V = np.zeros_like(Xstd, dtype=np.uint8)
     return V
-

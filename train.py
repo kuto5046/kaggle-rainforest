@@ -143,7 +143,7 @@ def main():
     experiment_name=config["mlflow"]["experiment_name"],
     tags=config["mlflow"]["tags"])
 
-    model_name = global_config['model_name']
+    model_name = config["model"]['name']
     tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name)
     
     # data

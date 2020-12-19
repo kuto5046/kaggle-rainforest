@@ -1,6 +1,10 @@
 /input/
 /spectrogram-tree/
 settings.json
+/output/debug
+*.ckpt
+/.vscode/
+debug.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
