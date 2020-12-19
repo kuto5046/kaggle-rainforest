@@ -118,7 +118,7 @@ def get_loader(df: pd.DataFrame,
             raise NotImplementedError
     # valid    
     elif phase == 'valid':
-        if dataset_config["name"] == "SpectrogramValDataset":
+        if dataset_config["name"] == "SpectrogramDataset":
             dataset = datasets.SpectrogramValDataset(
                 df,
                 datadir=datadir,
@@ -130,7 +130,7 @@ def get_loader(df: pd.DataFrame,
             raise NotImplementedError
     # test
     else:
-        if dataset_config["name"] == "SpectrogramTestDataset":
+        if dataset_config["name"] == "SpectrogramDataset":
             dataset = datasets.SpectrogramTestDataset(
                 df,
                 datadir=datadir,
