@@ -96,17 +96,44 @@ class Learner(pl.LightningModule):
         self.log('train_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         return loss
     
+    # batchのxはlist型
     def validation_step(self, batch, batch_idx):
-        x, y = batch
-        output = self.forward(x)
-        output = output[self.config["globals"]["output_type"]]
+        x_list, y = batch
+
+        outputs = []
+        for x in x_list:
+            output = self.forward(x)
+            output = output[self.config["globals"]["output_type"]]
+            print(f'valid output shape{output.shape}'')
+            outputs.append(output)
+
+
+        pred = np.sum(outputs)
+    
         criterion = C.get_criterion(self.config)
-        loss = criterion(output, y)
-        lwlrap = LWLRAP(output, y)
+        loss = criterion(pred, y)
+        lwlrap = LWLRAP(pred, y)
         self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         self.log('val_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        
         return loss
-    
+
+    # batchのxはlist型
+    def test_step(self, batch, batch_idx):
+        x_list, _ = batch
+
+        outputs = []  # 予測値の格納用
+        for x in x_list:
+            output = self.forward(x)
+            output = output[self.config["globals"]["output_type"]]
+            outputs.append(output)
+        # リスト内のデータで予測値をとり和をとる？
+        # batchでerror出そう
+        # axisはどっちだ
+        pred = np.sum(outputs)
+
+        return pred
+
 
     def configure_optimizers(self):
         optimizer = C.get_optimizer(self.model, self.config)
