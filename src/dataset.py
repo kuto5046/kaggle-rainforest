@@ -154,6 +154,74 @@ valid/testではtime flagは使わない
 10s単位に分割してリスト化してimage変換
 """
 
+class SpectrogramValDataset(data.Dataset):
+    def __init__(self,
+                 df: pd.DataFrame,
+                 datadir: Path,
+                 img_size=224,
+                 waveform_transforms=None,
+                 spectrogram_transforms=None,
+                 melspectrogram_parameters={}):
+
+        self.df = df
+        self.datadir = datadir
+        self.img_size = img_size
+        self.waveform_transforms = waveform_transforms
+        self.spectrogram_transforms = spectrogram_transforms
+        self.melspectrogram_parameters = melspectrogram_parameters
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx: int):
+        sample = self.df.loc[idx, :]
+        wav_name = sample["resampled_filename"]
+        main_species_id = sample["species_id"]
+        total_time = 60  # 音声を全て60sに揃える
+        y, sr = sf.read(self.datadir / str(main_species_id) / wav_name)
+
+        if self.waveform_transforms:
+            y = self.waveform_transforms(y)
+
+        # データの長さを全てtotal_time分にする
+        len_y = len(y)
+        total_length = total_time * sr
+        if len_y < total_length:
+            new_y = np.zeros(total_length, dtype=y.dtype)
+            start = np.random.randint(total_length - len_y)
+            new_y[start:start + len_y] = y
+            y = new_y.astype(np.float32)
+        elif len_y > total_length:
+            start = np.random.randint(len_y - total_length)
+            y = y[start:start + total_length].astype(np.float32)
+        else:
+            y = y.astype(np.float32)
+
+        # PERIODO単位に分割(現在は6等分)
+        split_y = np.split(y, total_time/PERIOD)
+
+        images = []
+        # 分割した音声を一つずつ画像化してリストで返す
+        for y in split_y:
+            melspec = librosa.feature.melspectrogram(y, sr=sr, **self.melspectrogram_parameters)
+            melspec = librosa.power_to_db(melspec).astype(np.float32)
+
+            if self.spectrogram_transforms:
+                melspec = self.spectrogram_transforms(melspec)
+            else:
+                pass
+            image = mono_to_color(melspec)
+            height, width, _ = image.shape
+            image = cv2.resize(image, (int(width * self.img_size / height), self.img_size))
+            image = np.moveaxis(image, 2, 0)
+            image = (image / 255.0).astype(np.float32)
+            images.append(image)
+
+        labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
+        labels[main_species_id] = 1.0
+        return images, labels
+
+
 class SpectrogramTestDataset(data.Dataset):
     def __init__(self,
                  df: pd.DataFrame,
@@ -190,7 +258,7 @@ class SpectrogramTestDataset(data.Dataset):
             start = np.random.randint(total_length - len_y)
             new_y[start:start + len_y] = y
             y = new_y.astype(np.float32)
-        elif len_y > effective_length:
+        elif len_y > total_length:
             start = np.random.randint(len_y - total_length)
             y = y[start:start + total_length].astype(np.float32)
         else:
@@ -215,14 +283,8 @@ class SpectrogramTestDataset(data.Dataset):
             image = np.moveaxis(image, 2, 0)
             image = (image / 255.0).astype(np.float32)
             images.append(image)
-        # valid
-        if 'species_id' in self.df.columns:
-            labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
-            labels[main_species_id] = 1.0
-        # test
-        else:
-            labels = None
-        
+
+        labels = None
         return images, labels
 
 
