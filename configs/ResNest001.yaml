@@ -1,11 +1,11 @@
 globals:
   seed: 42
   device: cuda
-  num_epochs: 1
+  num_epochs: 100
   output_dir: output
   minimize_metric: False
   model_name: ResNest
-  output_type: multilabel_proba
+  output_type: ligits
   weights:
   folds:
     - 0
@@ -19,7 +19,7 @@ mlflow:
     # tracking_uri: mlruns
   
 data:
-  root: ./
+  root: ../
   use_train_data:
     - tp
    #  - fp 
@@ -31,6 +31,9 @@ data:
   train_fp_audio_path: input/rainforest-resample-data/resample-train-fp/
   test_audio_path: input/rainforest-resample-data/resample-test/
   sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
+  skip:
+    - 1c46aa776.wav
+    - bc32d8c84.wav
 
 dataset:
   name: SpectrogramDataset
@@ -41,7 +44,7 @@ dataset:
     fmax: 16000
 
 loss:
-  name: BCEWithLogitLoss
+  name: BCEWithLogitsLoss
   num_classes: 24
   params:
     pos_weight: None
@@ -64,20 +67,21 @@ split:
     shuffle: True
 
 model:
-  name: resnest50
-  pretrained: True
-  num_classes: 24
+  name: ResNeSt50
+  params:
+    pretrained: True
+    num_classes: 24
 
 loader:
   train:
     batch_size: 32
     shuffle: True
-    num_workers: 4
+    num_workers: 1
   valid:
     batch_size: 50
     shuffle: False
-    num_workers: 4
+    num_workers: 1
   test:
     batch_size: 40
     shuffle: False
-    num_workers: 4
+    num_workers: 1
