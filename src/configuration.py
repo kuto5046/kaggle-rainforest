@@ -105,47 +105,42 @@ def get_loader(df: pd.DataFrame,
                datadir: Path,
                config: dict,
                phase: str):
+
     dataset_config = config["dataset"]
-    if dataset_config["name"] == "SpectrogramDataset":
-        waveform_transforms = get_waveform_transforms(config)
-        spectrogram_transforms = get_spectrogram_transforms(config)
-        melspectrogram_parameters = dataset_config["params"]
-        loader_config = config["loader"][phase]
 
-        dataset = datasets.SpectrogramDataset(
-            df,
-            datadir=datadir,
-            img_size=dataset_config["img_size"],
-            waveform_transforms=waveform_transforms,
-            spectrogram_transforms=spectrogram_transforms,
-            melspectrogram_parameters=melspectrogram_parameters)
-    else:
-        raise NotImplementedError
+    if phase == 'train':
+        if dataset_config["name"] == "SpectrogramDataset":
+            waveform_transforms = get_waveform_transforms(config)
+            spectrogram_transforms = get_spectrogram_transforms(config)
+            melspectrogram_parameters = dataset_config["params"]
+            loader_config = config["loader"][phase]
 
+            dataset = datasets.SpectrogramDataset(
+                df,
+                datadir=datadir,
+                img_size=dataset_config["img_size"],
+                waveform_transforms=waveform_transforms,
+                spectrogram_transforms=spectrogram_transforms,
+                melspectrogram_parameters=melspectrogram_parameters)
+        else:
+            raise NotImplementedError
+        
+    else:  # validとtest
+        if dataset_config["name"] == "SpectrogramDataset":
+            waveform_transforms = get_waveform_transforms(config)
+            spectrogram_transforms = get_spectrogram_transforms(config)
+            melspectrogram_parameters = dataset_config["params"]
+            loader_config = config["loader"][phase]
+
+            dataset = datasets.SpectrogramTestDataset(
+                df,
+                datadir=datadir,
+                img_size=dataset_config["img_size"],
+                waveform_transforms=waveform_transforms,
+                spectrogram_transforms=spectrogram_transforms,
+                melspectrogram_parameters=melspectrogram_parameters)
+        else:
+            raise NotImplementedError
     loader = data.DataLoader(dataset, **loader_config)
     return loader
 
-def get_testloader(df: pd.DataFrame,
-               datadir: Path,
-               config: dict,
-               phase: str):
-
-    dataset_config = config["dataset"]
-    if dataset_config["name"] == "SpectrogramDataset":
-        waveform_transforms = get_waveform_transforms(config)
-        spectrogram_transforms = get_spectrogram_transforms(config)
-        melspectrogram_parameters = dataset_config["params"]
-        loader_config = config["loader"][phase]
-
-        dataset = datasets.SpectrogramTestDataset(
-            df,
-            datadir=datadir,
-            img_size=dataset_config["img_size"],
-            waveform_transforms=waveform_transforms,
-            spectrogram_transforms=spectrogram_transforms,
-            melspectrogram_parameters=melspectrogram_parameters)
-    else:
-        raise NotImplementedError
-
-    loader = data.DataLoader(dataset, **loader_config)
-    return loader
