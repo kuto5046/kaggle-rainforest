@@ -19,16 +19,12 @@ mlflow:
     # tracking_uri: mlruns
   
 data:
-  root: ./
+  root: ../
   use_train_data:
     - tp
    #  - fp 
   train_df_path: input/rainforest-resample-data/resample-train/train.csv
   train_audio_path: input/rainforest-resample-data/resample-train/
-  train_tp_df_path: input/rainforest-resample-data/resample-train-tp/train_tp.csv
-  train_tp_audio_path: input/rainforest-resample-data/resample-train-tp/
-  train_fp_df_path: input/rainforest-resample-data/resample-train-fp/train_fp.csv
-  train_fp_audio_path: input/rainforest-resample-data/resample-train-fp/
   test_audio_path: input/rainforest-resample-data/resample-test/
   sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
 

@@ -67,27 +67,23 @@ def get_split(config: dict):
 def get_metadata(config: dict):
     data_config = config["data"]
     train = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_df_path"])).reset_index(drop=True)
-    train_tp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_tp_df_path"])).reset_index(drop=True)
-    train_fp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_fp_df_path"])).reset_index(drop=True)
     train_audio_path = Path(data_config["root"]) / Path(data_config["train_audio_path"])
-    train_tp_audio_path = Path(data_config["root"]) / Path(data_config["train_tp_audio_path"])
-    train_fp_audio_path = Path(data_config["root"]) / Path(data_config["train_fp_audio_path"])
 
     # 破損しているファイルは除く
-    drop_ids = data_config["skip"]
-    drop_idx = train[train["recording_id"].isin(drop_ids)].index
-    train = train.drop(index=drop_idx).reset_index(drop=True)
+    # drop_ids = data_config["skip"]
+    # drop_idx = train[train["recording_id"].isin(drop_ids)].index
+    # train = train.drop(index=drop_idx).reset_index(drop=True)
 
-    drop_idx = train_tp[train_tp["recording_id"].isin(drop_ids)].index
-    train_tp = train_tp.drop(index=drop_idx).reset_index(drop=True)
+    # drop_idx = train_tp[train_tp["recording_id"].isin(drop_ids)].index
+    # train_tp = train_tp.drop(index=drop_idx).reset_index(drop=True)
 
-    drop_idx = train_fp[train_fp["recording_id"].isin(drop_ids)].index
-    train_fp = train_fp.drop(index=drop_idx).reset_index(drop=True)
+    # drop_idx = train_fp[train_fp["recording_id"].isin(drop_ids)].index
+    # train_fp = train_fp.drop(index=drop_idx).reset_index(drop=True)
     
     if data_config['use_train_data'] == ['tp']:
-        return train_tp, train_tp_audio_path
+        return train[train['data_type']=='tp'], train_audio_path
     elif data_config['use_train_data'] == ['fp']:
-        return train_fp, train_fp_audio_path
+        return train[train['data_type']=='fp'], train_audio_path
     elif data_config['use_train_data'] == ['tp', 'fp']:
         return train, train_audio_path
     else:
