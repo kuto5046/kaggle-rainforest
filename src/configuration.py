@@ -69,18 +69,8 @@ def get_metadata(config: dict):
     train = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_df_path"])).reset_index(drop=True)
     train_audio_path = Path(data_config["root"]) / Path(data_config["train_audio_path"])
 
-    # 破損しているファイルは除く
-    # drop_ids = data_config["skip"]
-    # drop_idx = train[train["recording_id"].isin(drop_ids)].index
-    # train = train.drop(index=drop_idx).reset_index(drop=True)
-
-    # drop_idx = train_tp[train_tp["recording_id"].isin(drop_ids)].index
-    # train_tp = train_tp.drop(index=drop_idx).reset_index(drop=True)
-
-    # drop_idx = train_fp[train_fp["recording_id"].isin(drop_ids)].index
-    # train_fp = train_fp.drop(index=drop_idx).reset_index(drop=True)
-    
     if data_config['use_train_data'] == ['tp']:
+        # train = train.iloc[:500,:]  # メモリ対策
         return train[train['data_type']=='tp'], train_audio_path
     elif data_config['use_train_data'] == ['fp']:
         return train[train['data_type']=='fp'], train_audio_path
