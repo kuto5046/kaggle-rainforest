@@ -219,7 +219,7 @@ class SpectrogramValDataset(data.Dataset):
 
         labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
         labels[main_species_id] = 1.0
-        return images, labels
+        return np.asarray(images), labels
 
 
 class SpectrogramTestDataset(data.Dataset):
@@ -285,7 +285,7 @@ class SpectrogramTestDataset(data.Dataset):
             images.append(image)
 
         labels = -1  # labelないので-1を返す
-        return images, labels
+        return np.asarray(images), labels
 
 
 def mono_to_color(X: np.ndarray,
