@@ -109,7 +109,7 @@ def get_loader(df: pd.DataFrame,
     # valid    
     elif phase == 'valid':
         if dataset_config["name"] == "SpectrogramDataset":
-            dataset = datasets.SpectrogramValDataset(
+            dataset = datasets.SpectrogramDataset(
                 df,
                 datadir=datadir,
                 img_size=dataset_config["img_size"],
