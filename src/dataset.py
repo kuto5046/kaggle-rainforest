@@ -1,5 +1,6 @@
 
 import cv2
+import random
 import librosa
 import numpy as np
 import pandas as pd
@@ -219,7 +220,8 @@ class SpectrogramValDataset(data.Dataset):
 
         labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
         labels[main_species_id] = 1.0
-        return np.asarray(images), labels
+        
+        return random.choice(images), labels
 
 
 class SpectrogramTestDataset(data.Dataset):
@@ -285,7 +287,7 @@ class SpectrogramTestDataset(data.Dataset):
             images.append(image)
 
         labels = -1  # labelないので-1を返す
-        return np.asarray(images), labels
+        return random.choice(images), labels
 
 
 def mono_to_color(X: np.ndarray,
