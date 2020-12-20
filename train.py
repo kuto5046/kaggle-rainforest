@@ -70,11 +70,6 @@ def LWLRAP(preds, labels):
     score = scores.sum() / labels.sum()
     return score.item()
 
-# Sample usage
-# y_true = torch.tensor(np.array([[1, 1, 0], [1, 0, 1], [0, 0, 1]]))
-# y_score = torch.tensor(np.random.randn(3, 3))
-# print(LRAP(y_score, y_true), LWLRAP(y_score, y_true))
-
 
 class Learner(pl.LightningModule):
     def __init__(self, config):
@@ -88,14 +83,14 @@ class Learner(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         output = self.forward(x)
-        output = output[self.config["globals"]["output_type"]]
+        pred = output[self.config["globals"]["output_type"]]
         criterion = C.get_criterion(self.config)
-        loss = criterion(output, y)
-        lwlrap = LWLRAP(output, y)
-        acc = accuracy_score(y, output)
+        loss = criterion(pred, y)
+        lwlrap = LWLRAP(pred, y)
+        acc = accuracy_score(y, pred)
         self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         self.log('train_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        self.log('train_acc', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log('train_acc', acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         return loss
     
     # batchのxはlist型
@@ -117,7 +112,7 @@ class Learner(pl.LightningModule):
         acc = accuracy_score(y, pred)
         self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         self.log('val_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        self.log('val_acc', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)  
+        self.log('val_acc', acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)  
         return loss
 
 
