@@ -17,7 +17,7 @@ from torchvision import transforms
 from src.models import get_model
 import src.configuration as C
 import src.utils as utils
-
+from sklearn.metrics import accuracy_score
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -92,8 +92,10 @@ class Learner(pl.LightningModule):
         criterion = C.get_criterion(self.config)
         loss = criterion(output, y)
         lwlrap = LWLRAP(output, y)
-        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        acc = accuracy_score(y, output)
+        self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         self.log('train_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log('train_acc', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         return loss
     
     # batchのxはlist型
@@ -104,35 +106,19 @@ class Learner(pl.LightningModule):
         for x in x_list:
             output = self.forward(x)
             output = output[self.config["globals"]["output_type"]]
-            print(f'valid output shape{output.shape}'')
-            outputs.append(output)
+            outputs.append(output.detach().cpu().numpy())
 
-
-        pred = np.sum(outputs)
+        pred = np.max(outputs, axis=0)
+        pred = torch.tensor(pred).to(self.config["globals"]["device"])
     
         criterion = C.get_criterion(self.config)
         loss = criterion(pred, y)
         lwlrap = LWLRAP(pred, y)
+        acc = accuracy_score(y, pred)
         self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         self.log('val_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        
+        self.log('val_acc', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)  
         return loss
-
-    # batchのxはlist型
-    def test_step(self, batch, batch_idx):
-        x_list, _ = batch
-
-        outputs = []  # 予測値の格納用
-        for x in x_list:
-            output = self.forward(x)
-            output = output[self.config["globals"]["output_type"]]
-            outputs.append(output)
-        # リスト内のデータで予測値をとり和をとる？
-        # batchでerror出そう
-        # axisはどっちだ
-        pred = np.sum(outputs)
-
-        return pred
 
 
     def configure_optimizers(self):
@@ -147,7 +133,7 @@ def main():
     warnings.filterwarnings('ignore')
 
     # config
-    config = utils.load_config("configs/ResNeSt001.yaml")
+    config = utils.load_config("configs/ResNet001.yaml")
     global_config = config['globals']
 
     # output config
@@ -164,14 +150,23 @@ def main():
     device = C.get_device(global_config["device"])
 
     # logger
-    # os.makedirs(config["mlflow"]["tracking_uri"], exist_ok=True)
-    config["mlflow"]["tags"]["timestamp"] = timestamp
-    mlf_logger = MLFlowLogger(
-    experiment_name=config["mlflow"]["experiment_name"],
-    tags=config["mlflow"]["tags"])
+    loggers = []
+    if global_config["debug"]==True:
+        mlf_logger = None
+    else:
+        # os.makedirs(config["mlflow"]["tracking_uri"], exist_ok=True)
+        config["mlflow"]["tags"]["timestamp"] = timestamp
+        config["mlflow"]["tags"]["model_name"] = config["model"]["name"]
+        config["mlflow"]["tags"]["loss_name"] = config["loss"]["name"]
+        mlf_logger = MLFlowLogger(
+        experiment_name=config["mlflow"]["experiment_name"],
+        tags=config["mlflow"]["tags"])
+        loggers.append(mlf_logger)
+
 
     model_name = config["model"]['name']
     tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name)
+    loggers.append(tb_logger)
     
     # data
     df, datadir = C.get_metadata(config)
@@ -210,7 +205,7 @@ def main():
 
         # train
         trainer = pl.Trainer(
-            logger=[tb_logger, mlf_logger], 
+            logger=loggers, 
             checkpoint_callback=checkpoint_callback,
             callbacks=[early_stop_callback],
             max_epochs=global_config["num_epochs"],
@@ -225,33 +220,41 @@ def main():
     inference part
     ##############
     """
-    preds = []
 
+    total_preds = []  # 全体の結果を格納
     for i in global_config["folds"]:
-        
+        fold_preds = []  # foldの結果を格納
+    
         # load checkpoint
         model = Learner(config)
-        ckpt = torch.load(checkpoint_callback.best_model_path)
+        ckpt = torch.load(checkpoint_callback.best_model_path)  # TODO foldごとのモデルを取得できるようにする
         model.load_state_dict(ckpt['state_dict'])
 
         # 推論結果出力
-        pred = []
         model.eval().to(device)
-        test_loader = C.get_testloader(sub_df, test_datadir, config, phase="test")
-        
+        test_loader = C.get_loader(sub_df, test_datadir, config, phase="test")
+
         with torch.no_grad():
-            for x in tqdm(test_loader):
-                x = x.to(device)
-                output = model(x)
-                output = output[config["globals"]["output_type"]] 
-                pred.append(output.detach().cpu().numpy())
-        pred = np.vstack(pred)
-        preds.append(pred)
-    
-    sub_preds = np.mean(preds, axis=0)
+            for x_list, _ in tqdm(test_loader):
+                
+                outputs = []  # 同じaudio_idの結果を格納
+                for x in x_list:
+                    x = x.to(config['globals']['device'])
+                    output = model(x)
+                    output = output[config["globals"]["output_type"]]
+                    outputs.append(output.detach().cpu().numpy())
+                
+                # batchの予測値
+                agg_pred = np.max(outputs, axis=0)  # 同じaudio_idの結果を集約する
+                fold_preds.append(agg_pred)
+            
+            fold_preds = np.vstack(fold_preds)  # 全データを１つのarrayにつなげてfoldの予測とする
+        total_preds.append(fold_preds)  # foldの予測結果を格納
+
+    sub_preds = np.mean(total_preds, axis=0)  # foldで平均を取る
     sub_df.iloc[:, 1:] = sub_preds
     sub_df.to_csv(output_dir / "submission.csv", index=False)
-
+        
 
 if __name__ == '__main__':
     main()
