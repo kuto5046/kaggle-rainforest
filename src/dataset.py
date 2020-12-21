@@ -36,7 +36,7 @@ class SpectrogramDataset(data.Dataset):
         wav_name = sample["resampled_filename"]
         main_species_id = sample["species_id"]
 
-        y, sr = sf.read(self.datadir / str(main_species_id) / wav_name)
+        y, sr = sf.read(self.datadir / str(main_species_id) / wav_name, samplerate=48000)
         effective_length = sr * PERIOD
 
         # 破損しているデータはskip
@@ -66,7 +66,7 @@ class SpectrogramDataset(data.Dataset):
             pass
 
         image = mono_to_color(melspec)
-        height, width, _ = image.shape
+        # height, width, _ = image.shape
         # image = cv2.resize(image, (int(width * self.img_size / height), self.img_size))
         image = cv2.resize(image, (400, 224))
         image = np.moveaxis(image, 2, 0)
@@ -180,7 +180,7 @@ class SpectrogramValDataset(data.Dataset):
         wav_name = sample["resampled_filename"]
         main_species_id = sample["species_id"]
         total_time = 60  # 音声を全て60sに揃える
-        y, sr = sf.read(self.datadir / str(main_species_id) / wav_name)
+        y, sr = sf.read(self.datadir / str(main_species_id) / wav_name, samplerate=48000)
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
@@ -213,7 +213,7 @@ class SpectrogramValDataset(data.Dataset):
             else:
                 pass
             image = mono_to_color(melspec)
-            height, width, _ = image.shape
+            # height, width, _ = image.shape
             # image = cv2.resize(image, (int(width * self.img_size / height), self.img_size))
             image = cv2.resize(image, (400, 224))
             image = np.moveaxis(image, 2, 0)
@@ -223,7 +223,7 @@ class SpectrogramValDataset(data.Dataset):
         labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
         labels[main_species_id] = 1.0
         
-        return random.choice(images), labels
+        return images, labels
 
 
 class SpectrogramTestDataset(data.Dataset):
@@ -249,7 +249,7 @@ class SpectrogramTestDataset(data.Dataset):
         sample = self.df.loc[idx, :]
         recording_id = sample["recording_id"]
         total_time = 60  # 音声を全て60sに揃える
-        y, sr = sf.read(self.datadir / f"{recording_id}.wav")
+        y, sr = sf.read(self.datadir / f"{recording_id}.wav", samplerate=48000)
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
@@ -282,7 +282,7 @@ class SpectrogramTestDataset(data.Dataset):
             else:
                 pass
             image = mono_to_color(melspec)
-            height, width, _ = image.shape
+            # height, width, _ = image.shape
             # image = cv2.resize(image, (int(width * self.img_size / height), self.img_size))
             image = cv2.resize(image, (400, 224))
             image = np.moveaxis(image, 2, 0)
@@ -290,7 +290,7 @@ class SpectrogramTestDataset(data.Dataset):
             images.append(image)
 
         labels = -1  # labelないので-1を返す
-        return random.choice(images), labels
+        return images, labels
 
 
 def mono_to_color(X: np.ndarray,
