@@ -37,7 +37,7 @@ class SpectrogramDataset(data.Dataset):
         sample = self.df.loc[idx, :]
         recording_id = sample["recording_id"]
         main_species_id = sample["species_id"]
-        y, sr = sf.read(self.datadir / main_species_id / f"{recording_id}.wav")  # for resample
+        y, sr = sf.read(self.datadir / str(main_species_id) / f"{recording_id}.wav")  # for resample
         # y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
         effective_length = sr * PERIOD
 
@@ -184,7 +184,7 @@ class SpectrogramValDataset(data.Dataset):
         main_species_id = sample["species_id"]
 
         total_time = 60  # 音声を全て60sに揃える
-        y, sr = sf.read(self.datadir / main_species_id / f"{recording_id}.wav")  # for resample
+        y, sr = sf.read(self.datadir / str(main_species_id) / f"{recording_id}.wav")  # for resample
         # y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
 
         if self.waveform_transforms:
