@@ -33,17 +33,18 @@ class SpectrogramDataset(data.Dataset):
 
     def __getitem__(self, idx: int):
         sample = self.df.loc[idx, :]
-        wav_name = sample["resampled_filename"]
+        recording_id = sample["recording_id"]
         main_species_id = sample["species_id"]
 
-        y, sr = sf.read(self.datadir / str(main_species_id) / wav_name)
+        # y, sr = sf.read(self.datadir / str(main_species_id) / wav_name)  # for resample
+        y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
         effective_length = sr * PERIOD
 
         # 破損しているデータはskip
         if len(y) == 0:
             self.count += 1
             print(f"num_unknown_audio: {self.count}")
-            print(f"wav_name: {wav_name}")
+            print(f"wav_name: {recording_id}")
 
         # y, labels = self.clip_time_audio1(y, sr, idx, effective_length, main_species_id)
         y, labels = self.clip_time_audio2(y, sr, idx, effective_length, main_species_id)
@@ -177,10 +178,12 @@ class SpectrogramValDataset(data.Dataset):
 
     def __getitem__(self, idx: int):
         sample = self.df.loc[idx, :]
-        wav_name = sample["resampled_filename"]
+        recording_id = sample["recording_id"]
         main_species_id = sample["species_id"]
+
         total_time = 60  # 音声を全て60sに揃える
-        y, sr = sf.read(self.datadir / str(main_species_id) / wav_name)
+        # y, sr = sf.read(self.datadir / str(main_species_id) / wav_name)  # for resample
+        y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
@@ -249,7 +252,7 @@ class SpectrogramTestDataset(data.Dataset):
         sample = self.df.loc[idx, :]
         recording_id = sample["recording_id"]
         total_time = 60  # 音声を全て60sに揃える
-        y, sr = sf.read(self.datadir / f"{recording_id}.wav")
+        y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)

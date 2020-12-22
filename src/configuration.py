@@ -63,7 +63,7 @@ def get_split(config: dict):
 
     return sms.__getattribute__(name)(**split_config["params"])
 
-
+"""
 def get_metadata(config: dict):
     data_config = config["data"]
     train = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_df_path"])).reset_index(drop=True)
@@ -78,6 +78,34 @@ def get_metadata(config: dict):
         return train, train_audio_path
     else:
         print("exception error")
+"""
+
+def get_metadata(config: dict):
+    data_config = config["data"]
+    train_audio_path = Path(data_config["root"]) / Path(data_config["train_audio_path"])
+    train_tp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_tp_df_path"])).reset_index(drop=True)
+    train_fp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_fp_df_path"])).reset_index(drop=True)
+    train_tp["data_type"] = "tp"
+    train_fp["data_type"] = "fp"
+    train = pd.concat([train_tp, train_fp])
+    if data_config['use_train_data'] == ['tp']:
+        # train = train.iloc[:500,:]  # メモリ対策
+        return train[train['data_type']=='tp'], train_audio_path
+    elif data_config['use_train_data'] == ['fp']:
+        return train[train['data_type']=='fp'], train_audio_path
+    elif data_config['use_train_data'] == ['tp', 'fp']:
+        return train, train_audio_path
+    else:
+        print("exception error")
+
+"""
+def get_test_metadata(config: dict):
+    data_config = config["data"]
+    sub = pd.read_csv(Path(data_config["root"]) / Path(data_config["sub_df_path"])).reset_index(drop=True)
+    test_audio_path = Path(data_config["root"]) / Path(data_config["test_audio_path"])
+
+    return sub, test_audio_path
+"""
 
 def get_test_metadata(config: dict):
     data_config = config["data"]
@@ -85,7 +113,6 @@ def get_test_metadata(config: dict):
     test_audio_path = Path(data_config["root"]) / Path(data_config["test_audio_path"])
 
     return sub, test_audio_path
-
 
 def get_loader(df: pd.DataFrame,
                datadir: Path,
