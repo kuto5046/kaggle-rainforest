@@ -127,7 +127,8 @@ def get_loader(df: pd.DataFrame,
             dataset = datasets.SpectrogramDataset(
                 df,
                 datadir=datadir,
-                img_size=dataset_config["img_size"],
+                height=dataset_config["height"],
+                width=dataset_config["width"],
                 waveform_transforms=get_waveform_transforms(config),
                 spectrogram_transforms=get_spectrogram_transforms(config),
                 melspectrogram_parameters=dataset_config["params"])
@@ -139,7 +140,8 @@ def get_loader(df: pd.DataFrame,
             dataset = datasets.SpectrogramValDataset(
                 df,
                 datadir=datadir,
-                img_size=dataset_config["img_size"],
+                height=dataset_config["height"],
+                width=dataset_config["width"],
                 waveform_transforms=get_waveform_transforms(config),
                 spectrogram_transforms=get_spectrogram_transforms(config),
                 melspectrogram_parameters=dataset_config["params"])
@@ -151,7 +153,8 @@ def get_loader(df: pd.DataFrame,
             dataset = datasets.SpectrogramTestDataset(
                 df,
                 datadir=datadir,
-                img_size=dataset_config["img_size"],
+                height=dataset_config["height"],
+                width=dataset_config["width"],
                 waveform_transforms=get_waveform_transforms(config),
                 spectrogram_transforms=get_spectrogram_transforms(config),
                 melspectrogram_parameters=dataset_config["params"])

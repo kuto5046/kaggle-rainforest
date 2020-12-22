@@ -16,13 +16,15 @@ class SpectrogramDataset(data.Dataset):
     def __init__(self,
                  df: pd.DataFrame,
                  datadir: Path,
-                 img_size=224,
+                 height: int,
+                 width: int,
                  waveform_transforms=None,
                  spectrogram_transforms=None,
                  melspectrogram_parameters={}):
         self.df = df
         self.datadir = datadir
-        self.img_size = img_size
+        self.height = height
+        self.width = width
         self.waveform_transforms = waveform_transforms
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
@@ -53,23 +55,22 @@ class SpectrogramDataset(data.Dataset):
             y = self.waveform_transforms(y)
 
         # dataframeから周波数帯域を取り出し更新
-        fmin = self.df.f_min.values[idx]*0.9  # buffer
-        fmax = self.df.f_max.values[idx]*1.1  # buffer
-        self.melspectrogram_parameters["fmin"] = fmin
-        self.melspectrogram_parameters["fmax"] = fmax
+        # fmin = self.df.f_min.values[idx]*0.9  # buffer
+        # fmax = self.df.f_max.values[idx]*1.1  # buffer
+        # self.melspectrogram_parameters["fmin"] = fmin
+        # self.melspectrogram_parameters["fmax"] = fmax
 
         melspec = librosa.feature.melspectrogram(y, sr=sr, **self.melspectrogram_parameters)
         melspec = librosa.power_to_db(melspec).astype(np.float32)
 
         if self.spectrogram_transforms:
             melspec = self.spectrogram_transforms(melspec)
-        else:
-            pass
+
 
         image = mono_to_color(melspec)
         # height, width, _ = image.shape
         # image = cv2.resize(image, (int(width * self.img_size / height), self.img_size))
-        image = cv2.resize(image, (400, 224))
+        image = cv2.resize(image, (self.width, self.height))
         image = np.moveaxis(image, 2, 0)
         image = (image / 255.0).astype(np.float32)
 
@@ -161,17 +162,19 @@ class SpectrogramValDataset(data.Dataset):
     def __init__(self,
                  df: pd.DataFrame,
                  datadir: Path,
-                 img_size=224,
+                 height: int,
+                 width: int,
                  waveform_transforms=None,
                  spectrogram_transforms=None,
                  melspectrogram_parameters={}):
-
         self.df = df
         self.datadir = datadir
-        self.img_size = img_size
+        self.height = height
+        self.width = width
         self.waveform_transforms = waveform_transforms
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
+        self.count = 0
 
     def __len__(self):
         return len(self.df)
@@ -218,7 +221,7 @@ class SpectrogramValDataset(data.Dataset):
             image = mono_to_color(melspec)
             # height, width, _ = image.shape
             # image = cv2.resize(image, (int(width * self.img_size / height), self.img_size))
-            image = cv2.resize(image, (400, 224))
+            image = cv2.resize(image, (self.width, self.height))
             image = np.moveaxis(image, 2, 0)
             image = (image / 255.0).astype(np.float32)
             images.append(image)
@@ -233,17 +236,19 @@ class SpectrogramTestDataset(data.Dataset):
     def __init__(self,
                  df: pd.DataFrame,
                  datadir: Path,
-                 img_size=224,
+                 height: int,
+                 width: int,
                  waveform_transforms=None,
                  spectrogram_transforms=None,
                  melspectrogram_parameters={}):
-
         self.df = df
         self.datadir = datadir
-        self.img_size = img_size
+        self.height = height
+        self.width = width
         self.waveform_transforms = waveform_transforms
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
+        self.count = 0
 
     def __len__(self):
         return len(self.df)
@@ -287,7 +292,7 @@ class SpectrogramTestDataset(data.Dataset):
             image = mono_to_color(melspec)
             # height, width, _ = image.shape
             # image = cv2.resize(image, (int(width * self.img_size / height), self.img_size))
-            image = cv2.resize(image, (400, 224))
+            image = cv2.resize(image, (self.width, self.height))
             image = np.moveaxis(image, 2, 0)
             image = (image / 255.0).astype(np.float32)
             images.append(image)

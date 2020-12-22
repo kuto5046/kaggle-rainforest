@@ -34,14 +34,7 @@ class ResNet50(nn.Module):
         x = self.encoder(x)
         x = x.view(batch_size, -1)
         x = self.classifier(x)
-
-        multiclass_proba = F.softmax(x, dim=1)
-        multilabel_proba = F.sigmoid(x)
-        return {
-            "logits": x,
-            "multiclass_proba": multiclass_proba,
-            "multilabel_proba": multilabel_proba
-        }
+        return x
 
 
 class ResNeSt50(nn.Module):
@@ -61,15 +54,7 @@ class ResNeSt50(nn.Module):
         )
 
     def forward(self, x):
-        x = self.model(x)
-
-        multiclass_proba = F.softmax(x, dim=1)
-        multilabel_proba = F.sigmoid(x)
-        return {
-            "logits": x,
-            "multiclass_proba": multiclass_proba,
-            "multilabel_proba": multilabel_proba
-        }
+        return self.model(x)
 
 
 def get_model(config):
