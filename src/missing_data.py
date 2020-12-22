@@ -9,7 +9,7 @@ import soundfile as sf
 from tqdm import tqdm
 import pandas as pd
 
-TARGET_SR = 32000
+TARGET_SR = 48000
 ext = '.flac'
 re_ext = '.wav'
 # NUM_THREAD = 4  # for joblib.Parallel
@@ -46,7 +46,7 @@ for species_id in train_tp.species_id.unique():
 train_resample_audio_infos = list(TRAIN_RESAMPLED_DIR.glob("*/*.wav"))
 missing_train_audio_id = []
 
-for train_resample_dir in train_resample_audio_infos:
+for train_resample_dir in tqdm(train_resample_audio_infos):
     y, _ = librosa.load(train_resample_dir, sr=TARGET_SR, mono=True, res_type="kaiser_fast")
 
     # 1s以下のものは破損しているとみなす
@@ -62,21 +62,21 @@ for recording_id, species_id in tqdm(train_audio_infos):
 
 
 # test missing data processing
-# test_resample_audio_infos = list(TEST_RESAMPLED_DIR.glob("*.wav"))
-# missing_test_audio_id = []
-# for test_resample_dir in test_resample_audio_infos:
-#     y, _ = librosa.load(test_resample_dir, sr=TARGET_SR, mono=True, res_type="kaiser_fast")
-#     length = TARGET_SR * 60
-#     if len(y) != length:
-#         print(test_resample_dir.stem)
-#         missing_test_audio_id.append(test_resample_dir.stem)
+test_resample_audio_infos = list(TEST_RESAMPLED_DIR.glob("*.wav"))
+missing_test_audio_id = []
+for test_resample_dir in tqdm(test_resample_audio_infos):
+    y, _ = librosa.load(test_resample_dir, sr=TARGET_SR, mono=True, res_type="kaiser_fast")
+    length = TARGET_SR * 60
+    if len(y) != length:
+        print(test_resample_dir.stem)
+        missing_test_audio_id.append(test_resample_dir.stem)
 
-# for audio_dir in test_audio_infos:
-#     if audio_dir.stem in missing_test_audio_id:
-#         y, _ = librosa.load(audio_dir, sr=TARGET_SR, mono=True, res_type="kaiser_fast")
-#         sf.write(TEST_RESAMPLED_DIR / audio_dir.name.replace(ext, re_ext), y, samplerate=TARGET_SR) 
+for audio_dir in tqdm(test_audio_infos):
+    if audio_dir.stem in missing_test_audio_id:
+        y, _ = librosa.load(audio_dir, sr=TARGET_SR, mono=True, res_type="kaiser_fast")
+        sf.write(TEST_RESAMPLED_DIR / audio_dir.name.replace(ext, re_ext), y, samplerate=TARGET_SR) 
 
 
 # add information of resampled audios to train.csv
-train["resampled_filename"] = train["recording_id"].map(lambda x: x + ".wav")
-train.to_csv(TRAIN_RESAMPLED_DIR / "train.csv", index=False)
+# train["resampled_filename"] = train["recording_id"].map(lambda x: x + ".wav")
+# train.to_csv(TRAIN_RESAMPLED_DIR / "train.csv", index=False)
