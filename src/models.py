@@ -40,10 +40,11 @@ class Learner(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         # xが複数の場合
         x_list, y = batch
-        x = torch.squeeze(x_list)  # splitしたx(x_list)の各要素をbatchとして扱う(この場合batchsize=1である必要がある)
+        batch_size = x_list.shape[0]
+        x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
         output = self.forward(x)
-        pred = torch.max(output, dim=0)[0]  # 各クラスの最大を取得
-        pred = pred.unsqueeze(dim=0)  # yと次元を揃える
+        output = output.view(batch_size, -1, y.shape[1])  # y.shape[1]==num_classes
+        pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
 
         """
         # xが１つの場合

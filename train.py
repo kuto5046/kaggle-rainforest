@@ -31,7 +31,8 @@ def main():
     warnings.filterwarnings('ignore')
 
     # config
-    config = utils.load_config("configs/ResNest002.yaml")
+    config_filename = 'ResNeSt003.yaml'
+    config = utils.load_config(f"configs/{config_filename}")
     global_config = config['globals']
 
     # output config
@@ -54,6 +55,7 @@ def main():
     else:
         # os.makedirs(config["mlflow"]["tracking_uri"], exist_ok=True)
         config["mlflow"]["tags"]["timestamp"] = timestamp
+        config["mlflow"]["tags"]["config_filename"] = config_filename
         config["mlflow"]["tags"]["model_name"] = config["model"]["name"]
         config["mlflow"]["tags"]["loss_name"] = config["loss"]["name"]
         mlf_logger = MLFlowLogger(
@@ -124,7 +126,7 @@ def main():
     """
 
     total_preds = []  # 全体の結果を格納
-    for i in global_config["folds"]:
+    for fold in global_config["folds"]:
 
         # load checkpoint
         model = get_model(config)
@@ -139,10 +141,14 @@ def main():
     
             # xが複数の場合
             for x_list, _ in tqdm(test_loader):
-                x = torch.squeeze(x_list).to(config["globals"]["device"])  # splitしたx(x_list)の各要素をbatchとして扱う(この場合batchsize=1である必要がある)
+
+                batch_size = x_list.shape[0]
+                x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
+                x = x.to(config["globals"]["device"])
                 output = model(x)
-                pred = torch.max(output, dim=0)[0]  # 各クラスの最大を取得
-                pred = pred.unsqueeze(dim=0)  # yと次元を揃える
+                output = output.view(batch_size, -1, 24)  # 24=num_classes
+                pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
+
                 pred = pred.detach().cpu().numpy()
                 preds.append(pred)
             preds = np.vstack(preds)  # 全データを１つのarrayにつなげてfoldの予測とする
