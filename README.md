@@ -170,7 +170,7 @@ https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/201920#1104879
 ### [2020/12/19]
 Disucussion top vote5本を読む
 
-#### [train_tp vs. train_fp](https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/197866)  
+#### 1. [train_tp vs. train_fp](https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/197866)  
 train_tp: 専門家によってtmin-tmax内(freqも)に該当の鳥種が含まれていることがチェック済み
 train_fp: 専門家によってtmin-tmax内に該当の鳥種が含まれていないことがチェック済み
 
@@ -183,13 +183,76 @@ tpとfpのflagには正の相関がある
 
 segment外では対象以外の鳥の鳴き声もある
 
-#### [Best Single Model CV-LB](https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/198132)  
+#### 2. [Best Single Model CV-LB](https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/198132)  
 
 
 
-lossとmodelのoutputをlogitsにしてresnestに変更すると
-CV 0.5 → 0.7
-になった
-ただしtestのところが問題あり
+#### 3. [Why are the actual species hidden?](https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/197735)  
+あえて名前は隠している
+外部リソースを使うことよりも現在ある音声のラベル付けされていないところから解決策を見つけて欲しい
 
-testデータは全て1分(破損しているものもあるので要チェック)
+songtypeにも少しだけ言及がある
+  
+SongType1:最も多い(とり？)  
+SongType4: その他(カエル？)
+
+
+#### 4. [Have anyone observed instability between CV and LB?](https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/201920)  
+相関がうまく取れない理由を３つの観点から議論  
+1. validationの方法に問題あり
+多くの人はrandom cropによりvalidationに取り組んでいる、  
+しかし実際はファイル単位でLWLRAP指標で評価される必要がある
+ここのズレにより乖離が起きている
+
+2. testデータが小さい
+Public LBは21%(418ファイルのみ)
+LBはあまり見過ぎない方がいい？
+
+3. ラベルがノイジー
+trainはアノテーションをもとに訓練できるがtestはアノテーションがないのでうまく学習できない?
+
+testもtrainと同じようにアノテーションされてる？
+
+#### 5. [[Understand] Label-weighted label-ranking average precision.](https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/197834)
+
+
+
+### [2020/12/22]
+LBが異常に低い問題  
+- ６つを取り出しmaxにしているのが問題なのでは？  
+6つではなく1つで予測してみてどうなるか確認中  
+5 epochだがvalidは伸びない  
+10epochでみる  
+やはり伸びない  
+
+- loss  
+train側の lossを確認する  
+問題なし  
+
+- scheduler  
+notebookと同じにする  
+stepSLにした  
+関係ないよう  
+公開カーネルをデバッグしながらしっかり見比べる  
+
+- 画像サイズ？(224,400)  
+trainとvalが一致して上がる  
+しかし0.3止まり  
+fのrangeが影響している？  
+戻したらval悪くなったなぜ？
+
+- SRの違いが影響している?  
+戻したけど意味なし  
+ファイル形式も関係なさそう  
+まじでなんや  
+公開カーネルをベースに書き換えるか。。  
+
+- fのrangeでバグあった  
+治ったぽい!!!
+原因はtrainのfreqのrangeをファイルごとに指定していたこと
+うまく使えばスコア上がるんだろうけど現状はtrainの全ての周波数が収まるようにした
+
+### [2020/12/23]
+lightningのcodeをモデルに統合しkaggle上での変更点を少なくした
+batchとvalidation時のsplitの次元の処理を変更しbatch sizeがどの状態でも動くようにした。
+
