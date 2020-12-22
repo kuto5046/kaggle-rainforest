@@ -6,7 +6,7 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
-import tqdm
+from tqdm import tqdm
 import hydra
 import torch
 from torch import nn
@@ -17,109 +17,12 @@ from torchvision import transforms
 from src.models import get_model
 import src.configuration as C
 import src.utils as utils
-from sklearn.metrics import accuracy_score
+
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import MLFlowLogger
-
-
-# LRAP. Instance-level average
-# Assume float preds [BxC], labels [BxC] of 0 or 1
-def LRAP(preds, labels):
-    # Ranks of the predictions
-    ranked_classes = torch.argsort(preds, dim=-1, descending=True)
-    # i, j corresponds to rank of prediction in row i
-    class_ranks = torch.zeros_like(ranked_classes)
-    for i in range(ranked_classes.size(0)):
-        for j in range(ranked_classes.size(1)):
-            class_ranks[i, ranked_classes[i][j]] = j + 1
-    # Mask out to only use the ranks of relevant GT labels
-    ground_truth_ranks = class_ranks * labels + (1e6) * (1 - labels)
-    # All the GT ranks are in front now
-    sorted_ground_truth_ranks, _ = torch.sort(ground_truth_ranks, dim=-1, descending=False)
-    pos_matrix = torch.tensor(np.array([i+1 for i in range(labels.size(-1))])).unsqueeze(0)
-    score_matrix = pos_matrix / sorted_ground_truth_ranks
-    score_mask_matrix, _ = torch.sort(labels, dim=-1, descending=True)
-    scores = score_matrix * score_mask_matrix
-    score = (scores.sum(-1) / labels.sum(-1)).mean()
-    return score.item()
-
-# label-level average
-# Assume float preds [BxC], labels [BxC] of 0 or 1
-def LWLRAP(preds, labels):
-    # Ranks of the predictions
-    ranked_classes = torch.argsort(preds, dim=-1, descending=True)
-    # i, j corresponds to rank of prediction in row i
-    class_ranks = torch.zeros_like(ranked_classes)
-    for i in range(ranked_classes.size(0)):
-        for j in range(ranked_classes.size(1)):
-            class_ranks[i, ranked_classes[i][j]] = j + 1
-    # Mask out to only use the ranks of relevant GT labels
-    ground_truth_ranks = class_ranks * labels + (1e6) * (1 - labels)
-    # All the GT ranks are in front now
-    sorted_ground_truth_ranks, _ = torch.sort(ground_truth_ranks, dim=-1, descending=False)
-    # Number of GT labels per instance
-    num_labels = labels.sum(-1)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    pos_matrix = torch.tensor(np.array([i+1 for i in range(labels.size(-1))])).unsqueeze(0).to(device)
-    score_matrix = pos_matrix / sorted_ground_truth_ranks
-    score_mask_matrix, _ = torch.sort(labels, dim=-1, descending=True)
-    scores = score_matrix * score_mask_matrix
-    score = scores.sum() / labels.sum()
-    return score.item()
-
-
-class Learner(pl.LightningModule):
-    def __init__(self, config):
-        super().__init__()
-        self.config = config
-        self.model = get_model(config)
-
-    def forward(self, x):
-        return self.model(x)
-    
-    def training_step(self, batch, batch_idx):
-        x, y = batch
-        output = self.forward(x)
-        pred = output[self.config["globals"]["output_type"]]
-        criterion = C.get_criterion(self.config)
-        loss = criterion(pred, y)
-        lwlrap = LWLRAP(pred, y)
-        acc = accuracy_score(y, pred)
-        self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        self.log('train_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        self.log('train_acc', acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        return loss
-    
-    # batchのxはlist型
-    def validation_step(self, batch, batch_idx):
-        x_list, y = batch
-
-        outputs = []
-        for x in x_list:
-            output = self.forward(x)
-            output = output[self.config["globals"]["output_type"]]
-            outputs.append(output.detach().cpu().numpy())
-
-        pred = np.max(outputs, axis=0)
-        pred = torch.tensor(pred).to(self.config["globals"]["device"])
-    
-        criterion = C.get_criterion(self.config)
-        loss = criterion(pred, y)
-        lwlrap = LWLRAP(pred, y)
-        acc = accuracy_score(y, pred)
-        self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        self.log('val_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        self.log('val_acc', acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)  
-        return loss
-
-
-    def configure_optimizers(self):
-        optimizer = C.get_optimizer(self.model, self.config)
-        scheduler = C.get_scheduler(optimizer, self.config)
-        return [optimizer], [scheduler]
 
 
 # 関数にconfig(cfg)を渡すデコレータ
@@ -128,7 +31,7 @@ def main():
     warnings.filterwarnings('ignore')
 
     # config
-    config = utils.load_config("configs/ResNet001.yaml")
+    config = utils.load_config("configs/ResNest002.yaml")
     global_config = config['globals']
 
     # output config
@@ -167,9 +70,15 @@ def main():
     df, datadir = C.get_metadata(config)
     sub_df, test_datadir = C.get_test_metadata(config)
     splitter = C.get_split(config)
-    
+
+    """
+    ##############
+    train part
+    ##############
+    """
 
     for fold, (trn_idx, val_idx) in enumerate(splitter.split(df, y=df['species_id'])):
+        # 指定したfoldのみループを回す
         if fold not in global_config['folds']:
             continue
 
@@ -193,21 +102,19 @@ def main():
             dirpath=output_dir,
             verbose=True,
             filename=f'{model_name}-{fold}')
-
        
         # model
-        learner = Learner(config)
-
+        model = get_model(config)
         # train
         trainer = pl.Trainer(
             logger=loggers, 
             checkpoint_callback=checkpoint_callback,
-            callbacks=[early_stop_callback],
+            # callbacks=[early_stop_callback],
             max_epochs=global_config["num_epochs"],
             gpus=int(torch.cuda.is_available()),
             fast_dev_run=global_config["debug"])
         
-        trainer.fit(learner, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
+        trainer.fit(model, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
 
     
     """
@@ -218,33 +125,39 @@ def main():
 
     total_preds = []  # 全体の結果を格納
     for i in global_config["folds"]:
-        fold_preds = []  # foldの結果を格納
-    
+
         # load checkpoint
-        model = Learner(config)
+        model = get_model(config)
         ckpt = torch.load(checkpoint_callback.best_model_path)  # TODO foldごとのモデルを取得できるようにする
         model.load_state_dict(ckpt['state_dict'])
 
         # 推論結果出力
         model.eval().to(device)
         test_loader = C.get_loader(sub_df, test_datadir, config, phase="test")
-
+        preds = []
         with torch.no_grad():
+    
+            # xが複数の場合
             for x_list, _ in tqdm(test_loader):
-                
-                outputs = []  # 同じaudio_idの結果を格納
-                for x in x_list:
-                    x = x.to(config['globals']['device'])
-                    output = model(x)
-                    output = output[config["globals"]["output_type"]]
-                    outputs.append(output.detach().cpu().numpy())
-                
-                # batchの予測値
-                agg_pred = np.max(outputs, axis=0)  # 同じaudio_idの結果を集約する
-                fold_preds.append(agg_pred)
+                x = torch.squeeze(x_list).to(config["globals"]["device"])  # splitしたx(x_list)の各要素をbatchとして扱う(この場合batchsize=1である必要がある)
+                output = model(x)
+                pred = torch.max(output, dim=0)[0]  # 各クラスの最大を取得
+                pred = pred.unsqueeze(dim=0)  # yと次元を揃える
+                pred = pred.detach().cpu().numpy()
+                preds.append(pred)
+            preds = np.vstack(preds)  # 全データを１つのarrayにつなげてfoldの予測とする
             
-            fold_preds = np.vstack(fold_preds)  # 全データを１つのarrayにつなげてfoldの予測とする
-        total_preds.append(fold_preds)  # foldの予測結果を格納
+            """
+            # xが１つの場合
+            for x, y in tqdm(test_loader):
+                output = model(x)
+                output = output[config["globals"]["output_type"]]
+                preds.append(output)
+
+            preds = np.vstack(preds) 
+            """
+
+        total_preds.append(preds)  # foldの予測結果を格納
 
     sub_preds = np.mean(total_preds, axis=0)  # foldで平均を取る
     sub_df.iloc[:, 1:] = sub_preds
