@@ -1,11 +1,11 @@
 globals:
   seed: 42
-  device: cuda
+  device: cpu
   num_epochs: 1
   output_dir: output
   minimize_metric: False
   model_name: ResNet
-  output_type: multilabel_proba
+  output_type: logits
   weights:
   folds:
     - 0
@@ -16,10 +16,11 @@ mlflow:
     experiment_name: rainforest
     tags:
       timestamp: None
-    # tracking_uri: mlruns
+      model_name: None
+      loss_name: None
   
 data:
-  root: ../
+  root: ./
   use_train_data:
     - tp
    #  - fp 
@@ -37,8 +38,10 @@ dataset:
     fmax: 16000
 
 loss:
-  name: BCELoss
+  name: BCEWithLogitsLoss
+  num_classes: 24
   params:
+    pos_weight: None
 
 optimizer:
   name: Adam
@@ -58,20 +61,21 @@ split:
     shuffle: True
 
 model:
-  name: resnet50
-  pretrained: True
-  num_classes: 24
+  name: ResNet50
+  params:
+    pretrained: True
+    num_classes: 24
 
 loader:
   train:
-    batch_size: 32
+    batch_size: 16
     shuffle: True
-    num_workers: 4
+    num_workers: 0
   valid:
-    batch_size: 50
+    batch_size: 1
     shuffle: False
-    num_workers: 4
+    num_workers: 0
   test:
-    batch_size: 40
+    batch_size: 1
     shuffle: False
-    num_workers: 4
+    num_workers: 0
