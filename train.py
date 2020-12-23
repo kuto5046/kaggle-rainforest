@@ -1,5 +1,6 @@
 import os
 import torch
+import subprocess
 import warnings
 from pathlib import Path
 from datetime import datetime
@@ -35,6 +36,15 @@ def main():
     config = utils.load_config(f"configs/{config_filename}")
     global_config = config['globals']
 
+    # get git hash value(short ver.)
+    if global_config["kaggle"]:
+        # kaggle
+        hash_value = None
+    else:
+        # local
+        cmd = "git rev-parse --short HEAD"
+        hash_value = subprocess.check_output(cmd.split()).strip().decode('utf-8')
+
     # output config
     timestamp = datetime.today().strftime("%m%d_%H%M%S")
 
@@ -58,6 +68,7 @@ def main():
         config["mlflow"]["tags"]["config_filename"] = config_filename
         config["mlflow"]["tags"]["model_name"] = config["model"]["name"]
         config["mlflow"]["tags"]["loss_name"] = config["loss"]["name"]
+        config["mlflow"]["tags"]["hash_value"] = hash_value
         mlf_logger = MLFlowLogger(
         experiment_name=config["mlflow"]["experiment_name"],
         tags=config["mlflow"]["tags"])

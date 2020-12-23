@@ -1,7 +1,7 @@
 globals:
   seed: 42
   device: cpu
-  num_epochs: 100
+  num_epochs: 50
   output_dir: output
   minimize_metric: False
   weights:
@@ -17,6 +17,8 @@ mlflow:
       timestamp: None
       model_name: None
       loss_name: None
+      hash_value: None
+      message: 画像サイズを*1.5/fmaxを下げる
   
 data:
   root: ./
@@ -32,13 +34,13 @@ data:
 
 dataset:
   name: SpectrogramDataset
-  height: 224
-  width: 400
+  height: 336
+  width: 600
   shift_time: 5 
   params:
     n_mels: 128
     fmin: 80
-    fmax: 16000
+    fmax: 15000
     power: 1.5
 
 loss:
