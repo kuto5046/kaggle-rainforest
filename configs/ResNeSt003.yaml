@@ -1,13 +1,13 @@
 globals:
   seed: 42
   device: cpu
-  num_epochs: 50
+  num_epochs: 80
   output_dir: output
   minimize_metric: False
   weights:
   folds:
     - 0
-  debug: True
+  debug: False
   kaggle: False
 
 mlflow:
