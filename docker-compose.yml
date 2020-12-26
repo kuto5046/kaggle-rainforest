@@ -1,13 +1,18 @@
-version: "3"
+version: '2.3'
+
 services:
-  jupyter:
+  app:
     build: .
+    shm_size: '64gb'
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=0
+      - NVIDIA_DRIVER_CAPABILITIES=all
     volumes:
       - $PWD:/work/
     ports:
       - 8888:8888
-    tty: True
-    stdin_open: True 
-    # hostname: docker5046
-    # container_name: ubuntu18-cpu
-    # command: jupyter lab --ip=0.0.0.0 --allow-root --no-browser
+      - 5000:5000
+      - 6006:6006
+    tty: true
+    # command: nvidia-smi

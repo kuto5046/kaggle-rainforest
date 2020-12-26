@@ -8,6 +8,7 @@ import sklearn.model_selection as sms
 import src.dataset as datasets
 
 from pathlib import Path
+from sklearn.metrics import label_ranking_loss
 from src.transforms import (get_waveform_transforms,
                             get_spectrogram_transforms)
 
@@ -36,6 +37,14 @@ def get_scheduler(optimizer, config: dict):
             optimizer, **scheduler_config["params"])
 
 
+def lr_loss(output, target):
+    output = output.detach().cpu().numpy()
+    target = target.detach().cpu().numpy()
+    loss = label_ranking_loss(target, output)
+
+    return loss
+
+
 def get_criterion(config: dict):
     loss_config = config["loss"]
     loss_name = loss_config["name"]
@@ -48,11 +57,11 @@ def get_criterion(config: dict):
     if hasattr(nn, loss_name):
         criterion = nn.__getattribute__(loss_name)(**loss_params)
     else:
-        criterion_cls = globals().get(loss_name)
-        if criterion_cls is not None:
-            criterion = criterion_cls(**loss_params)
-        else:
-            raise NotImplementedError
+        criterion = globals().get(loss_name)
+        # if criterion_cls is not None:
+        #     criterion = criterion_cls(**loss_params)
+        # else:
+        #     raise NotImplementedError
 
     return criterion
 

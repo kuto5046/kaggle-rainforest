@@ -1,0 +1,15 @@
+FROM gcr.io/kaggle-gpu-images/python:latest
+
+# set path
+# ENV PATH /opt/anaconda3/bin:$PATH
+
+# make workspace
+RUN mkdir /work
+WORKDIR /work
+
+RUN pip install -U pip
+RUN pip install torch==1.7.0+cu110 torchvision==0.8.1+cu110 torchaudio===0.7.0 -f https://download.pytorch.org/whl/torch_stable.html
+# jupyter用にportを開放
+EXPOSE 8888
+EXPOSE 5000
+EXPOSE 6006

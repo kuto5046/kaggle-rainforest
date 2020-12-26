@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 
 from tqdm import tqdm
-import hydra
+# n.pyimport hydra
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -84,6 +84,7 @@ def main():
     sub_df, test_datadir = C.get_test_metadata(config)
     splitter = C.get_split(config)
 
+    total_preds = []  # 全体の結果を格納
     """
     ##############
     train part
@@ -108,12 +109,12 @@ def main():
         }
 
         # callback
-        early_stop_callback = EarlyStopping(monitor='val_loss')
+        # early_stop_callback = EarlyStopping(monitor='val_loss')
         checkpoint_callback = ModelCheckpoint(
             monitor='val_loss',
             mode='min',
             dirpath=output_dir,
-            verbose=True,
+            verbose=False,
             filename=f'{model_name}-{fold}')
        
         # model
@@ -123,25 +124,20 @@ def main():
             logger=loggers, 
             checkpoint_callback=checkpoint_callback,
             # callbacks=[early_stop_callback],
-            max_epochs=global_config["num_epochs"],
+            max_epochs=global_config["max_epochs"],
             gpus=int(torch.cuda.is_available()),
             fast_dev_run=global_config["debug"])
         
         trainer.fit(model, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
 
-    
-    """
-    ##############
-    inference part
-    ##############
-    """
-
-    total_preds = []  # 全体の結果を格納
-    for fold in global_config["folds"]:
-
+        """
+        ##############
+        inference part
+        ##############
+        """
         # load checkpoint
         model = get_model(config)
-        ckpt = torch.load(checkpoint_callback.best_model_path)  # TODO foldごとのモデルを取得できるようにする
+        ckpt = torch.load(output_dir / f'{model_name}-{fold}-v0.ckpt')  # TODO foldごとのモデルを取得できるようにする
         model.load_state_dict(ckpt['state_dict'])
 
         # 推論結果出力
@@ -164,16 +160,6 @@ def main():
                 preds.append(pred)
             preds = np.vstack(preds)  # 全データを１つのarrayにつなげてfoldの予測とする
             
-            """
-            # xが１つの場合
-            for x, y in tqdm(test_loader):
-                output = model(x)
-                output = output[config["globals"]["output_type"]]
-                preds.append(output)
-
-            preds = np.vstack(preds) 
-            """
-
         total_preds.append(preds)  # foldの予測結果を格納
 
     sub_preds = np.mean(total_preds, axis=0)  # foldで平均を取る
@@ -182,5 +168,6 @@ def main():
         
 
 if __name__ == '__main__':
-    main()
+    with timer('Total time', logger):
+        main()
 

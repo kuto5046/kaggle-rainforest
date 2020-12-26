@@ -1,16 +1,33 @@
-FROM ubuntu:18.04 
- 
-# update
-RUN apt-get -y update && apt-get install -y \
-sudo \
-wget \
-vim \
-git \
-tmux \
-zip \
-unzip \
-libsndfile1
+# cuda10.2) DL frameworkのversionに注意
+#   nvidia/cuda:10.2-devel-ubuntu18.04
+# FROM nvidia/cuda:11.1-base-ubuntu20.04
+FROM nvidia/cuda:11.1-cudnn8-runtime-ubuntu20.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+# install basic dependencies
+RUN apt-get -y update && apt-get install -y \
+    sudo \
+    wget \
+    cmake \
+    vim \
+    git \
+    tmux \
+    zip \
+    unzip \
+    gcc \
+    g++ \
+    build-essential \
+    ca-certificates \
+    software-properties-common \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libpng-dev \
+    libfreetype6-dev \
+    libgl1-mesa-dev \
+    libsndfile1
+
+# install miniconda package
 WORKDIR /opt
 
 # download anaconda package and install anaconda
@@ -21,16 +38,28 @@ rm -f Anaconda3-2019.10-Linux-x86_64.sh
 # set path
 ENV PATH /opt/anaconda3/bin:$PATH
 
-# make for working directry
+# make workspace
 RUN mkdir /work
 
-# update pip
+# install common python packages
 COPY ./requirements.txt /work
 
-RUN conda install pytorch torchvision torchaudio cpuonly -c pytorch
+# PyTorch
+# https://notekunst.hatenablog.com/entry/pytorch-ubuntu-macbookpro
+# RUN git clone --recursive http://github.com/pytorch/pytorch
+# RUN export USE_CUDA=1 USE_CUDNN=1 TORCH_CUDA_ARCH_LIST="8.6"
+# RUN cd pytorch && python setup.py install
 
-RUN pip install --upgrade pip && \
+RUN pip install --upgrade pip setuptools && \
     pip install -r /work/requirements.txt
+    
+# https://qiita.com/Hiroaki-K4/items/c1be8adba18b9f0b4cef
+RUN pip install torch==1.7.0+cu110 torchvision==0.8.1+cu110 torchaudio===0.7.0 -f https://download.pytorch.org/whl/torch_stable.html
 
+# set working directory
 WORKDIR /work
-# CMD ["jupyter", "lab", "--ip=0.0.0.0", "--allow-root", "--LabApp.token=''"]
+
+# jupyter用にportを開放
+EXPOSE 8888
+EXPOSE 5000
+EXPOSE 6006
