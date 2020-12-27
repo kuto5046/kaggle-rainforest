@@ -46,7 +46,7 @@ dataset:
     power: 1.5
 
 loss:
-  name: BCEWithLogitsLoss
+  name: LwlrapLoss  # LwlrapLoss  BCEWithLogitsLoss
   num_classes: 24
   params:
     pos_weight: None

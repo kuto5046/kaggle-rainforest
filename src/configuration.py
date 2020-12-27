@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -43,6 +44,29 @@ def lr_loss(output, target):
     loss = label_ranking_loss(target, output)
 
     return loss
+
+
+def LwlrapLoss(output, target):
+    # Ranks of the predictions
+    ranked_classes = torch.argsort(output, dim=-1, descending=True)
+    # i, j corresponds to rank of prediction in row i
+    class_ranks = torch.zeros_like(ranked_classes)
+    for i in range(ranked_classes.size(0)):
+        for j in range(ranked_classes.size(1)):
+            class_ranks[i, ranked_classes[i][j]] = j + 1
+    # Mask out to only use the ranks of relevant GT labels
+    ground_truth_ranks = class_ranks * target + (1e6) * (1 - target)
+    # All the GT ranks are in front now
+    sorted_ground_truth_ranks, _ = torch.sort(ground_truth_ranks, dim=-1, descending=False)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    pos_matrix = torch.tensor(np.array([i+1 for i in range(target.size(-1))])).unsqueeze(0).to(device)
+
+    loss_matrix = (pos_matrix - sorted_ground_truth_ranks)
+    mask_matrix, _ = torch.sort(target, dim=-1, descending=True)
+    true_ranks = pos_matrix * mask_matrix
+    pred_ranks = sorted_ground_truth_ranks * mask_matrix
+    loss = nn.functional.mse_loss(pred_ranks, true_ranks, size_average=None, reduce=None, reduction='mean')
+    return loss.item()
 
 
 def get_criterion(config: dict):

@@ -47,8 +47,8 @@ class SpectrogramDataset(data.Dataset):
             print(f"num_unknown_audio: {self.count}")
             print(f"wav_name: {recording_id}")
 
-        y, labels = self.clip_time_audio1(y, sr, idx, effective_length, main_species_id)
-        # y, labels = self.clip_time_audio2(y, sr, idx, effective_length, main_species_id)
+        # y, labels = self.clip_time_audio1(y, sr, idx, effective_length, main_species_id)
+        y, labels = self.clip_time_audio2(y, sr, idx, effective_length, main_species_id)
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
