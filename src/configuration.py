@@ -98,9 +98,9 @@ def get_metadata(config: dict):
     train_fp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_fp_df_path"])).reset_index(drop=True)
     train_tp["data_type"] = "tp"
     train_fp["data_type"] = "fp"
+    train_tp = train_tp[train_tp['species_id'] < 22]
     train = pd.concat([train_tp, train_fp])
     if data_config['use_train_data'] == ['tp']:
-        # train = train.iloc[:500,:]  # メモリ対策
         return train[train['data_type']=='tp'], train_audio_path
     elif data_config['use_train_data'] == ['fp']:
         return train[train['data_type']=='fp'], train_audio_path

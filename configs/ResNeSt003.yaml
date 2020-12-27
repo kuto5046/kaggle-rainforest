@@ -21,7 +21,7 @@ mlflow:
       hash_value: None
       # LB Score: None
       fold: None
-      message: change fmax from 15000 to 7000
+      message: change fmax from 15000 to 7000(22 class)
 
 data:
   root: ./
@@ -48,7 +48,7 @@ dataset:
 
 loss:
   name: BCEWithLogitsLoss
-  num_classes: 24
+  num_classes: 22
   params:
     pos_weight: None
 
