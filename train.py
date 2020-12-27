@@ -46,8 +46,11 @@ def main():
         hash_value = subprocess.check_output(cmd.split()).strip().decode('utf-8')
 
     # output config
-    timestamp = datetime.today().strftime("%m%d_%H%M%S")
-
+    if config['globals']['timestamp']=='None':
+        timestamp = datetime.today().strftime("%m%d_%H%M%S")
+    else:
+        timestamp = config['globals']['timestamp']
+    
     if config["globals"]["debug"] == True:
         timestamp = "debug"
     output_dir = Path(global_config['output_dir']) / timestamp
@@ -57,27 +60,6 @@ def main():
     logger = utils.get_logger(output_dir/ "output.log")
     utils.set_seed(global_config['seed'])
     device = C.get_device(global_config["device"])
-
-    # logger
-    loggers = []
-    if global_config["debug"]==True:
-        mlf_logger = None
-    else:
-        # os.makedirs(config["mlflow"]["tracking_uri"], exist_ok=True)
-        config["mlflow"]["tags"]["timestamp"] = timestamp
-        config["mlflow"]["tags"]["config_filename"] = config_filename
-        config["mlflow"]["tags"]["model_name"] = config["model"]["name"]
-        config["mlflow"]["tags"]["loss_name"] = config["loss"]["name"]
-        config["mlflow"]["tags"]["hash_value"] = hash_value
-        mlf_logger = MLFlowLogger(
-        experiment_name=config["mlflow"]["experiment_name"],
-        tags=config["mlflow"]["tags"])
-        loggers.append(mlf_logger)
-
-
-    model_name = config["model"]['name']
-    tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name)
-    loggers.append(tb_logger)
     
     # data
     df, datadir = C.get_metadata(config)
@@ -85,16 +67,32 @@ def main():
     splitter = C.get_split(config)
 
     total_preds = []  # 全体の結果を格納
-    """
-    ##############
-    train part
-    ##############
-    """
 
     for fold, (trn_idx, val_idx) in enumerate(splitter.split(df, y=df['species_id'])):
         # 指定したfoldのみループを回す
         if fold not in global_config['folds']:
             continue
+
+        # logger
+        loggers = []
+        if global_config["debug"]==True:
+            mlf_logger = None
+        else:
+            # os.makedirs(config["mlflow"]["tracking_uri"], exist_ok=True)
+            config["mlflow"]["tags"]["timestamp"] = timestamp
+            config["mlflow"]["tags"]["config_filename"] = config_filename
+            config["mlflow"]["tags"]["model_name"] = config["model"]["name"]
+            config["mlflow"]["tags"]["loss_name"] = config["loss"]["name"]
+            config["mlflow"]["tags"]["hash_value"] = hash_value
+            mlf_logger = MLFlowLogger(
+            experiment_name=config["mlflow"]["experiment_name"],
+            tags=config["mlflow"]["tags"])
+            loggers.append(mlf_logger)
+
+
+        model_name = config["model"]['name']
+        tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name)
+        loggers.append(tb_logger)
 
         logger.info('=' * 20)
         logger.info(f'Fold {fold}')
@@ -116,7 +114,12 @@ def main():
             dirpath=output_dir,
             verbose=False,
             filename=f'{model_name}-{fold}')
-       
+        
+        """
+        ##############
+        train part
+        ##############
+        """
         # model
         model = get_model(config)
         # train
@@ -137,7 +140,10 @@ def main():
         """
         # load checkpoint
         model = get_model(config)
-        ckpt = torch.load(output_dir / f'{model_name}-{fold}-v0.ckpt')  # TODO foldごとのモデルを取得できるようにする
+        try:
+            ckpt = torch.load(output_dir / f'{model_name}-{fold}-v0.ckpt')  # TODO foldごとのモデルを取得できるようにする
+        except:
+            ckpt = torch.load(output_dir / f'{model_name}-{fold}.ckpt')  # TODO foldごとのモデルを取得できるようにする
         model.load_state_dict(ckpt['state_dict'])
 
         # 推論結果出力
@@ -159,7 +165,9 @@ def main():
                 pred = pred.detach().cpu().numpy()
                 preds.append(pred)
             preds = np.vstack(preds)  # 全データを１つのarrayにつなげてfoldの予測とする
-            
+            fold_df = sub_df.copy()
+            fold_df.iloc[:, 1:] = preds
+            fold_df.to_csv(output_dir / f'fold{fold}.csv', index=False)
         total_preds.append(preds)  # foldの予測結果を格納
 
     sub_preds = np.mean(total_preds, axis=0)  # foldで平均を取る
@@ -168,6 +176,6 @@ def main():
         
 
 if __name__ == '__main__':
-    with timer('Total time', logger):
+    with utils.timer('Total time'):
         main()
 
