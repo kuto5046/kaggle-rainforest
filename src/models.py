@@ -38,10 +38,10 @@ class Learner(pl.LightningModule):
         criterion = C.get_criterion(self.config)
         loss = criterion(pred, y)
         lwlrap = LWLRAP(pred, y)
-        acc = calc_acc(pred, y)
-        self.log(f'{self.fold}_train_loss', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'{self.fold}_train_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'{self.fold}_train_acc', acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        # acc = calc_acc(pred, y)
+        self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        # self.log(f'fold{self.fold}_train_acc', acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
     
 
@@ -64,10 +64,10 @@ class Learner(pl.LightningModule):
         criterion = C.get_criterion(self.config)
         loss = criterion(pred, y)
         lwlrap = LWLRAP(pred, y)
-        acc = calc_acc(pred, y)
-        self.log(f'{self.fold}_val_loss', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'{self.fold}_val_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'{self.fold}_val_acc', acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)  
+        # acc = calc_acc(pred, y)
+        self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        # self.log(f'fold{self.fold}_val_acc', acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)  
         return loss
 
     def configure_optimizers(self):

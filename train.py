@@ -25,6 +25,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import MLFlowLogger
 
+os.environ['NUMEXPR_MAX_THREADS'] = '24'
 
 # 関数にconfig(cfg)を渡すデコレータ
 # @hydra.main(config_path='./configs', config_name='ResNet001.yaml')
@@ -61,22 +62,6 @@ def main():
     utils.set_seed(global_config['seed'])
     device = C.get_device(global_config["device"])
 
-    # logger
-    loggers = []
-    if global_config["debug"]==True:
-        mlf_logger = None
-    else:
-        # os.makedirs(config["mlflow"]["tracking_uri"], exist_ok=True)
-        config["mlflow"]["tags"]["timestamp"] = timestamp
-        config["mlflow"]["tags"]["config_filename"] = config_filename
-        config["mlflow"]["tags"]["model_name"] = config["model"]["name"]
-        config["mlflow"]["tags"]["loss_name"] = config["loss"]["name"]
-        config["mlflow"]["tags"]["hash_value"] = hash_value
-        mlf_logger = MLFlowLogger(
-        experiment_name=config["mlflow"]["experiment_name"],
-        tags=config["mlflow"]["tags"])
-        loggers.append(mlf_logger)
-
     # data
     df, datadir = C.get_metadata(config)
     sub_df, test_datadir = C.get_test_metadata(config)
@@ -88,6 +73,23 @@ def main():
         # 指定したfoldのみループを回す
         if fold not in global_config['folds']:
             continue
+
+        # logger
+        loggers = []
+        if global_config["debug"]==True:
+            mlf_logger = None
+        else:
+            # os.makedirs(config["mlflow"]["tracking_uri"], exist_ok=True)
+            config["mlflow"]["tags"]["timestamp"] = timestamp
+            config["mlflow"]["tags"]["config_filename"] = config_filename
+            config["mlflow"]["tags"]["model_name"] = config["model"]["name"]
+            config["mlflow"]["tags"]["loss_name"] = config["loss"]["name"]
+            config["mlflow"]["tags"]["hash_value"] = hash_value
+            config["mlflow"]["tags"]["fold"] = fold
+            mlf_logger = MLFlowLogger(
+            experiment_name=config["mlflow"]["experiment_name"],
+            tags=config["mlflow"]["tags"])
+            loggers.append(mlf_logger)
 
         model_name = config["model"]['name']
         tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name)
@@ -108,7 +110,7 @@ def main():
         # callback
         # early_stop_callback = EarlyStopping(monitor='val_loss')
         checkpoint_callback = ModelCheckpoint(
-            monitor='val_loss',
+            monitor=f'loss/val',
             mode='min',
             dirpath=output_dir,
             verbose=False,
@@ -131,6 +133,7 @@ def main():
             fast_dev_run=global_config["debug"])
         
         trainer.fit(model, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
+        continue
 
         """
         ##############

@@ -1,16 +1,13 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 10
+  max_epochs: 100
   output_dir: output
   minimize_metric: False
   timestamp: None
   folds:
     - 0
     - 1
-    - 2
-    - 3
-    - 4
   debug: False
   kaggle: False
 
@@ -22,7 +19,9 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: mlflow周りの修正
+      LB Score: None
+      fold: None
+      message: fmax=7000にして領域を半分にする
   
 data:
   root: ./
@@ -44,7 +43,7 @@ dataset:
   params:
     n_mels: 128
     fmin: 80
-    fmax: 15000
+    fmax: 7000
     power: 1.5
 
 loss:
