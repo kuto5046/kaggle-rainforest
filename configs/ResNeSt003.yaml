@@ -1,10 +1,10 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 80
+  max_epochs: 100
   output_dir: output
   minimize_metric: False
-  weights:
+  timestamp: None
   folds:
     - 0
     - 1
@@ -48,7 +48,7 @@ dataset:
     power: 1.5
 
 loss:
-  name: lr_loss
+  name: BCEWithLogitsLoss
   num_classes: 24
   params:
     pos_weight: None

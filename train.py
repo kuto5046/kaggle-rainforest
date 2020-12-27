@@ -46,8 +46,11 @@ def main():
         hash_value = subprocess.check_output(cmd.split()).strip().decode('utf-8')
 
     # output config
-    timestamp = datetime.today().strftime("%m%d_%H%M%S")
-
+    if config['globals']['timestamp']=='None':
+        timestamp = datetime.today().strftime("%m%d_%H%M%S")
+    else:
+        timestamp = config['globals']['timestamp']
+    
     if config["globals"]["debug"] == True:
         timestamp = "debug"
     output_dir = Path(global_config['output_dir']) / timestamp
@@ -137,7 +140,10 @@ def main():
         """
         # load checkpoint
         model = get_model(config)
-        ckpt = torch.load(output_dir / f'{model_name}-{fold}-v0.ckpt')  # TODO foldごとのモデルを取得できるようにする
+        try:
+            ckpt = torch.load(output_dir / f'{model_name}-{fold}-v0.ckpt')  # TODO foldごとのモデルを取得できるようにする
+        except:
+            ckpt = torch.load(output_dir / f'{model_name}-{fold}.ckpt')  # TODO foldごとのモデルを取得できるようにする
         model.load_state_dict(ckpt['state_dict'])
 
         # 推論結果出力
@@ -159,7 +165,9 @@ def main():
                 pred = pred.detach().cpu().numpy()
                 preds.append(pred)
             preds = np.vstack(preds)  # 全データを１つのarrayにつなげてfoldの予測とする
-            
+            fold_df = sub_df.copy()
+            fold_df.iloc[:, 1:] = preds
+            fold_df.to_csv(output_dir / f'fold{fold}.csv', index=False)
         total_preds.append(preds)  # foldの予測結果を格納
 
     sub_preds = np.mean(total_preds, axis=0)  # foldで平均を取る
@@ -168,6 +176,6 @@ def main():
         
 
 if __name__ == '__main__':
-    with timer('Total time', logger):
+    with utils.timer('Total time'):
         main()
 
