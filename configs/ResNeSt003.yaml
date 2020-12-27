@@ -19,10 +19,10 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      LB Score: None
+      # LB Score: None
       fold: None
-      message: fmax=7000にして領域を半分にする
-  
+      message: change fmax from 15000 to 7000
+
 data:
   root: ./
   use_train_data:
