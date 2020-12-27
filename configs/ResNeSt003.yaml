@@ -1,7 +1,7 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 100
+  max_epochs: 10
   output_dir: output
   minimize_metric: False
   timestamp: None
@@ -22,7 +22,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: 5foldで回す
+      message: mlflow周りの修正
   
 data:
   root: ./

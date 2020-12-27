@@ -1,5 +1,6 @@
 import os
 import torch
+import numpy as np
 from torch import nn
 import torch.nn.functional as F
 from torchvision.datasets import MNIST
@@ -15,11 +16,18 @@ from src.metric import LWLRAP
 import pytorch_lightning as pl
 
 
+def calc_acc(pred, y):
+    pred = torch.sigmoid(pred).detach().cpu().numpy()
+    y = y.detach().cpu().numpy()
+    return accuracy_score(y, pred)
+
+
 # Learner class(pytorch-lighting)
 class Learner(pl.LightningModule):
-    def __init__(self, config):
+    def __init__(self, config, fold):
         super().__init__()
         self.config = config
+        self.fold = fold
 
     def forward(self, x):
         return None
@@ -30,12 +38,13 @@ class Learner(pl.LightningModule):
         criterion = C.get_criterion(self.config)
         loss = criterion(pred, y)
         lwlrap = LWLRAP(pred, y)
-        # acc = accuracy_score(y, pred)
-        self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        self.log('train_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        # #self.log('train_acc', acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        acc = calc_acc(pred, y)
+        self.log(f'{self.fold}_train_loss', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'{self.fold}_train_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'{self.fold}_train_acc', acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
     
+
     # batchのxはlist型
     def validation_step(self, batch, batch_idx):
         # xが複数の場合
@@ -55,10 +64,10 @@ class Learner(pl.LightningModule):
         criterion = C.get_criterion(self.config)
         loss = criterion(pred, y)
         lwlrap = LWLRAP(pred, y)
-        # acc = accuracy_score(y, pred)
-        self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        self.log('val_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        # self.log('val_acc', acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)  
+        acc = calc_acc(pred, y)
+        self.log(f'{self.fold}_val_loss', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'{self.fold}_val_LWLRAP', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'{self.fold}_val_acc', acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)  
         return loss
 
     def configure_optimizers(self):
@@ -68,8 +77,8 @@ class Learner(pl.LightningModule):
 
 
 class ResNet50Learner(Learner):
-    def __init__(self, config):
-        super().__init__(config)
+    def __init__(self, config, fold):
+        super().__init__(config, fold)
         self.pretrained = config['model']['params']['pretrained']
         self.num_classes = config['model']['params']['num_classes']
 
@@ -96,8 +105,8 @@ class ResNet50Learner(Learner):
 
 
 class ResNeSt50Learner(Learner):
-    def __init__(self, config):
-        super().__init__(config)
+    def __init__(self, config, fold):
+        super().__init__(config, fold)
         self.pretrained = config['model']['params']['pretrained']
         self.num_classes = config['model']['params']['num_classes']
 
@@ -117,14 +126,13 @@ class ResNeSt50Learner(Learner):
         return self.model(x)
 
 
-
-def get_model(config):
+def get_model(config, fold):
     model_name = config["model"]["name"]
     if model_name == "ResNet50":
-        model = ResNet50Learner(config)
+        model = ResNet50Learner(config, fold)
         return model
     elif model_name == "ResNeSt50":
-        model = ResNeSt50Learner(config)
+        model = ResNeSt50Learner(config, fold)
         return model
     else:
         raise NotImplementedError

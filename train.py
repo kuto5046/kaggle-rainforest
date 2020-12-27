@@ -60,7 +60,23 @@ def main():
     logger = utils.get_logger(output_dir/ "output.log")
     utils.set_seed(global_config['seed'])
     device = C.get_device(global_config["device"])
-    
+
+    # logger
+    loggers = []
+    if global_config["debug"]==True:
+        mlf_logger = None
+    else:
+        # os.makedirs(config["mlflow"]["tracking_uri"], exist_ok=True)
+        config["mlflow"]["tags"]["timestamp"] = timestamp
+        config["mlflow"]["tags"]["config_filename"] = config_filename
+        config["mlflow"]["tags"]["model_name"] = config["model"]["name"]
+        config["mlflow"]["tags"]["loss_name"] = config["loss"]["name"]
+        config["mlflow"]["tags"]["hash_value"] = hash_value
+        mlf_logger = MLFlowLogger(
+        experiment_name=config["mlflow"]["experiment_name"],
+        tags=config["mlflow"]["tags"])
+        loggers.append(mlf_logger)
+
     # data
     df, datadir = C.get_metadata(config)
     sub_df, test_datadir = C.get_test_metadata(config)
@@ -72,23 +88,6 @@ def main():
         # 指定したfoldのみループを回す
         if fold not in global_config['folds']:
             continue
-
-        # logger
-        loggers = []
-        if global_config["debug"]==True:
-            mlf_logger = None
-        else:
-            # os.makedirs(config["mlflow"]["tracking_uri"], exist_ok=True)
-            config["mlflow"]["tags"]["timestamp"] = timestamp
-            config["mlflow"]["tags"]["config_filename"] = config_filename
-            config["mlflow"]["tags"]["model_name"] = config["model"]["name"]
-            config["mlflow"]["tags"]["loss_name"] = config["loss"]["name"]
-            config["mlflow"]["tags"]["hash_value"] = hash_value
-            mlf_logger = MLFlowLogger(
-            experiment_name=config["mlflow"]["experiment_name"],
-            tags=config["mlflow"]["tags"])
-            loggers.append(mlf_logger)
-
 
         model_name = config["model"]['name']
         tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name)
@@ -121,7 +120,7 @@ def main():
         ##############
         """
         # model
-        model = get_model(config)
+        model = get_model(config, fold)
         # train
         trainer = pl.Trainer(
             logger=loggers, 
@@ -139,7 +138,7 @@ def main():
         ##############
         """
         # load checkpoint
-        model = get_model(config)
+        # model = get_model(config, fold)
         try:
             ckpt = torch.load(output_dir / f'{model_name}-{fold}-v0.ckpt')  # TODO foldごとのモデルを取得できるようにする
         except:
