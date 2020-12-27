@@ -73,7 +73,7 @@ model:
   name: ResNeSt50
   params:
     pretrained: True
-    num_classes: 24
+    num_classes: 22
 
 loader:
   train:
