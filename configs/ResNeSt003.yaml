@@ -7,7 +7,6 @@ globals:
   timestamp: None
   folds:
     - 0
-    - 1
   debug: False
   kaggle: False
 
@@ -21,7 +20,7 @@ mlflow:
       hash_value: None
       # LB Score: None
       fold: None
-      message: change fmax from 15000 to 7000(22 class)
+      message: clip_time_audio1を使用 
 
 data:
   root: ./
@@ -48,7 +47,7 @@ dataset:
 
 loss:
   name: BCEWithLogitsLoss
-  num_classes: 22
+  num_classes: 24
   params:
     pos_weight: None
 
@@ -73,7 +72,7 @@ model:
   name: ResNeSt50
   params:
     pretrained: True
-    num_classes: 22
+    num_classes: 24
 
 loader:
   train:
