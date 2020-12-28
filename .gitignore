@@ -5,6 +5,7 @@ settings.json
 *.ckpt
 /.vscode/
 debug.ipynb
+/.kaggle/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

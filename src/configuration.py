@@ -37,15 +37,16 @@ def get_scheduler(optimizer, config: dict):
         return optim.lr_scheduler.__getattribute__(scheduler_name)(
             optimizer, **scheduler_config["params"])
 
-
+"""
 def lr_loss(output, target):
     output = output.detach().cpu().numpy()
     target = target.detach().cpu().numpy()
     loss = label_ranking_loss(target, output)
 
     return loss
+"""
 
-
+"""
 def LwlrapLoss(output, target):
     # Ranks of the predictions
     ranked_classes = torch.argsort(output, dim=-1, descending=True)
@@ -67,6 +68,43 @@ def LwlrapLoss(output, target):
     loss = nn.functional.mse_loss(pred_ranks, true_ranks, size_average=None, reduce=None, reduction='mean')
     loss.requires_grad = True
     return loss
+"""
+# refered following repo
+# https://github.com/ex4sperans/freesound-classification/blob/71b9920ce0ae376aa7f1a3a2943f0f92f4820813/networks/losses.py
+def lsep_loss_stable(input, target, average=True):
+
+    n = input.size(0)
+
+    differences = input.unsqueeze(1) - input.unsqueeze(2)
+    where_lower = (target.unsqueeze(1) < target.unsqueeze(2)).float()
+
+    differences = differences.view(n, -1)
+    where_lower = where_lower.view(n, -1)
+
+    max_difference, index = torch.max(differences, dim=1, keepdim=True)
+    differences = differences - max_difference
+    exps = differences.exp() * where_lower
+
+    lsep = max_difference + torch.log(torch.exp(-max_difference) + exps.sum(-1))
+
+    if average:
+        return lsep.mean()
+    else:
+        return lsep
+
+
+def lsep_loss(input, target, average=True):
+
+    differences = input.unsqueeze(1) - input.unsqueeze(2)
+    where_different = (target.unsqueeze(1) < target.unsqueeze(2)).float()
+
+    exps = differences.exp() * where_different
+    lsep = torch.log(1 + exps.sum(2).sum(1))
+
+    if average:
+        return lsep.mean()
+    else:
+        return lsep
 
 
 def get_criterion(config: dict):
