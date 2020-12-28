@@ -90,14 +90,14 @@ loader:
 
 transforms:
   train:
-    - name: NoiseInjection
-      params:
-        max_noise_level: 0.04
-    - name: PitchShift
-      params:
-        max_range: 3
-    - name: RandomVolume
-      params:
-        limit: 4
+    # - name: NoiseInjection
+    #   params:
+    #     max_noise_level: 0.04
+    # - name: PitchShift
+    #   params:
+    #     max_range: 3
+    # - name: RandomVolume
+    #   params:
+    #     limit: 4
   valid:
   test:
