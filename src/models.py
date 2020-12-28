@@ -144,7 +144,6 @@ class ResNeSt50Learner(Learner):
             x = do_mixup(x, mixup_lambda)
         """
         x = self.model(x)
-        x = F.sigmoid(x)
         return x
 
 
