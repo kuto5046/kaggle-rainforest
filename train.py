@@ -133,7 +133,6 @@ def main():
             fast_dev_run=global_config["debug"])
         
         trainer.fit(model, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
-        continue
 
         """
         ##############

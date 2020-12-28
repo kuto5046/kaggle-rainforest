@@ -133,11 +133,10 @@ class ResNeSt50Learner(Learner):
             freq_stripes_num=2)
 
     def forward(self, x, mixup_lambda=None):
-        """
         # spec aug
         if self.training:
             x = self.spec_augmenter(x)
-        """
+
         """
         # Mixup on spectrogram
         if self.training and mixup_lambda is not None:
