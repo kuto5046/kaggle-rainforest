@@ -7,7 +7,7 @@ globals:
   timestamp: None
   folds:
     - 0
-  debug: True
+  debug: False
   kaggle: False
 
 mlflow:
@@ -46,7 +46,7 @@ dataset:
     power: 1.5
 
 loss:
-  name: LwlrapLoss  # LwlrapLoss  BCEWithLogitsLoss
+  name: BCEWithLogitsLoss  # LwlrapLoss  BCEWithLogitsLoss
   num_classes: 24
   params:
     pos_weight: None
