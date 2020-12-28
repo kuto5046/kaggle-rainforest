@@ -61,12 +61,12 @@ def LwlrapLoss(output, target):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     pos_matrix = torch.tensor(np.array([i+1 for i in range(target.size(-1))])).unsqueeze(0).to(device)
 
-    loss_matrix = (pos_matrix - sorted_ground_truth_ranks)
     mask_matrix, _ = torch.sort(target, dim=-1, descending=True)
     true_ranks = pos_matrix * mask_matrix
     pred_ranks = sorted_ground_truth_ranks * mask_matrix
     loss = nn.functional.mse_loss(pred_ranks, true_ranks, size_average=None, reduce=None, reduction='mean')
-    return loss.item()
+    loss.requires_grad = True
+    return loss
 
 
 def get_criterion(config: dict):
@@ -156,8 +156,8 @@ def get_loader(df: pd.DataFrame,
                 datadir=datadir,
                 height=dataset_config["height"],
                 width=dataset_config["width"],
-                waveform_transforms=get_waveform_transforms(config),
-                spectrogram_transforms=get_spectrogram_transforms(config),
+                waveform_transforms=get_waveform_transforms(config, phase),
+                spectrogram_transforms=get_spectrogram_transforms(config, phase),
                 melspectrogram_parameters=dataset_config["params"])
         else:
             raise NotImplementedError
@@ -169,8 +169,8 @@ def get_loader(df: pd.DataFrame,
                 datadir=datadir,
                 height=dataset_config["height"],
                 width=dataset_config["width"],
-                waveform_transforms=get_waveform_transforms(config),
-                spectrogram_transforms=get_spectrogram_transforms(config),
+                waveform_transforms=get_waveform_transforms(config, phase),
+                spectrogram_transforms=get_spectrogram_transforms(config, phase),
                 melspectrogram_parameters=dataset_config["params"])
         else:
             raise NotImplementedError
@@ -182,8 +182,8 @@ def get_loader(df: pd.DataFrame,
                 datadir=datadir,
                 height=dataset_config["height"],
                 width=dataset_config["width"],
-                waveform_transforms=get_waveform_transforms(config),
-                spectrogram_transforms=get_spectrogram_transforms(config),
+                waveform_transforms=get_waveform_transforms(config, phase),
+                spectrogram_transforms=get_spectrogram_transforms(config, phase),
                 melspectrogram_parameters=dataset_config["params"])
         else:
             raise NotImplementedError

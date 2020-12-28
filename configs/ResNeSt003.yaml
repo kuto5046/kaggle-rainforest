@@ -7,7 +7,7 @@ globals:
   timestamp: None
   folds:
     - 0
-  debug: False
+  debug: True
   kaggle: False
 
 mlflow:
@@ -18,9 +18,9 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      # LB Score: None
+      LB Score: None
       fold: None
-      message: clip_time_audio1を使用 
+      message: araisanのaug使用 
 
 data:
   root: ./
@@ -87,3 +87,17 @@ loader:
     batch_size: 20
     shuffle: False
     num_workers: 10
+
+transforms:
+  train:
+    - name: NoiseInjection
+      params:
+        max_noise_level: 0.04
+    - name: PitchShift
+      params:
+        max_range: 3
+    - name: RandomVolume
+      params:
+        limit: 4
+  valid:
+  test:
