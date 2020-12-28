@@ -143,7 +143,9 @@ class ResNeSt50Learner(Learner):
         if self.training and mixup_lambda is not None:
             x = do_mixup(x, mixup_lambda)
         """
-        return self.model(x)
+        x = self.model(x)
+        x = F.sigmoid(x)
+        return x
 
 
 def get_model(config, fold):
