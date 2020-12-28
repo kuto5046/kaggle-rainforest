@@ -1,7 +1,7 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 100
+  max_epochs: 50
   output_dir: output
   minimize_metric: False
   timestamp: None
@@ -42,7 +42,7 @@ dataset:
   params:
     n_mels: 128
     fmin: 80
-    fmax: 7000
+    fmax: 15000
     power: 1.5
 
 loss:
