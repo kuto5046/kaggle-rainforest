@@ -24,7 +24,7 @@ mlflow:
       hash_value: None
       LB Score: None
       fold: None
-      message: baseline fold5
+      message: baseline(label=1) fold5
 
 data:
   root: ./
@@ -56,9 +56,8 @@ loss:
     pos_weight: None
 
 optimizer:
-  name: SAM
-  base_name: Adam
-  base_params:
+  name: Adam
+  params:
     lr: 0.001
 
 scheduler:
