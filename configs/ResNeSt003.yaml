@@ -7,6 +7,10 @@ globals:
   timestamp: None
   folds:
     - 0
+    - 1
+    - 2
+    - 3
+    - 4
   debug: False
   kaggle: False
 
@@ -20,7 +24,7 @@ mlflow:
       hash_value: None
       LB Score: None
       fold: None
-      message: baseline fold0
+      message: baseline fold5
 
 data:
   root: ./
