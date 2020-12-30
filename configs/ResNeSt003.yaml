@@ -56,8 +56,9 @@ loss:
     pos_weight: None
 
 optimizer:
-  name: Adam
-  params:
+  name: SAM
+  base_name: Adam
+  base_params:
     lr: 0.001
 
 scheduler:
