@@ -10,6 +10,7 @@ import src.dataset as datasets
 
 from pathlib import Path
 from sklearn.metrics import label_ranking_loss
+from src.sam import SAM
 from src.transforms import (get_waveform_transforms,
                             get_spectrogram_transforms)
 
@@ -22,9 +23,19 @@ def get_device(device: str):
 def get_optimizer(model: nn.Module, config: dict):
     optimizer_config = config["optimizer"]
     optimizer_name = optimizer_config.get("name")
+    base_optimizer_name = optimizer_config.get("base_name")
+    optimizer_params = optimizer_config['params']
 
-    return optim.__getattribute__(optimizer_name)(model.parameters(),
-                                                  **optimizer_config["params"])
+    if hasattr(optim, optimizer_name):
+        optimizer = optim.__getattribute__(optimizer_name)(**optimizer_params)
+        return optimizer
+    else:
+        base_optimizer = optim.__getattribute__(base_optimizer_name)
+        optimizer = globals().get(optimizer_name)(
+            model.parameters(), 
+            base_optimizer,
+            **optimizer_config["params"])
+        return  optimizer
 
 
 def get_scheduler(optimizer, config: dict):
