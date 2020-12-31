@@ -1,16 +1,12 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 30
+  max_epochs: 80
   output_dir: output
   minimize_metric: False
   timestamp: None
   folds:
     - 0
-    - 1
-    - 2
-    - 3
-    - 4
   debug: False
   kaggle: False
 
@@ -24,7 +20,7 @@ mlflow:
       hash_value: None
       LB Score: None
       fold: None
-      message: add mixup 
+      message: add mixup seek epoch
 
 data:
   root: ./
