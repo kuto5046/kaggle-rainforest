@@ -21,7 +21,7 @@ mlflow:
       hash_value: None
       LB Score: None
       fold: None
-      message: add mixup
+      message: add fixed mixup(prob and shift time) 
 
 data:
   root: ./
