@@ -24,7 +24,7 @@ mlflow:
       hash_value: None
       LB Score: None
       fold: None
-      message: baseline(label=1) fold5
+      message: add mixup 
 
 data:
   root: ./
@@ -105,3 +105,7 @@ transforms:
     #     limit: 4
   valid:
   test:
+
+mixup:
+  flag: True 
+  alpha: 0.2

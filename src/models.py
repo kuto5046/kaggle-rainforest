@@ -37,9 +37,15 @@ class Learner(pl.LightningModule):
     
     def training_step(self, batch, batch_idx):
         x, y = batch
+        if self.config['mixup']['flag']:
+            x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
+
         pred = self.forward(x)
         criterion = C.get_criterion(self.config)
-        loss = criterion(pred, y)
+        if self.config['mixup']['flag']:
+            loss = mixup_criterion(criterion, pred, y, y_shuffle, lam)
+        else:
+            loss = criterion(pred, y)
         lwlrap = LWLRAP(pred, y)
         # acc = calc_acc(pred, y)
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -132,16 +138,11 @@ class ResNeSt50Learner(Learner):
             freq_drop_width=8,
             freq_stripes_num=2)
 
-    def forward(self, x, mixup_lambda=None):
+    def forward(self, x):
         """
         # spec aug
         if self.training:
             x = self.spec_augmenter(x)
-        """
-        """
-        # Mixup on spectrogram
-        if self.training and mixup_lambda is not None:
-            x = do_mixup(x, mixup_lambda)
         """
         x = self.model(x)
         return x
@@ -159,120 +160,23 @@ def get_model(config, fold):
         raise NotImplementedError
 
 
-def do_mixup(x: torch.Tensor, mixup_lambda: torch.Tensor):
-    """Mixup x of even indexes (0, 2, 4, ...) with x of odd indexes
-    (1, 3, 5, ...).
-    Args:
-      x: (batch_size * 2, ...)
-      mixup_lambda: (batch_size * 2,)
-    Returns:
-      out: (batch_size, ...)
-    """
-    out = (x[0::2].transpose(0, -1) * mixup_lambda[0::2] +
-           x[1::2].transpose(0, -1) * mixup_lambda[1::2]).transpose(0, -1)
-    return out
-
-
-class Mixup(object):
-    def __init__(self, mixup_alpha, random_seed=1234):
-        """Mixup coefficient generator.
-        """
-        self.mixup_alpha = mixup_alpha
-        self.random_state = np.random.RandomState(random_seed)
-
-    def get_lambda(self, batch_size):
-        """Get mixup random coefficients.
-        Args:
-          batch_size: int
-        Returns:
-          mixup_lambdas: (batch_size,)
-        """
-        mixup_lambdas = []
-        for n in range(0, batch_size, 2):
-            lam = self.random_state.beta(self.mixup_alpha, self.mixup_alpha, 1)[0]
-            mixup_lambdas.append(lam)
-            mixup_lambdas.append(1. - lam)
-
-        return torch.from_numpy(np.array(mixup_lambdas, dtype=np.float32))
-
-
-def onehot(indexes, N=None, ignore_index=None):
-    """
-    Creates a one-representation of indexes with N possible entries
-    if N is not specified, it will suit the maximum index appearing.
-    indexes is a long-tensor of indexes
-    ignore_index will be zero in onehot representation
-    """
-    if N is None:
-        N = indexes.max() + 1
-    sz = list(indexes.size())
-    output = indexes.new().byte().resize_(*sz, N).zero_()
-    output.scatter_(-1, indexes.unsqueeze(-1), 1)
-    if ignore_index is not None and ignore_index >= 0:
-        output.masked_fill_(indexes.eq(ignore_index).unsqueeze(-1), 0)
-    return output
-
-
-def mixup(x, y, num_classes=24, gamma=0.2, smooth_eps=0.1):
-    if gamma == 0 and smooth_eps == 0:
-        return x, y
-    m = Beta(torch.tensor([gamma]), torch.tensor([gamma]))
-    lambdas = m.sample([x.size(0), 1, 1]).to(x)
-    my = onehot(y, num_classes).to(x)
-    true_class, false_class = 1. - smooth_eps * num_classes / (num_classes - 1), smooth_eps / (num_classes - 1)
-    my = my * true_class + torch.ones_like(my) * false_class
-    perm = torch.randperm(x.size(0))
-    x2 = x[perm]
-    y2 = my[perm]
-    return x * (1 - lambdas) + x2 * lambdas, my * (1 - lambdas) + y2 * lambdas
-
-
-class Mixup(torch.nn.Module):
-    def __init__(self, num_classes=24, gamma=0.2, smooth_eps=0.1):
-        super(Mixup, self).__init__()
-        self.num_classes = num_classes
-        self.gamma = gamma
-        self.smooth_eps = smooth_eps
-
-    def forward(self, input, target):
-        return mixup(input, target, self.num_classes, self.gamma, self.smooth_eps)
-
-
-def rand_bbox(size, lam):
-    W = size[2]
-    H = size[3]
-    cut_rat = np.sqrt(1. - lam)
-    cut_h = np.int(H * cut_rat)
-
-    # uniform
-    cy = np.random.randint(int(H / 5), int(4 * H / 5))
-    bby1 = np.clip(cy - cut_h // 2, 0, H)
-    bby2 = np.clip(cy + cut_h // 2, 0, H)
-
-    return 0, bby1, W, bby2
-
-
-def cutmix_or_mixup(data, targets, is_cutmix=False, use_all=False):
-    # cutmix if is_cutmix else mixup
-    indices = torch.randperm(data.size(0))
-    shuffled_data = data[indices]
-    shuffled_targets0 = targets[:, 0][indices]
-    shuffled_targets1 = targets[:, 1][indices]
-    shuffled_targets2 = targets[:, 2][indices]
-
-    lam = np.random.uniform(0, 1.0)
-    if is_cutmix:
-        bbx1, bby1, bbx2, bby2 = rand_bbox(data.size(), lam)
-        data[:, :, bbx1:bbx2, bby1:bby2] = shuffled_data[indices, :, bbx1:bbx2, bby1:bby2]
-        lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (data.size()[-1] * data.size()[-2]))
+def mixup_data(x, y, alpha=1.0, use_cuda=True):
+    '''Returns mixed inputs, pairs of targets, and lambda'''
+    if alpha > 0:
+        lam = np.random.beta(alpha, alpha)
     else:
-        data = data * lam + shuffled_data * (1 - lam)
+        lam = 1
 
-    out = [targets[:, 0], shuffled_targets0,
-           targets[:, 1], shuffled_targets1,
-           targets[:, 2], shuffled_targets2]
-    if use_all:
-        shuffled_targets3 = targets[:, 3][indices]
-        out.append(targets[:, 3])
-        out.append(shuffled_targets3)
-    return data, out, lam
+    batch_size = x.size()[0]
+    if use_cuda:
+        index = torch.randperm(batch_size).cuda()
+    else:
+        index = torch.randperm(batch_size)
+
+    mixed_x = lam * x + (1 - lam) * x[index, :]
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, lam
+
+
+def mixup_criterion(criterion, pred, y_a, y_b, lam):
+    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
