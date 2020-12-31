@@ -1,7 +1,7 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 30
+  max_epochs: 40
   output_dir: output
   minimize_metric: False
   timestamp: None
@@ -21,7 +21,7 @@ mlflow:
       hash_value: None
       LB Score: None
       fold: None
-      message: add fixed mixup(prob and shift time) 
+      message: None
 
 data:
   root: ./

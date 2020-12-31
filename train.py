@@ -162,23 +162,26 @@ def main():
                 output = model(x)
                 output = output.view(batch_size, -1, 24)  # 24=num_classes
                 pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
+                pred = torch.argsort(pred, dim=-1, descending=True)
                 pred = pred.detach().cpu().numpy()
                 preds.append(pred)
             
             # TODO metric指標を出したいがその場合pytorchで扱う必要あり
-            preds = np.vstack(preds)  # 全データを１つのarrayにつなげてfoldの予測とする
             oof_df = val_df.copy()
-            pred_columns = [f's{i}' for i in range(24)]
+            pred_columns = [f'rank_{i}' for i in range(24)]
             for col in pred_columns:
                 oof_df[col] = 0
-            oof_df.loc[:, 's0':] = np.argsort(preds, axis=1)[::-1]
+            oof_df.loc[:, 'rank_0':] = np.vstack(preds) # 全データを１つのarrayにつなげてfoldの予測とする
             
             # pecies_idに対応する予測結果のrankingを取り出す
             rankings = []
+            top_ids = []
             for _, raw in oof_df.iterrows():
                 species_id = raw['species_id']
-                rankings.append(raw[f's{species_id}'])
+                rankings.append(int(list(raw['rank_0':][raw==species_id].index)[0][5:]))  # speicesの順番(rank番号を取得)
+                top_ids.append(np.argmin(raw['rank_0':].values))
             oof_df['ranking'] = rankings
+            oof_df['top_id'] = top_ids
             oof_df.to_csv(output_dir / f'oof_fold{fold}.csv', index=False)
 
         if global_config["debug"]==False:
