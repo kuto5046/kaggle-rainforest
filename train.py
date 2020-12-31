@@ -150,27 +150,39 @@ def main():
     
         # ckptのモデルでoof出力
         preds = []
+        losses = []
+        criterion = C.get_criterion(config)    
         with torch.no_grad():
             # xは複数のlist
-            for x_list, _ in tqdm(loaders['valid']):
+            for x_list, y in tqdm(loaders['valid']):
                 batch_size = x_list.shape[0]
                 x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
                 x = x.to(config["globals"]["device"])
                 output = model(x)
                 output = output.view(batch_size, -1, 24)  # 24=num_classes
+                loss = criterion(output, y)
+                loss = loss.detach().cpu().numpy()
+                losses.append(loss)
                 pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
                 pred = pred.detach().cpu().numpy()
                 preds.append(pred)
             
             # TODO metric指標を出したいがその場合pytorchで扱う必要あり
-        
+            losses = np.vstack(losses)  # 全データを１つのarrayにつなげてfoldの予測とする
             preds = np.vstack(preds)  # 全データを１つのarrayにつなげてfoldの予測とする
             oof_df = val_df.copy()
             pred_columns = [f's{i}' for i in range(24)]
+            oof_df['loss'] = losses
             for col in pred_columns:
                 oof_df[col] = 0
-            oof_df.loc[:, 's0':] = np.argsort(preds, axis=1)
-            # TODO pecies_idに対応する予測結果のrankingを取り出す
+            oof_df.loc[:, 's0':] = np.argsort(preds, axis=1)[::-1]
+            
+            # pecies_idに対応する予測結果のrankingを取り出す
+            rankings = []
+            for _, raw in oof_df.iterrows():
+                species_id = raw['species_id']
+                rankings.append(raw[f's{species_id}'])
+            oof_df['ranking'] = rankings
             oof_df.to_csv(output_dir / f'oof_fold{fold}.csv', index=False)
 
         if global_config["debug"]==False:
@@ -178,7 +190,6 @@ def main():
             pass
 
         # 推論結果出力
-        
         test_loader = C.get_loader(sub_df, test_datadir, config, phase="test")
         preds = []
         with torch.no_grad():
