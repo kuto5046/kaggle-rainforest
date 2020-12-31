@@ -5,7 +5,7 @@ globals:
   output_dir: output
   minimize_metric: False
   timestamp: None
-  only_pred: True
+  only_pred: False
   folds:
     - 0
   debug: False
