@@ -1,4 +1,5 @@
 import os
+import
 import torch
 import numpy as np
 from torch import nn
@@ -38,11 +39,16 @@ class Learner(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         if self.config['mixup']['flag']:
-            x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
+            p = random.random()
+            if p < self.config['mixup']['prob']:
+                x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
+                do_mixup = True
+            else:
+                do_mixup = False
 
         pred = self.forward(x)
         criterion = C.get_criterion(self.config)
-        if self.config['mixup']['flag']:
+        if self.config['mixup']['flag'] and do_mixup:
             loss = mixup_criterion(criterion, pred, y, y_shuffle, lam)
         else:
             loss = criterion(pred, y)

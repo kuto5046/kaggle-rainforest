@@ -59,6 +59,7 @@ def main():
 
     # utils config
     logger = utils.get_logger(output_dir/ "output.log")
+    logger.info(config)
     utils.set_seed(global_config['seed'])
     device = C.get_device(global_config["device"])
 
@@ -123,6 +124,7 @@ def main():
         """
         # model
         model = get_model(config, fold)
+
         # train
         trainer = pl.Trainer(
             logger=loggers, 
@@ -132,7 +134,8 @@ def main():
             gpus=int(torch.cuda.is_available()),
             fast_dev_run=global_config["debug"])
         
-        trainer.fit(model, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
+        if not global_config['only_pred']:
+            trainer.fit(model, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
 
         """
         ##############
@@ -150,8 +153,6 @@ def main():
     
         # ckptのモデルでoof出力
         preds = []
-        losses = []
-        criterion = C.get_criterion(config)    
         with torch.no_grad():
             # xは複数のlist
             for x_list, y in tqdm(loaders['valid']):
@@ -160,19 +161,14 @@ def main():
                 x = x.to(config["globals"]["device"])
                 output = model(x)
                 output = output.view(batch_size, -1, 24)  # 24=num_classes
-                loss = criterion(output, y)
-                loss = loss.detach().cpu().numpy()
-                losses.append(loss)
                 pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
                 pred = pred.detach().cpu().numpy()
                 preds.append(pred)
             
             # TODO metric指標を出したいがその場合pytorchで扱う必要あり
-            losses = np.vstack(losses)  # 全データを１つのarrayにつなげてfoldの予測とする
             preds = np.vstack(preds)  # 全データを１つのarrayにつなげてfoldの予測とする
             oof_df = val_df.copy()
             pred_columns = [f's{i}' for i in range(24)]
-            oof_df['loss'] = losses
             for col in pred_columns:
                 oof_df[col] = 0
             oof_df.loc[:, 's0':] = np.argsort(preds, axis=1)[::-1]

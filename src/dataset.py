@@ -10,7 +10,7 @@ import torch.utils.data as data
 from pathlib import Path
 
 
-PERIOD = 20
+PERIOD = 10
 
 class SpectrogramDataset(data.Dataset):
     def __init__(self,
