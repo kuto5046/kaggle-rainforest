@@ -21,7 +21,7 @@ mlflow:
       hash_value: None
       LB Score: None
       fold: None
-      message: None
+      message: smart label1
 
 data:
   root: ./
@@ -104,6 +104,6 @@ transforms:
   test:
 
 mixup:
-  flag: True 
+  flag: False
   alpha: 0.2
   prob: 0.5
