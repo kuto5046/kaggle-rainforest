@@ -10,7 +10,7 @@ import warnings
 from pathlib import Path
 
 
-PERIOD = 10
+PERIOD = 30
 
 class SpectrogramDataset(data.Dataset):
     def __init__(self,
@@ -243,8 +243,8 @@ def wave2image_custom_melfilter(y, sr, width, height, melspectrogram_parameters)
         fmax=melspectrogram_parameters["fmax"])
     S = np.abs(librosa.stft(y, n_fft=melspectrogram_parameters["n_fft"]))**melspectrogram_parameters["power"]
     melspec = np.dot(filterbank, S)
-
     melspec = librosa.power_to_db(melspec).astype(np.float32)
+
     image = mono_to_color(melspec)
     image = cv2.resize(image, (width, height))
     image = np.moveaxis(image, 2, 0)

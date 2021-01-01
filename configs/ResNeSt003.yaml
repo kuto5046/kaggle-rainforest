@@ -39,14 +39,14 @@ dataset:
   name: SpectrogramDataset
   height: 224
   width: 400
-  shift_time: 10
+  shift_time: 30
   params:
     melspec:
       n_fft: 2048
       n_mels: 128
       fmin: 80
-      fmax: 15000
-      power: 1.5
+      fmax: 11000
+      power: 2.0
     pcen:
       gain: 0.98
       bias: 2
