@@ -1,29 +1,29 @@
-name: Upload notebook
+# name: Upload notebook
 
-on:
-  push:
-    branches:
-      - main
+# on:
+#   push:
+#     branches:
+#       - main
 
-jobs:
-  upload:
-    name: Upload notebook
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+# jobs:
+#   upload:
+#     name: Upload notebook
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v2
 
-      - uses: harupy/push-kaggle-kernel@master
-        env:
-          # Do not leak your credentials.
-          KAGGLE_USERNAME: ${{ secrets.KaggleUsername }}
-          KAGGLE_KEY: ${{ secrets.KaggleKey }}
-        with:
-          slug: ${{ github.sha }}
-          title: ${{ github.sha }}
-          code_file: ./notebook/oof.ipynb
-          language: python
-          kernel_type: notebook
-          # Do not share high-scoring kernels.
-          is_private: true
-          competition_sources: |
-            rfcx-species-audio-detection
+#       - uses: harupy/push-kaggle-kernel@master
+#         env:
+#           # Do not leak your credentials.
+#           KAGGLE_USERNAME: ${{ secrets.KaggleUsername }}
+#           KAGGLE_KEY: ${{ secrets.KaggleKey }}
+#         with:
+#           slug: ${{ github.sha }}
+#           title: ${{ github.sha }}
+#           code_file: ./notebook/oof.ipynb
+#           language: python
+#           kernel_type: notebook
+#           # Do not share high-scoring kernels.
+#           is_private: true
+#           competition_sources: |
+#             rfcx-species-audio-detection
