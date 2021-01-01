@@ -122,7 +122,7 @@ class SpectrogramValDataset(data.Dataset):
         images = []
         # 分割した音声を一つずつ画像化してリストで返す
         for y in split_y:
-            image = wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
+            image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
             images.append(image)
 
         labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
@@ -184,7 +184,7 @@ class SpectrogramTestDataset(data.Dataset):
         images = []
         # 分割した音声を一つずつ画像化してリストで返す
         for y in split_y:
-            image = wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
+            image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
             images.append(image)
 
         labels = -1  # labelないので-1を返す
@@ -314,6 +314,7 @@ def split_audio(y, total_time, shift_time, sr):
 """
 ############
 clip method
+only use train
 ############
 """
 # こちらはlabelに限定しているのでアライさんの処理は不要
