@@ -110,10 +110,19 @@ transforms:
     #     limit: 4
     - name: TimeStretch
       params:
-        max_range: 3
+        max_rate: 2.0
+        p: 1.0
 
   valid:
+    - name: TimeStretch
+      params:
+        max_rate: 2.0
+        p: 1.0
   test:
+    - name: TimeStretch
+      params:
+        max_rate: 2.0
+        p: 1.0
 
 mixup:
   flag: False
