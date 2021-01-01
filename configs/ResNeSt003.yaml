@@ -42,6 +42,7 @@ dataset:
   shift_time: 10
   params:
     melspec:
+      n_fft: 2048
       n_mels: 128
       fmin: 80
       fmax: 15000
