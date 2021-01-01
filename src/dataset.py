@@ -10,7 +10,7 @@ import warnings
 from pathlib import Path
 
 
-PERIOD = 30
+PERIOD = 20
 
 class SpectrogramDataset(data.Dataset):
     def __init__(self,
