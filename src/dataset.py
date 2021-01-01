@@ -299,10 +299,10 @@ def clip_time_audio1(df, y, sr, idx, effective_length, main_species_id):
 
 
 # こちらはlabel付けにバッファを取っているのでアライさんの処理が必要
-def clip_time_audio2(self, y, sr, idx, effective_length, main_species_id):
+def clip_time_audio2(df, y, sr, idx, effective_length, main_species_id):
     
-    t_min = self.df.t_min.values[idx]*sr
-    t_max = self.df.t_max.values[idx]*sr
+    t_min = df.t_min.values[idx]*sr
+    t_max = df.t_max.values[idx]*sr
 
     # Positioning sound slice
     t_center = np.round((t_min + t_max) / 2)
@@ -333,14 +333,14 @@ def clip_time_audio2(self, y, sr, idx, effective_length, main_species_id):
 
     # dfには同じrecording_idだけどclipしたt内に別のラベルがあるものもある
     # そこでそれには正しいidを付けたい
-    recording_id = self.df.loc[idx, "recording_id"]
+    recording_id = df.loc[idx, "recording_id"]
     query_string = f"recording_id == '{recording_id}' & "
     query_string += f"t_min < {ending_time} & t_max > {beginning_time}"
 
     # 同じrecording_idのものを
-    all_tp_events = self.df.query(query_string)
+    all_tp_events = df.query(query_string)
 
-    labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
+    labels = np.zeros(len(df['species_id'].unique()), dtype=np.float32)
     for species_id in all_tp_events["species_id"].unique():
         if species_id == main_species_id:
             labels[int(species_id)] = 1.0  # main label
