@@ -53,9 +53,9 @@ class SpectrogramDataset(data.Dataset):
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
-        
+        image = normal_wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters)
         # image = wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
-        image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
+        # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
 
         return image, labels
 
@@ -122,7 +122,9 @@ class SpectrogramValDataset(data.Dataset):
         images = []
         # 分割した音声を一つずつ画像化してリストで返す
         for y in split_y:
-            image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
+            image = normal_wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters)
+            # image = wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
+            # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
             images.append(image)
 
         labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
@@ -184,7 +186,9 @@ class SpectrogramTestDataset(data.Dataset):
         images = []
         # 分割した音声を一つずつ画像化してリストで返す
         for y in split_y:
-            image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
+            image = normal_wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters)
+            # image = wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
+            # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
             images.append(image)
 
         labels = -1  # labelないので-1を返す
