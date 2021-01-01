@@ -196,7 +196,8 @@ def get_loader(df: pd.DataFrame,
                 width=dataset_config["width"],
                 waveform_transforms=get_waveform_transforms(config, phase),
                 spectrogram_transforms=get_spectrogram_transforms(config, phase),
-                melspectrogram_parameters=dataset_config["params"])
+                melspectrogram_parameters=dataset_config["params"]['melspec'],
+                pcen_parameters=dataset_config['params']['pcen'])
         else:
             raise NotImplementedError
     # valid    
@@ -210,7 +211,8 @@ def get_loader(df: pd.DataFrame,
                 shift_time=dataset_config['shift_time'],
                 waveform_transforms=get_waveform_transforms(config, phase),
                 spectrogram_transforms=get_spectrogram_transforms(config, phase),
-                melspectrogram_parameters=dataset_config["params"])
+                melspectrogram_parameters=dataset_config["params"]['melspec'],
+                pcen_parameters=dataset_config['params']['pcen'])
         else:
             raise NotImplementedError
     # test
@@ -224,7 +226,8 @@ def get_loader(df: pd.DataFrame,
                 shift_time=dataset_config['shift_time'],
                 waveform_transforms=get_waveform_transforms(config, phase),
                 spectrogram_transforms=get_spectrogram_transforms(config, phase),
-                melspectrogram_parameters=dataset_config["params"])
+                melspectrogram_parameters=dataset_config["params"]['melspec'],
+                pcen_parameters=dataset_config['params']['pcen'])
         else:
             raise NotImplementedError
 

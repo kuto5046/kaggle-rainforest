@@ -38,13 +38,11 @@ class Learner(pl.LightningModule):
     
     def training_step(self, batch, batch_idx):
         x, y = batch
-        if self.config['mixup']['flag']:
-            p = random.random()
-            if p < self.config['mixup']['prob']:
-                x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
-                do_mixup = True
-            else:
-                do_mixup = False
+        p = random.random()
+        do_mixup = True if p < self.config['mixup']['prob'] else False
+
+        if self.config['mixup']['flag'] and do_mixup:
+            x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
 
         pred = self.forward(x)
         criterion = C.get_criterion(self.config)

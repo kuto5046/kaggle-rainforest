@@ -21,7 +21,7 @@ mlflow:
       hash_value: None
       LB Score: None
       fold: None
-      message: smart label1
+      message: change channel
 
 data:
   root: ./
@@ -41,10 +41,17 @@ dataset:
   width: 400
   shift_time: 10
   params:
-    n_mels: 128
-    fmin: 80
-    fmax: 15000
-    power: 1.5
+    melspec:
+      n_mels: 128
+      fmin: 80
+      fmax: 15000
+      power: 1.5
+    pcen:
+      gain: 0.98
+      bias: 2
+      power: 0.5
+      time_constant: 0.4
+      eps: 0.000001
 
 loss:
   name: lsep_loss_stable  # LwlrapLoss  BCEWithLogitsLoss  lsep_loss
