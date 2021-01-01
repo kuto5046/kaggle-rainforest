@@ -11,9 +11,8 @@ noisereduce==1.1.0
 colorednoise==1.1.1
 
 # DL
-# torch==1.7.0+cu110
-# torchvision==0.8.1+cu110
-# torchaudio===0.7.0 
+torchaudio===0.7.0 
+torchlibrosa
 Albumentations==0.4.6
 resnest==0.0.5
 efficientnet-pytorch==0.6.3
