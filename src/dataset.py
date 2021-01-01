@@ -124,14 +124,15 @@ class SpectrogramDataset(data.Dataset):
         beginning = ending - effective_length
 
         y = y[beginning:ending].astype(np.float32)
-        # assert len(y)==effective_length, f"not much audio length in {idx}. The length of y is {len(y)} not {effective_length}."
+        assert len(y)==effective_length, f"not much audio length in {idx}. The length of y is {len(y)} not {effective_length}."
 
-        # TODO 以下アライさんが追加した部分
+        # 以下アライさんが追加した部分
         # https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/200922#1102470
 
         # flame→time変換
         beginning_time = beginning / sr
         ending_time = ending / sr
+        effective_time = effective_length / sr
 
         # dfには同じrecording_idだけどclipしたt内に別のラベルがあるものもある
         # そこでそれには正しいidを付けたい
@@ -143,12 +144,19 @@ class SpectrogramDataset(data.Dataset):
         all_tp_events = self.df.query(query_string)
 
         labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
-        for species_id in all_tp_events["species_id"].unique():
-            if species_id == main_species_id:
-                labels[int(species_id)] = 1.0  # main label
-            else:
-                labels[int(species_id)] = 0.5  # secondaly label
-        
+        # for species_id in all_tp_events["species_id"].unique():
+            # if species_id == main_species_id:
+            #     labels[int(species_id)] = 1.0  # main label
+            # else:
+            #     labels[int(species_id)] = 0.5  # secondaly label
+        """
+        effective timeのうち該当のlabelが何秒間あるかでラベル付け
+        重複しているものは足し合わせる
+        別の種の場合はいいが同じ種の場合は重複はたしあわせないほうがいい？
+        """
+        for _, raw in all_tp_events.iterrows():
+            labels[int(raw['species_id'])] += (raw['t_max'] - raw['t_min']) / effective_time
+
         return y, labels
 
 """
