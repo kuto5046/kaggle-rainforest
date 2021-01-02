@@ -1,13 +1,17 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 40
+  max_epochs: 30
   output_dir: output
   minimize_metric: False
   timestamp: None
   only_pred: False
   folds:
     - 0
+    - 1
+    - 2
+    - 3
+    - 4
   debug: False
   kaggle: False
 
@@ -21,7 +25,7 @@ mlflow:
       hash_value: None
       LB Score: None
       fold: None
-      message: change channel
+      message: sam baseline
 
 data:
   root: ./
@@ -39,7 +43,7 @@ dataset:
   name: SpectrogramDataset
   height: 224
   width: 400
-  period: 10
+  period: 5
   shift_time: 5
   params:
     melspec:

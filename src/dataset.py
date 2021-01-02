@@ -54,7 +54,7 @@ class SpectrogramDataset(data.Dataset):
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
-        image = normal_wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters)
+        image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
         # image = wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
         # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
 
@@ -125,7 +125,7 @@ class SpectrogramValDataset(data.Dataset):
         images = []
         # 分割した音声を一つずつ画像化してリストで返す
         for y in split_y:
-            image = normal_wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters)
+            image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
             # image = wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
             # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
             images.append(image)
@@ -191,7 +191,7 @@ class SpectrogramTestDataset(data.Dataset):
         images = []
         # 分割した音声を一つずつ画像化してリストで返す
         for y in split_y:
-            image = normal_wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters)
+            image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
             # image = wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
             # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
             images.append(image)
@@ -204,7 +204,7 @@ class SpectrogramTestDataset(data.Dataset):
 wave → image 変換
 ############
 """
-def normal_wave2image(y, sr, width, height, melspectrogram_parameters):
+def wave2image_normal(y, sr, width, height, melspectrogram_parameters):
     """
     通常のmelspectrogram変換
     """
@@ -218,7 +218,7 @@ def normal_wave2image(y, sr, width, height, melspectrogram_parameters):
     return image
 
 
-def wave2image(y, sr, width, height, melspectrogram_parameters, pcen_parameters):
+def wave2image_channel(y, sr, width, height, melspectrogram_parameters, pcen_parameters):
     """
     ３つのmelspectrogramを作りstackして3chにして画像化
     """

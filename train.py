@@ -61,7 +61,7 @@ def main():
     logger = utils.get_logger(output_dir/ "output.log")
     logger.info(config)
     utils.set_seed(global_config['seed'])
-    # pl.utilities.seed.seed_everything(seed=global_config['seed'])
+    pl.utilities.seed.seed_everything(seed=global_config['seed'])
     device = C.get_device(global_config["device"])
 
     # data
