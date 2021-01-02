@@ -242,6 +242,8 @@ def get_loader(df: pd.DataFrame,
             raise NotImplementedError
 
     loader_config = config["loader"][phase]
-    loader = data.DataLoader(dataset, **loader_config)
+    loader = data.DataLoader(dataset, **loader_config, worker_init_fn=worker_init_fn)
     return loader
 
+def worker_init_fn(worker_id):                                                          
+    np.random.seed(np.random.get_state()[1][0] + worker_id)
