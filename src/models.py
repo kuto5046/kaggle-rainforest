@@ -736,7 +736,7 @@ class EfficientNetSED(nn.Module):
 
         return output_dict
 
-
+"""
 def get_model(config: dict):
     model_config = config["model"]
     model_name = model_config["name"]
@@ -821,3 +821,6 @@ def get_model_for_inference(config: dict, weights_dir: str):
         weights = torch.load(weights_dir)
     model.load_state_dict(weights["model_state_dict"])
     return model
+
+
+"""

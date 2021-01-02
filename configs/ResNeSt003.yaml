@@ -43,7 +43,7 @@ dataset:
   name: SpectrogramDataset
   height: 224
   width: 400
-  period: 5
+  period: 20
   shift_time: 5
   params:
     melspec:

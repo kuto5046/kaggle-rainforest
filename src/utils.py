@@ -14,7 +14,6 @@ from contextlib import contextmanager
 from typing import Union, Optional
 from pathlib import Path
 
-
 def set_seed(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)

@@ -123,7 +123,7 @@ def main():
         ##############
         """
         # model
-        model = get_model(config, fold)
+        model = get_model(config)
 
         # train
         trainer = pl.Trainer(
