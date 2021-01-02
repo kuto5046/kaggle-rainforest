@@ -10,7 +10,6 @@ import warnings
 from pathlib import Path
 
 
-PERIOD = 20
 
 class SpectrogramDataset(data.Dataset):
     def __init__(self,
@@ -18,6 +17,7 @@ class SpectrogramDataset(data.Dataset):
                  datadir: Path,
                  height: int,
                  width: int,
+                 period: int,
                  waveform_transforms=None,
                  spectrogram_transforms=None,
                  melspectrogram_parameters={},
@@ -41,7 +41,7 @@ class SpectrogramDataset(data.Dataset):
         main_species_id = sample["species_id"]
         # y, sr = sf.read(self.datadir / str(main_species_id) / f"{recording_id}.wav")  # for resample
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
-        effective_length = sr * PERIOD
+        effective_length = sr * period
 
         # 破損しているデータはskip
         if len(y) == 0:
@@ -71,6 +71,7 @@ class SpectrogramValDataset(data.Dataset):
                  datadir: Path,
                  height: int,
                  width: int,
+                 period: int,
                  shift_time: int,
                  waveform_transforms=None,
                  spectrogram_transforms=None,
@@ -139,6 +140,7 @@ class SpectrogramTestDataset(data.Dataset):
                  datadir: Path,
                  height: int,
                  width: int,
+                 period: int, 
                  shift_time: int,
                  waveform_transforms=None,
                  spectrogram_transforms=None,
@@ -330,7 +332,6 @@ def clip_time_audio1(df, y, sr, idx, effective_length, main_species_id):
     y = y[t_min:t_max]
 
     len_y = len(y)
-    effective_length = sr * PERIOD
     if len_y < effective_length:
         new_y = np.zeros(effective_length, dtype=y.dtype)
         start = np.random.randint(effective_length - len_y)
