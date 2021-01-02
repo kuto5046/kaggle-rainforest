@@ -26,6 +26,7 @@ class SpectrogramDataset(data.Dataset):
         self.datadir = datadir
         self.height = height
         self.width = width
+        self.period = period
         self.waveform_transforms = waveform_transforms
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
@@ -41,7 +42,7 @@ class SpectrogramDataset(data.Dataset):
         main_species_id = sample["species_id"]
         # y, sr = sf.read(self.datadir / str(main_species_id) / f"{recording_id}.wav")  # for resample
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
-        effective_length = sr * period
+        effective_length = sr * self.period
 
         # 破損しているデータはskip
         if len(y) == 0:
@@ -82,6 +83,7 @@ class SpectrogramValDataset(data.Dataset):
         self.datadir = datadir
         self.height = height
         self.width = width
+        self.period = period
         self.shift_time = shift_time
         self.waveform_transforms = waveform_transforms
         self.spectrogram_transforms = spectrogram_transforms
@@ -118,7 +120,7 @@ class SpectrogramValDataset(data.Dataset):
             y = y.astype(np.float32)
 
         # PERIODO単位に分割(現在は6等分)
-        split_y = split_audio(y, total_time, self.shift_time, sr)
+        split_y = split_audio(y, total_time, self.period, self.shift_time, sr)
         
         images = []
         # 分割した音声を一つずつ画像化してリストで返す
@@ -150,6 +152,7 @@ class SpectrogramTestDataset(data.Dataset):
         self.datadir = datadir
         self.height = height
         self.width = width
+        self.period = period
         self.shift_time = shift_time
         self.waveform_transforms = waveform_transforms
         self.spectrogram_transforms = spectrogram_transforms
@@ -183,7 +186,7 @@ class SpectrogramTestDataset(data.Dataset):
             y = y.astype(np.float32)
 
         # PERIODO単位に分割(現在は6等分)
-        split_y = split_audio(y, total_time, self.shift_time ,sr)
+        split_y = split_audio(y, total_time, self.period, self.shift_time ,sr)
 
         images = []
         # 分割した音声を一つずつ画像化してリストで返す
@@ -303,16 +306,16 @@ def mono_to_color(X: np.ndarray,
     return V
 
 
-def split_audio(y, total_time, shift_time, sr):
+def split_audio(y, total_time, period, shift_time, sr):
     # PERIODO単位に分割(現在は6等分)
     # split_y = np.split(y, total_time/PERIOD)
     num_data = int(total_time / shift_time)
     shift_length = sr*shift_time
-    duration_length = sr*PERIOD
+    effective_length = sr*period
     split_y = []
     for i in range(num_data):
         start = shift_length * i
-        finish = start + duration_length
+        finish = start + effective_length
         split_y.append(y[start:finish])
     
     return split_y

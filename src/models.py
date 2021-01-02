@@ -152,6 +152,50 @@ class ResNeSt50Learner(Learner):
         return x
 
 
+class ResNeSt50SamLearner(Learner):
+    def __init__(self, config, fold):
+        super().__init__(config, fold)
+        self.pretrained = config['model']['params']['pretrained']
+        self.num_classes = config['model']['params']['num_classes']
+
+        self.model = resnest50(pretrained=self.pretrained)
+        del self.model.fc
+        self.model.fc = nn.Sequential(
+            nn.Linear(2048, 1024),
+            nn.ReLU(),
+            nn.Dropout(p=0.2),
+            nn.Linear(1024, 1024),
+            nn.ReLU(),
+            nn.Dropout(p=0.2),
+            nn.Linear(1024, self.num_classes)
+        )
+
+        # Spec augmenter
+        self.spec_augmenter = SpecAugmentation(
+            time_drop_width=64,
+            time_stripes_num=2,
+            freq_drop_width=8,
+            freq_stripes_num=2)
+
+    def forward(self, x, mixup_lambda=None):
+        """
+        # spec aug
+        if self.training:
+            x = self.spec_augmenter(x)
+        """
+
+        x = self.model(x)
+        return x
+
+
+    # DEFAULT
+    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx,
+                    optimizer_closure, on_tpu, using_native_amp, using_lbfgs):
+
+        optimizer.first_step(closure=optimizer_closure, zero_grad=True)
+        optimizer.second_step(closure=optimizer_closure, zero_grad=True)
+
+    
 def get_model(config, fold):
     model_name = config["model"]["name"]
     if model_name == "ResNet50":
@@ -159,6 +203,9 @@ def get_model(config, fold):
         return model
     elif model_name == "ResNeSt50":
         model = ResNeSt50Learner(config, fold)
+        return model
+    elif model_name == "ResNeSt50Sam":
+        model = ResNeSt50SamLearner(config, fold)
         return model
     else:
         raise NotImplementedError
