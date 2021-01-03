@@ -130,6 +130,7 @@ def main():
             logger=loggers, 
             checkpoint_callback=checkpoint_callback,
             max_epochs=global_config["max_epochs"],
+            gpus=-1,
             fast_dev_run=global_config["debug"])
         
         if not global_config['only_pred']:

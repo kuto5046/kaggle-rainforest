@@ -25,6 +25,8 @@ def LRAP(preds, labels):
 # label-level average
 # Assume float preds [BxC], labels [BxC] of 0 or 1
 def LWLRAP(preds, labels):
+    preds = preds.to('cpu')
+    labels = labels.to('cpu')
     # Ranks of the predictions
     ranked_classes = torch.argsort(preds, dim=-1, descending=True)
     # i, j corresponds to rank of prediction in row i
