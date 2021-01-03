@@ -139,8 +139,8 @@ class ResNeSt50Learner(Learner):
     def forward(self, x):
 
         # spec aug
-        if self.training:
-            x = self.spec_augmenter(x)
+        # if self.training:
+        #     x = self.spec_augmenter(x)
 
         x = self.model(x)
         return x
@@ -174,8 +174,8 @@ class ResNeSt50SamLearner(Learner):
     def forward(self, x):
 
         # spec aug
-        if self.training:
-            x = self.spec_augmenter(x)
+        # if self.training:
+        #     x = self.spec_augmenter(x)
 
         x = self.model(x)
         return x
