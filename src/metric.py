@@ -38,8 +38,7 @@ def LWLRAP(preds, labels):
     sorted_ground_truth_ranks, _ = torch.sort(ground_truth_ranks, dim=-1, descending=False)
     # Number of GT labels per instance
     # num_labels = labels.sum(-1)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    pos_matrix = torch.tensor(np.array([i+1 for i in range(labels.size(-1))])).unsqueeze(0).to(device)
+    pos_matrix = torch.tensor(np.array([i+1 for i in range(labels.size(-1))])).unsqueeze(0)
     score_matrix = pos_matrix / sorted_ground_truth_ranks
     score_mask_matrix, _ = torch.sort(labels, dim=-1, descending=True)
     scores = score_matrix * score_mask_matrix

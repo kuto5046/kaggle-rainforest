@@ -129,9 +129,7 @@ def main():
         trainer = pl.Trainer(
             logger=loggers, 
             checkpoint_callback=checkpoint_callback,
-            # callbacks=[early_stop_callback],
             max_epochs=global_config["max_epochs"],
-            gpus=int(torch.cuda.is_available()),
             fast_dev_run=global_config["debug"])
         
         if not global_config['only_pred']:
