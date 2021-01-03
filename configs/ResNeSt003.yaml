@@ -92,15 +92,15 @@ loader:
   train:
     batch_size: 20
     shuffle: True
-    num_workers: 4
+    num_workers: 10
   valid:
     batch_size: 20
     shuffle: False
-    num_workers: 4
+    num_workers: 10
   test:
     batch_size: 20
     shuffle: False
-    num_workers: 4
+    num_workers: 10
 
 transforms:
   train:
@@ -110,6 +110,6 @@ transforms:
   test:
 
 mixup:
-  flag: False
+  flag: True
   alpha: 0.2
   prob: 0.5

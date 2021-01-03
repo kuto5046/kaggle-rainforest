@@ -130,18 +130,18 @@ class ResNeSt50Learner(Learner):
         )
 
         # Spec augmenter
-        # self.spec_augmenter = SpecAugmentation(
-        #     time_drop_width=64,
-        #     time_stripes_num=2,
-        #     freq_drop_width=8,
-        #     freq_stripes_num=2)
+        self.spec_augmenter = SpecAugmentation(
+            time_drop_width=64,
+            time_stripes_num=2,
+            freq_drop_width=8,
+            freq_stripes_num=2)
 
     def forward(self, x):
-        """
+
         # spec aug
         if self.training:
             x = self.spec_augmenter(x)
-        """
+
         x = self.model(x)
         return x
 
@@ -165,18 +165,17 @@ class ResNeSt50SamLearner(Learner):
         )
 
         # Spec augmenter
-        # self.spec_augmenter = SpecAugmentation(
-        #     time_drop_width=64,
-        #     time_stripes_num=2,
-        #     freq_drop_width=8,
-        #     freq_stripes_num=2)
+        self.spec_augmenter = SpecAugmentation(
+            time_drop_width=64,
+            time_stripes_num=2,
+            freq_drop_width=8,
+            freq_stripes_num=2)
 
     def forward(self, x):
-        """
+
         # spec aug
         if self.training:
             x = self.spec_augmenter(x)
-        """
 
         x = self.model(x)
         return x
