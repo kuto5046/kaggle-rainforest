@@ -50,7 +50,11 @@ class SpectrogramDataset(data.Dataset):
             print(f"num_unknown_audio: {self.count}")
             print(f"wav_name: {recording_id}")
 
-        y, labels = clip_time_audio2(self.df, y, sr, idx, effective_length, main_species_id)
+        p = random.random()
+        if p < 0.7:
+            y, labels = clip_time_audio2(self.df, y, sr, idx, effective_length, main_species_id)
+        else:
+            y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
@@ -326,6 +330,36 @@ clip method
 only use train
 ############
 """
+
+def random_clip_audio(df, y, sr, idx, effective_length):
+    len_y = len(y)
+    if len_y < effective_length:
+        new_y = np.zeros(effective_length, dtype=y.dtype)
+        start = np.random.randint(effective_length - len_y)
+        new_y[start:start + len_y] = y
+        y = new_y.astype(np.float32)
+    elif len_y > effective_length:
+        start = np.random.randint(len_y - effective_length)
+        end = start + effective_length
+        y = y[start:end].astype(np.float32)
+    else:
+        y = y.astype(np.float32)
+    
+    # dfには同じrecording_idだけどclipしたt内に別のラベルがあるものもある
+    # そこでそれには正しいidを付けたい
+    recording_id = df.loc[idx, "recording_id"]
+    query_string = f"recording_id == '{recording_id}'"
+
+    # 同じrecording_idのものを
+    all_tp_events = df.query(query_string)
+
+    labels = np.zeros(len(df['species_id'].unique()), dtype=np.float32)
+    for species_id in all_tp_events["species_id"].unique():
+        labels[int(species_id)] = 0.5  # weak label
+    
+    return y, labels
+
+
 # こちらはlabelに限定しているのでアライさんの処理は不要
 # 有効でなかった
 def clip_time_audio1(df, y, sr, idx, effective_length, main_species_id):
@@ -400,9 +434,10 @@ def clip_time_audio2(df, y, sr, idx, effective_length, main_species_id):
         if species_id == main_species_id:
             labels[int(species_id)] = 1.0  # main label
         else:
-            labels[int(species_id)] = 0.5  # secondaly label
+            labels[int(species_id)] = 1.0  # secondaly label
     
     return y, labels
+
 
 # 10sのうちの音声の比率でラベル付け
 # clip_time_audio2とあまり変化なし
