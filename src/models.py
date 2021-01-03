@@ -31,12 +31,12 @@ class Learner(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self.criterion = C.get_criterion(self.config)
 
-    def forward(self, x):
-        return None
     
     def training_step(self, batch, batch_idx):
         x, y = batch
+
         p = random.random()
         do_mixup = True if p < self.config['mixup']['prob'] else False
 
@@ -44,11 +44,12 @@ class Learner(pl.LightningModule):
             x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
 
         pred = self.forward(x)
-        criterion = C.get_criterion(self.config)
+
         if self.config['mixup']['flag'] and do_mixup:
-            loss = mixup_criterion(criterion, pred, y, y_shuffle, lam)
+            loss = mixup_criterion(self.criterion, pred, y, y_shuffle, lam)
         else:
-            loss = criterion(pred, y)
+            loss = self.criterion(pred, y)
+
         lwlrap = LWLRAP(pred, y)
         # acc = calc_acc(pred, y)
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -67,12 +68,6 @@ class Learner(pl.LightningModule):
         output = output.view(batch_size, -1, y.shape[1])  # y.shape[1]==num_classes
         pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
 
-        """
-        # xが１つの場合
-        x, y = batch
-        output = self.model(x)
-        pred = output[self.config["globals"]["output_type"]]
-        """
         criterion = C.get_criterion(self.config)
         loss = criterion(pred, y)
         lwlrap = LWLRAP(pred, y)
@@ -135,11 +130,11 @@ class ResNeSt50Learner(Learner):
         )
 
         # Spec augmenter
-        self.spec_augmenter = SpecAugmentation(
-            time_drop_width=64,
-            time_stripes_num=2,
-            freq_drop_width=8,
-            freq_stripes_num=2)
+        # self.spec_augmenter = SpecAugmentation(
+        #     time_drop_width=64,
+        #     time_stripes_num=2,
+        #     freq_drop_width=8,
+        #     freq_stripes_num=2)
 
     def forward(self, x):
         """
@@ -170,13 +165,13 @@ class ResNeSt50SamLearner(Learner):
         )
 
         # Spec augmenter
-        self.spec_augmenter = SpecAugmentation(
-            time_drop_width=64,
-            time_stripes_num=2,
-            freq_drop_width=8,
-            freq_stripes_num=2)
+        # self.spec_augmenter = SpecAugmentation(
+        #     time_drop_width=64,
+        #     time_stripes_num=2,
+        #     freq_drop_width=8,
+        #     freq_stripes_num=2)
 
-    def forward(self, x, mixup_lambda=None):
+    def forward(self, x):
         """
         # spec aug
         if self.training:
