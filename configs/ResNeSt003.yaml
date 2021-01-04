@@ -17,14 +17,12 @@ globals:
 mlflow:
     experiment_name: rainforest
     tags:
-      config_filename: None
       timestamp: None
       model_name: None
       loss_name: None
       hash_value: None
-      LB Score: None
-      fold: None
-      message: sam baseline
+      LB_Score: None
+      message: baseline(fix seed)
 
 data:
   root: ./

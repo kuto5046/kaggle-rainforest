@@ -5,7 +5,8 @@ import logging
 import os
 import random
 import time
-
+import subprocess
+from datetime import datetime
 import numpy as np
 import torch
 import yaml
@@ -65,3 +66,28 @@ def load_config(path: str):
     with open(path) as f:
         config = yaml.safe_load(f)
     return config
+
+
+# get git hash value(short ver.)
+def get_hash(config):
+    if config['globals']["kaggle"]:
+        # kaggle
+        hash_value = None
+    else:
+        # local
+        cmd = "git rev-parse --short HEAD"
+        hash_value = subprocess.check_output(cmd.split()).strip().decode('utf-8')
+    
+    return hash_value
+
+
+def get_timestamp(config):
+    # output config
+    if config['globals']['timestamp']=='None':
+        timestamp = datetime.today().strftime("%m%d_%H%M%S")
+    else:
+        timestamp = config['globals']['timestamp']
+    
+    if config["globals"]["debug"] == True:
+        timestamp = "debug"
+    return timestamp
