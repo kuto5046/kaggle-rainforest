@@ -78,7 +78,7 @@ class Learner(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = C.get_optimizer(self.model, self.config)
         scheduler = C.get_scheduler(optimizer, self.config)
-        return [optimizer] #, [scheduler]
+        return [optimizer], [scheduler]
 
 
 class ResNet50Learner(Learner):

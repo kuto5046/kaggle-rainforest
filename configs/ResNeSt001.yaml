@@ -1,13 +1,17 @@
 globals:
   seed: 42
-  device: cpu
-  num_epochs: 100
+  device: cuda
+  max_epochs: 30
   output_dir: output
-  minimize_metric: False
-  weights:
+  timestamp: None
+  only_pred: False
   folds:
     - 0
-  debug: True
+    - 1
+    - 2
+    - 3
+    - 4
+  debug: False
   kaggle: False
 
 mlflow:
@@ -16,7 +20,10 @@ mlflow:
       timestamp: None
       model_name: None
       loss_name: None
-  
+      hash_value: None
+      LB_Score: None
+      message: baseline(use sceduler)
+
 data:
   root: ./
   use_train_data:
@@ -33,14 +40,24 @@ dataset:
   name: SpectrogramDataset
   height: 224
   width: 400
+  period: 10
+  shift_time: 10
   params:
-    n_mels: 128
-    fmin: 80
-    fmax: 16000
-    power: 1.5
+    melspec:
+      n_fft: 2048
+      n_mels: 128
+      fmin: 80
+      fmax: 15000
+      power: 2.0
+    pcen:
+      gain: 0.98
+      bias: 2
+      power: 0.5
+      time_constant: 0.4
+      eps: 0.000001
 
 loss:
-  name: BCEWithLogitsLoss
+  name: lsep_loss_stable  # LwlrapLoss  BCEWithLogitsLoss  lsep_loss
   num_classes: 24
   params:
     pos_weight: None
@@ -70,14 +87,26 @@ model:
 
 loader:
   train:
-    batch_size: 3
+    batch_size: 20
     shuffle: True
-    num_workers: 0
+    num_workers: 10
   valid:
-    batch_size: 1
+    batch_size: 20
     shuffle: False
-    num_workers: 0
+    num_workers: 10
   test:
-    batch_size: 1
+    batch_size: 20
     shuffle: False
-    num_workers: 0
+    num_workers: 10
+
+transforms:
+  train:
+
+  valid:
+
+  test:
+
+mixup:
+  flag: False
+  alpha: 0.2
+  prob: 0.5
