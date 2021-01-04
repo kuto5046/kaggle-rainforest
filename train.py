@@ -98,7 +98,7 @@ def main():
     warnings.filterwarnings('ignore')
 
     # config
-    config_filename = 'ResNeSt003.yaml'
+    config_filename = 'ResNeSt001.yaml'
     config = utils.load_config(f"configs/{config_filename}")
     global_config = config['globals']
     hash_value = utils.get_hash(config)  # get git hash value(short ver.)
@@ -125,7 +125,11 @@ def main():
     mlf_logger = MLFlowLogger(
     experiment_name=config["mlflow"]["experiment_name"],
     tags=config["mlflow"]["tags"])
-    mlf_logger.log_hyperparams(config)
+
+    # mlflowへconfigを渡す
+    config_params = config.copy()
+    del config_params['data'], config_params['globals'], config_params['mlflow']
+    mlf_logger.log_hyperparams(config_params)
 
     all_preds = []  # 全体の結果を格納
     all_lwlrap_score = []  # val scoreを記録する用
