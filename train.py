@@ -118,7 +118,6 @@ def main():
     splitter = C.get_split(config)
 
     # mlflow logger
-    loggers = []
     config["mlflow"]["tags"]["timestamp"] = timestamp
     config["mlflow"]["tags"]["model_name"] = config["model"]["name"]
     config["mlflow"]["tags"]["loss_name"] = config["loss"]["name"]
@@ -126,7 +125,6 @@ def main():
     mlf_logger = MLFlowLogger(
     experiment_name=config["mlflow"]["experiment_name"],
     tags=config["mlflow"]["tags"])
-    # loggers.append(mlf_logger)
     mlf_logger.log_hyperparams(config)
 
     all_preds = []  # 全体の結果を格納
@@ -137,6 +135,7 @@ def main():
             continue
 
         # tensorboard logger
+        loggers = []
         model_name = config["model"]['name']
         tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name)
         loggers.append(tb_logger)
