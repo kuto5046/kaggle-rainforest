@@ -25,6 +25,9 @@ RUN apt-get -y update && apt-get install -y \
     libgl1-mesa-dev \
     libsndfile1
 
+# TODO(shell setup)
+# RUN git clone https://github.com/kuto5046/dotfiles.git
+
 # download anaconda package and install anaconda
 WORKDIR /opt
 RUN wget https://repo.continuum.io/archive/Anaconda3-2019.10-Linux-x86_64.sh && \
@@ -50,15 +53,20 @@ RUN pip install torch==1.7.0+cu110 torchvision==0.8.1+cu110 torchaudio===0.7.0 -
 COPY ./.kaggle/kaggle.json /.kaggle/
 RUN chmod 600 /.kaggle/kaggle.json
 
-# set working directory
-WORKDIR /work
-
 # jupyter用にportを開放
 EXPOSE 8888
 EXPOSE 5000
 EXPOSE 6006
 
+# set working directory
+WORKDIR /work
+
 # add user
-ARG UID=1000
-RUN useradd -m -u ${UID} docker
-USER ${UID}
+ARG DOCKER_UID=1000
+ARG DOCKER_USER=docker
+ARG DOCKER_PASSWORD=whale
+RUN useradd -m --uid ${DOCKER_UID} --groups sudo ${DOCKER_USER} \
+  && echo ${DOCKER_USER}:${DOCKER_PASSWORD} | chpasswd
+
+# switch user
+USER ${DOCKER_USER}
