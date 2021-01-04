@@ -22,7 +22,7 @@ mlflow:
       loss_name: None
       hash_value: None
       LB_Score: None
-      message: baseline(fix seed)
+      message: baseline
 
 data:
   root: ./
