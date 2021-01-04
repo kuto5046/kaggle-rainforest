@@ -90,7 +90,7 @@ def main():
             mlf_logger = MLFlowLogger(
             experiment_name=config["mlflow"]["experiment_name"],
             tags=config["mlflow"]["tags"])
-            loggers.append(mlf_logger)
+            # loggers.append(mlf_logger)
 
         model_name = config["model"]['name']
         tb_logger = TensorBoardLogger(save_dir=output_dir, name=model_name)
@@ -110,13 +110,14 @@ def main():
 
         # callback
         # early_stop_callback = EarlyStopping(monitor='val_loss')
+        """
         checkpoint_callback = ModelCheckpoint(
             monitor=f'loss/val',
             mode='min',
             dirpath=output_dir,
             verbose=False,
             filename=f'{model_name}-{fold}')
-        
+        """
         """
         ##############
         train part
@@ -128,9 +129,9 @@ def main():
         # train
         trainer = pl.Trainer(
             logger=loggers, 
-            checkpoint_callback=checkpoint_callback,
+            # checkpoint_callback=checkpoint_callback,
             max_epochs=global_config["max_epochs"],
-            gpus=-1,
+            gpus=[0],
             fast_dev_run=global_config["debug"])
         
         if not global_config['only_pred']:

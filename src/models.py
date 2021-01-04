@@ -36,7 +36,6 @@ class Learner(pl.LightningModule):
     
     def training_step(self, batch, batch_idx):
         x, y = batch
-
         p = random.random()
         do_mixup = True if p < self.config['mixup']['prob'] else False
 
@@ -57,7 +56,6 @@ class Learner(pl.LightningModule):
         # self.log(f'fold{self.fold}_train_acc', acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
     
-
     # batchのxはlist型
     def validation_step(self, batch, batch_idx):
         # xが複数の場合
@@ -80,7 +78,7 @@ class Learner(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = C.get_optimizer(self.model, self.config)
         scheduler = C.get_scheduler(optimizer, self.config)
-        return [optimizer], [scheduler]
+        return [optimizer] #, [scheduler]
 
 
 class ResNet50Learner(Learner):
@@ -141,7 +139,6 @@ class ResNeSt50Learner(Learner):
         # spec aug
         # if self.training:
         #     x = self.spec_augmenter(x)
-
         x = self.model(x)
         return x
 
