@@ -209,13 +209,24 @@ def main():
 
     # ループ抜ける
     # final logger 
-    all_lwlrap_score = np.mean(all_lwlrap_score, axis=0)
-    mlf_logger.log_metrics({f'LWLRAP/all':all_lwlrap_score}, step=None)
+    # valの結果で加重平均
+    weights = []
+    val_lwlrap_score = 0
+    for i, score in enumerate(all_lwlrap_score):
+        weight = score / np.sum(all_lwlrap_score)
+        val_lwlrap_score += all_lwlrap_score[i] * weight
+        weights.append(weight)
+    
+    mlf_logger.log_metrics({f'LWLRAP/all':val_lwlrap_score}, step=None)
     mlf_logger.log_metrics({f'LWLRAP/LB_Score': 0.0}, step=None)
     mlf_logger.finalize()
 
     # for submission
-    sub_preds = np.mean(all_preds, axis=0)  # foldで平均を取る
+    sub_preds = 0
+    for i, pred in enumerate(all_preds):
+        sub_preds += pred * weights[i]
+
+    #sub_preds = np.mean(all_preds, axis=0)  # foldで平均を取る
     sub_df.iloc[:, 1:] = sub_preds
     sub_df.to_csv(output_dir / "submission.csv", index=False)
         
