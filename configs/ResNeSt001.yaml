@@ -11,7 +11,7 @@ globals:
     - 2
     - 3
     - 4
-  debug: True
+  debug: False
   kaggle: False
 
 mlflow:
