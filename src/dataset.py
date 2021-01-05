@@ -52,7 +52,7 @@ class SpectrogramDataset(data.Dataset):
 
         p = random.random()
         if p < 1.0:
-            y, labels = clip_time_audio3(self.df, y, sr, idx, effective_length, main_species_id)
+            y, labels = clip_time_audio2(self.df, y, sr, idx, effective_length, main_species_id)
         else:
             y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
 
