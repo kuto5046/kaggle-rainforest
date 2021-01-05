@@ -211,6 +211,7 @@ def main():
     # final logger 
     all_lwlrap_score = np.mean(all_lwlrap_score, axis=0)
     mlf_logger.log_metrics({f'LWLRAP/all':all_lwlrap_score}, step=None)
+    mlf_logger.log_metrics({f'LWLRAP/LB_Score': 0.0}, step=None)
     mlf_logger.finalize()
 
     # for submission

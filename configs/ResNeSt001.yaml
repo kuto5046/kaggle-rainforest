@@ -21,8 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      LB_Score: None
-      message: baseline(use sceduler)
+      message: SAM baseline
 
 data:
   root: ./
@@ -63,7 +62,8 @@ loss:
     pos_weight: None
 
 optimizer:
-  name: Adam
+  name: SAM
+  base_name: Adam
   params:
     lr: 0.001
 
@@ -80,7 +80,7 @@ split:
     shuffle: True
 
 model:
-  name: ResNeSt50
+  name: ResNeSt50Sam
   params:
     pretrained: True
     num_classes: 24
