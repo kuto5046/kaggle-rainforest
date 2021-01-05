@@ -52,14 +52,14 @@ class SpectrogramDataset(data.Dataset):
 
         p = random.random()
         if p < 1.0:
-            y, labels = clip_time_audio3(self.df, y, sr, idx, effective_length, main_species_id)
+            y, labels = clip_time_audio2(self.df, y, sr, idx, effective_length, main_species_id)
         else:
             y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
-        image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
-        # image = wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
+        # image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
+        image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
         # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
 
         return image, labels
@@ -129,8 +129,8 @@ class SpectrogramValDataset(data.Dataset):
         images = []
         # 分割した音声を一つずつ画像化してリストで返す
         for y in split_y:
-            image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
-            # image = wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
+            # image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
+            image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
             # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
             images.append(image)
 
@@ -195,8 +195,8 @@ class SpectrogramTestDataset(data.Dataset):
         images = []
         # 分割した音声を一つずつ画像化してリストで返す
         for y in split_y:
-            image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
-            # image = wave2image(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
+            # image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
+            image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
             # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
             images.append(image)
 
@@ -472,7 +472,6 @@ def clip_time_audio3(df, y, sr, idx, effective_length, main_species_id):
     # flame→time変換
     beginning_time = beginning / sr
     ending_time = ending / sr
-    effective_time = effective_length / sr
 
     # dfには同じrecording_idだけどclipしたt内に別のラベルがあるものもある
     # そこでそれには正しいidを付けたい

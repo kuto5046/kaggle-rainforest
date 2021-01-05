@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: standardized second label
+      message: wave2image channel
 
 data:
   root: ./
