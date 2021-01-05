@@ -62,8 +62,7 @@ loss:
     pos_weight: None
 
 optimizer:
-  name: SAM
-  base_name: Adam
+  name: Adam
   params:
     lr: 0.001
 
@@ -80,7 +79,7 @@ split:
     shuffle: True
 
 model:
-  name: ResNeSt50Sam
+  name: ResNeSt50
   params:
     pretrained: True
     num_classes: 24

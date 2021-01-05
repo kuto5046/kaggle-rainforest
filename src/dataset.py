@@ -434,7 +434,7 @@ def clip_time_audio2(df, y, sr, idx, effective_length, main_species_id):
         if species_id == main_species_id:
             labels[int(species_id)] = 1.0  # main label
         else:
-            labels[int(species_id)] = 1.0  # secondaly label
+            labels[int(species_id)] = 0.5  # secondaly label
     
     return y, labels
 

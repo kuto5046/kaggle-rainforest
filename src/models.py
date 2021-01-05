@@ -18,7 +18,7 @@ from src.metric import LWLRAP
 import pytorch_lightning as pl
 from torchlibrosa.stft import Spectrogram, LogmelFilterBank
 from torchlibrosa.augmentation import SpecAugmentation
-
+from pytorch_lightning.metrics import F1
 
 def calc_acc(pred, y):
     pred = torch.sigmoid(pred).detach().cpu().numpy()
@@ -32,6 +32,7 @@ class Learner(pl.LightningModule):
         super().__init__()
         self.config = config
         self.criterion = C.get_criterion(self.config)
+        self.f1 = F1(num_classes=24)
 
     
     def training_step(self, batch, batch_idx):
@@ -50,10 +51,12 @@ class Learner(pl.LightningModule):
             loss = self.criterion(pred, y)
 
         lwlrap = LWLRAP(pred, y)
-        # acc = calc_acc(pred, y)
+        f1_score = self.f1(F.softmax(pred), y)
+
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        # self.log(f'fold{self.fold}_train_acc', acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+
         return loss
     
     # batchのxはlist型
@@ -66,13 +69,12 @@ class Learner(pl.LightningModule):
         output = output.view(batch_size, -1, y.shape[1])  # y.shape[1]==num_classes
         pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
 
-        criterion = C.get_criterion(self.config)
-        loss = criterion(pred, y)
+        loss = self.criterion(pred, y)
         lwlrap = LWLRAP(pred, y)
-        # acc = calc_acc(pred, y)
+        f1_score = self.f1(pred, y)
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        # self.log(f'fold{self.fold}_val_acc', acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)  
+        self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
 
     def configure_optimizers(self):
