@@ -52,7 +52,7 @@ class SpectrogramDataset(data.Dataset):
 
         p = random.random()
         if p < 1.0:
-            y, labels = clip_time_audio2(self.df, y, sr, idx, effective_length, main_species_id)
+            y, labels = clip_time_audio3(self.df, y, sr, idx, effective_length, main_species_id)
         else:
             y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
 
@@ -491,11 +491,17 @@ def clip_time_audio3(df, y, sr, idx, effective_length, main_species_id):
     別の種の場合はいいが同じ種の場合は重複はたしあわせないほうがいい？
     """
     for _, raw in all_tp_events.iterrows():
-        labels[int(raw['species_id'])] += (raw['t_max'] - raw['t_min']) / effective_time
-
+        labels[int(raw['species_id'])] += (raw['t_max'] - raw['t_min'])
+        # labels[int(raw['species_id'])] += (raw['t_max'] - raw['t_min']) / effective_time
+    
+    # 一番長い音声が1となるように正規化
+    labels = standardize(labels)
     return y, labels
 
 
+def standardize(labels):
+    labels = (labels - np.min(labels)) / (np.max(labels) - np.min(labels))
+    return labels
 
 def mel(sr, n_fft, n_mels=128, fmin=0.0, fmax=None, htk=False,
         norm=1):
