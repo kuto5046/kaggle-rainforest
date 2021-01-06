@@ -39,7 +39,10 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
             batch_size = x_list.shape[0]
             x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
             x = x.to(config["globals"]["device"])
-            output = model(x)
+            
+            if "SED" in config["model"]["name"]:
+                output = model.model(x)
+                output = output["logit"]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
             score = LWLRAP(pred, y)
@@ -81,7 +84,9 @@ def test_step(model, sub_df, test_loader, config, output_dir, fold):
             batch_size = x_list.shape[0]
             x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
             x = x.to(config["globals"]["device"])
-            output = model(x)
+            if "SED" in config["model"]["name"]:
+                output = model.model(x)
+                output = output["logit"]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
             pred = pred.detach().cpu().numpy()
@@ -98,7 +103,7 @@ def main():
     warnings.filterwarnings('ignore')
 
     # config
-    config_filename = 'ResNeSt001.yaml'
+    config_filename = 'EfficientNetSED001.yaml'
     config = utils.load_config(f"configs/{config_filename}")
     global_config = config['globals']
     hash_value = utils.get_hash(config)  # get git hash value(short ver.)
