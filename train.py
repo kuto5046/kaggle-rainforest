@@ -163,8 +163,8 @@ def main():
 
         # callback
         checkpoint_callback = ModelCheckpoint(
-            monitor=f'loss/val',
-            mode='min',
+            monitor=f'LWLRAP/val',
+            mode='max',
             dirpath=output_dir,
             verbose=False,
             filename=f'{model_name}-{fold}')

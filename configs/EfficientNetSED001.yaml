@@ -1,7 +1,7 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 30
+  max_epochs: 50
   output_dir: output
   timestamp: None
   output_key: segmentwise_output
@@ -22,7 +22,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: SED baseline logit
+      message: SED baseline efficientnet-b0 logit random_clip v2
 
 data:
   root: ./
