@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: SED with mixup
+      message: SED 
 
 data:
   root: ./
@@ -57,7 +57,7 @@ dataset:
       eps: 0.000001
 
 loss:
-  name: ImprovedPANNsLoss
+  name:  # LSEPStableLoss mprovedPANNsLoss
   num_classes: 24
   params:
     output_key: clipwise_output
