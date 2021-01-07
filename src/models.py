@@ -69,13 +69,11 @@ class Learner(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         # xが複数の場合
         x_list, y = batch
-        batch_size = x_list.shape[0]
         x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
+    
         output = self.forward(x)
-        output = output.view(batch_size, -1, y.shape[1])  # y.shape[1]==num_classes
-        pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
-
-        loss = self.criterion(pred, y)
+        loss = self.criterion(output, y, phase='valid')
+        pred = C.split2one(output, y)
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred, y)
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -220,9 +218,9 @@ class SEDLearner(pl.LightningModule):
         pred = output[self.output_key]
 
         if self.config['mixup']['flag'] and do_mixup:
-            loss = mixup_criterion(self.criterion, pred, y, y_shuffle, lam)
+            loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
-            loss = self.criterion(pred, y)
+            loss = self.criterion(output, y, phase="train")
 
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred, y)
@@ -237,14 +235,11 @@ class SEDLearner(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         # xが複数の場合
         x_list, y = batch
-        batch_size = x_list.shape[0]
         x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
         output = self.model(x)
-        output = output[self.output_key]
-        output = output.view(batch_size, -1, y.shape[1])  # y.shape[1]==num_classes
-        pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
-
-        loss = self.criterion(pred, y)
+        loss = self.criterion(output, y, phase='valid')
+        pred = output[self.output_key]
+        pred = C.split2one(pred, y)
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred, y)
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -257,8 +252,8 @@ class SEDLearner(pl.LightningModule):
         scheduler = C.get_scheduler(optimizer, self.config)
         return [optimizer], [scheduler]
 
-"""
-class PANNsCNN14Att(SEDLearner):
+
+class PANNsCNN14AttSEDLearner(SEDLearner):
     def __init__(self, config):
         super().__init__(config)
 
@@ -380,7 +375,7 @@ class PANNsCNN14Att(SEDLearner):
         return output_dict
 
 
-class ResNestSEDLearner(SEDLearner):
+class ResNeStSEDLearner(SEDLearner):
     def __init__(self, config):
         super().__init__(config)
         model_params = config['model']['params']
@@ -443,7 +438,7 @@ class ResNestSEDLearner(SEDLearner):
         }
 
         return output_dict
-"""
+
 
 class EfficientNetSED(nn.Module):
     def __init__(self, config):
@@ -738,8 +733,8 @@ def mixup_data(x, y, alpha=1.0, use_cuda=True):
     return mixed_x, y_a, y_b, lam
 
 
-def mixup_criterion(criterion, pred, y_a, y_b, lam):
-    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
+def mixup_criterion(criterion, pred, y_a, y_b, lam, phase='train'):
+    return lam * criterion(pred, y_a, phase) + (1 - lam) * criterion(pred, y_b, phase)
 
 
 def get_model(config: dict):
@@ -755,7 +750,7 @@ def get_model(config: dict):
         model = ResNeSt50SamLearner(config)
         return model
     elif model_name == "PANNsCNN14Att":
-        model = PANNsCNN14AttLearner(config)  # TODO num_classes 527
+        model = PANNsCNN14AttSEDLearner(config)  # TODO num_classes 527
         checkpoint = torch.load("pretrained/PANNsCNN14Att.pth")
         model.load_state_dict(checkpoint["model"])
         model.att_block = AttBlock(
@@ -764,7 +759,7 @@ def get_model(config: dict):
         init_layer(model.fc1)
         return model
     elif model_name == "ResNestSED":
-        model = ResNestSEDLearner(config)
+        model = ResNeStSEDLearner(config)
         return model
     elif model_name == "EfficientNetSED":
         model = EfficientNetSED(config)

@@ -33,6 +33,7 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
     # ckptのモデルでoof出力
     preds = []
     scores = []
+    output_key = config['model']['output_key']
     with torch.no_grad():
         # xは複数のlist
         for x_list, y in tqdm(loaders['valid']):
@@ -42,7 +43,7 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
             
             if "SED" in config["model"]["name"]:
                 output = model.model(x)
-                output = output["logit"]
+                output = output[output_key]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
             score = LWLRAP(pred, y)

@@ -10,7 +10,7 @@ import src.dataset as datasets
 
 from pathlib import Path
 from sklearn.metrics import label_ranking_loss
-from src.criterion import lsep_loss, lsep_loss_stable, ImprovedPANNsLoss
+from src.criterion import LSEPLoss, LSEPStableLoss, ImprovedPANNsLoss
 from src.transforms import (get_waveform_transforms,
                             get_spectrogram_transforms)
 
@@ -52,13 +52,13 @@ def get_criterion(config: dict):
     loss_params = {} if loss_config.get("params") is None else loss_config.get("params")
 
     # TODO 要変更
-    pos_weight = torch.ones(loss_config["num_classes"]).to(config["globals"]["device"])
-    loss_params["pos_weight"] = pos_weight * loss_config["num_classes"]
+    # pos_weight = torch.ones(loss_config["num_classes"]).to(config["globals"]["device"])
+    # loss_params["pos_weight"] = pos_weight * loss_config["num_classes"]
 
     if hasattr(nn, loss_name):
         criterion = nn.__getattribute__(loss_name)(**loss_params)
     else:
-        criterion = globals().get(loss_name)
+        criterion = globals().get(loss_name)(**loss_params)
 
     return criterion
 
@@ -159,3 +159,14 @@ def get_loader(df: pd.DataFrame,
 
 def worker_init_fn(worker_id):                                                          
     np.random.seed(np.random.get_state()[1][0] + worker_id)
+
+
+def split2one(input, target):
+    """
+    validは60sの音声をn分割されバッチとしてモデルに入力される
+    そこで出力後に分割されたデータを１つのデータに変換する必要がある
+    クラスごとのmaxを出力とする
+    """
+    input_ = input.view(target.shape[0], -1, target.shape[1])  # y.shape[1]==num_classes
+    input_ = torch.max(input_, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
+    return input_
