@@ -4,7 +4,6 @@ globals:
   max_epochs: 30
   output_dir: output
   timestamp: None
-  output_key: segmentwise_output
   only_pred: False
   folds:
     - 0
@@ -22,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: SED baseline efficientnet-b0 logit strong_clip
+      message: SED with mixup
 
 data:
   root: ./
@@ -82,8 +81,9 @@ split:
 
 model:
   name: EfficientNetSED
+  output_key: logit
   params:
-    base_model_name: efficientnet-b3
+    base_model_name: efficientnet-b2
     pretrained: True
     num_classes: 24
 
@@ -109,6 +109,6 @@ transforms:
   test:
 
 mixup:
-  flag: False
+  flag: True
   alpha: 0.2
   prob: 0.5

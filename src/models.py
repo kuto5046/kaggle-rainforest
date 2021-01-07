@@ -204,7 +204,7 @@ class SEDLearner(pl.LightningModule):
         super().__init__()
         self.model = model
         self.config = config
-        self.output_key = config["globals"]["output_key"]
+        self.output_key = config["model"]["output_key"]
         self.criterion = C.get_criterion(self.config)
         self.f1 = F1(num_classes=24)
 
@@ -217,7 +217,7 @@ class SEDLearner(pl.LightningModule):
             x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
 
         output = self.model(x)
-        pred = output["logit"]
+        pred = output[self.output_key]
 
         if self.config['mixup']['flag'] and do_mixup:
             loss = mixup_criterion(self.criterion, pred, y, y_shuffle, lam)
@@ -240,7 +240,7 @@ class SEDLearner(pl.LightningModule):
         batch_size = x_list.shape[0]
         x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
         output = self.model(x)
-        output = output["logit"]
+        output = output[self.output_key]
         output = output.view(batch_size, -1, y.shape[1])  # y.shape[1]==num_classes
         pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
 
