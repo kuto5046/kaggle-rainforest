@@ -58,6 +58,7 @@ dataset:
 
 loss:
   name: ImprovedPANNsLoss
+  num_classes: 24
   params:
     output_key: clipwise_output
     weights:
