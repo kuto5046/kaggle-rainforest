@@ -57,7 +57,7 @@ dataset:
       eps: 0.000001
 
 loss:
-  name:  # LSEPStableLoss mprovedPANNsLoss
+  name: improvedPANNsLoss
   num_classes: 24
   params:
     output_key: clipwise_output
