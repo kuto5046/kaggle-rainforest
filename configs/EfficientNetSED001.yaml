@@ -83,7 +83,7 @@ split:
 model:
   name: EfficientNetSED
   params:
-    base_model_name: efficientnet-b2
+    base_model_name: efficientnet-b3
     pretrained: True
     num_classes: 24
 
