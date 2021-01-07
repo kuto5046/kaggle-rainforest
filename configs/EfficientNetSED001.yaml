@@ -22,7 +22,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: SED baseline efficientnet-b0 logit random_clip v2
+      message: SED baseline efficientnet-b0 logit strong_clip
 
 data:
   root: ./
@@ -42,7 +42,7 @@ dataset:
   width: 400
   period: 10
   shift_time: 10
-  strong_label_prob: 0.0
+  strong_label_prob: 1.0
   params:
     melspec:
       n_fft: 2048
