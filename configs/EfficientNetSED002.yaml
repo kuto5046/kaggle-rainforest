@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: SED 
+      message: SED improvedPANNsLoss
 
 data:
   root: ./
