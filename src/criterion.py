@@ -39,9 +39,10 @@ class CustomBCELoss(nn.Module):
     Loss内部でoutput_keyを適用するためにcustom lossを作成
     
     """
-    def __init__(self, output_key="clipwise_logit"):
-        super().__init__()
+    def __init__(self, output_key="logit"):
+        super(CustomBCELoss, self).__init__()
         self.criterion = nn.BCELoss()
+        self.output_key = output_key
 
     def forward(self, inputs, target, phase="train"):
         input = inputs[self.output_key]

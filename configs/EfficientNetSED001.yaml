@@ -59,7 +59,7 @@ dataset:
 loss:
   name: CustomBCELoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
   params:
-    output_key: clipwise_logit
+    output_key: logit
 
 optimizer:
   name: Adam
