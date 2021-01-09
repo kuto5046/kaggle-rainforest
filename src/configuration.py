@@ -51,10 +51,6 @@ def get_criterion(config: dict):
     loss_name = loss_config["name"]
     loss_params = {} if loss_config.get("params") is None else loss_config.get("params")
 
-    if 'BCE' in loss_name:
-        pos_weight = torch.ones(loss_config["num_classes"]).to(config["globals"]["device"])
-        loss_params["pos_weight"] = pos_weight * loss_config["num_classes"]
-
     if hasattr(nn, loss_name):
         criterion = nn.__getattribute__(loss_name)(**loss_params)
     else:

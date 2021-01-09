@@ -16,19 +16,19 @@ class ImprovedPANNsLoss(nn.Module):
         self.bce = nn.BCELoss()
         self.weights = weights
 
-    def forward(self, input, target, phase="train"):
-        input_ = input[self.output_key]
-        framewise_output = input["framewise_output"]  # framewiseからclipwiseを求める
+    def forward(self, inputs, target, phase="train"):
+        input = inputs[self.output_key]
+        framewise_output = inputs["framewise_output"]  # framewiseからclipwiseを求める
         target = target.float()
 
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
         if phase == 'valid':
-            input_ = C.split2one(input_, target)
+            input = C.split2one(input, target)
             framewise_output = framewise_output.view(target.shape[0], -1, framewise_output.shape[1], target.shape[1])  # [1200, 400, 24] -> [20, 6, 400, 24]
             framewise_output = torch.max(framewise_output, dim=1)[0]  # [20, 6, 400, 24] -> [20, 400, 24]
              
         clipwise_output_with_max, _ = framewise_output.max(dim=1)
-        normal_loss = self.normal_loss(input_, target)
+        normal_loss = self.normal_loss(input, target)
         auxiliary_loss = self.bce(clipwise_output_with_max, target)
 
         return self.weights[0] * normal_loss + self.weights[1] * auxiliary_loss
@@ -37,10 +37,15 @@ class ImprovedPANNsLoss(nn.Module):
 # refered following repo
 # https://github.com/ex4sperans/freesound-classification/blob/71b9920ce0ae376aa7f1a3a2943f0f92f4820813/networks/losses.py
 class LSEPLoss(nn.Module):
-    def __init__(self, average=True):
+    def __init__(self, output_key='logit', average=True):
+        super(LSEPLoss, self).__init__()
         self.average = average
+        self.output_key = output_key
     
-    def forward(self, input, target, phase='train'):
+    def forward(self, inputs, target, phase='train'):
+        input = inputs[self.output_key]
+        target = target.float()
+    
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
         if phase == 'valid':
             input = C.split2one(input, target)
@@ -58,10 +63,14 @@ class LSEPLoss(nn.Module):
 
 
 class LSEPStableLoss(nn.Module):
-    def __init__(self, average=True):
+    def __init__(self, output_key="logit", average=True):
+        super(LSEPStableLoss, self).__init__()
         self.average = average
+        self.output_key = output_key
     
-    def forward(self, input, target, phase="train"):
+    def forward(self, inputs, target, phase="train"):
+        input = inputs[self.output_key]
+        target = target.float()
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
         if phase == 'valid':
             input = C.split2one(input, target)

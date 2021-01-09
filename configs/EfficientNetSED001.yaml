@@ -60,6 +60,7 @@ loss:
   name: LSEPStableLoss  # LwlrapLoss  BCEWithLogitsLoss  lsep_loss
   num_classes: 24
   params:
+    output_key: logit
 
 optimizer:
   name: Adam
