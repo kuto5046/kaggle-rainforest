@@ -33,7 +33,6 @@ class SpectrogramDataset(data.Dataset):
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
         self.pcen_parameters = pcen_parameters
-        self.count = 0
 
     def __len__(self):
         return len(self.df)
@@ -44,13 +43,10 @@ class SpectrogramDataset(data.Dataset):
         # y, sr = sf.read(self.datadir / str(main_species_id) / f"{recording_id}.wav")  # for resample
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
         effective_length = sr * self.period
-
-        # 破損しているデータはskip
-        if len(y) == 0:
-            self.count += 1
-            print(f"num_unknown_audio: {self.count}")
-            print(f"wav_name: {recording_id}")
-
+    
+        total_time=60
+        y = adjust_audio_length(y, sr, total_time)
+    
         p = random.random()
         if p < self.strong_label_prob:
             y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length)
@@ -103,26 +99,10 @@ class SpectrogramValDataset(data.Dataset):
         recording_id = sample["recording_id"]
         main_species_id = sample["species_id"]
 
-        total_time = 60  # 音声を全て60sに揃える
-        # y, sr = sf.read(self.datadir / str(main_species_id) / f"{recording_id}.wav")  # for resample
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
 
-        if self.waveform_transforms:
-            y = self.waveform_transforms(y)
-
-        # データの長さを全てtotal_time分にする
-        len_y = len(y)
-        total_length = total_time * sr
-        if len_y < total_length:
-            new_y = np.zeros(total_length, dtype=y.dtype)
-            start = np.random.randint(total_length - len_y)
-            new_y[start:start + len_y] = y
-            y = new_y.astype(np.float32)
-        elif len_y > total_length:
-            start = np.random.randint(len_y - total_length)
-            y = y[start:start + total_length].astype(np.float32)
-        else:
-            y = y.astype(np.float32)
+        total_time=60
+        y = adjust_audio_length(y, sr, total_time)
 
         # PERIODO単位に分割(現在は6等分)
         split_y = split_audio(y, total_time, self.period, self.shift_time, sr)
@@ -170,25 +150,13 @@ class SpectrogramTestDataset(data.Dataset):
     def __getitem__(self, idx: int):
         sample = self.df.loc[idx, :]
         recording_id = sample["recording_id"]
-        total_time = 60  # 音声を全て60sに揃える
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")
 
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
 
-        # データの長さを全てtotal_time分にする
-        len_y = len(y)
-        total_length = total_time * sr
-        if len_y < total_length:
-            new_y = np.zeros(total_length, dtype=y.dtype)
-            start = np.random.randint(total_length - len_y)
-            new_y[start:start + len_y] = y
-            y = new_y.astype(np.float32)
-        elif len_y > total_length:
-            start = np.random.randint(len_y - total_length)
-            y = y[start:start + total_length].astype(np.float32)
-        else:
-            y = y.astype(np.float32)
+        total_time = 60  # 音声を全て60sに揃える
+        y = adjust_audio_length(y, sr, total_time)
 
         # PERIODO単位に分割(現在は6等分)
         split_y = split_audio(y, total_time, self.period, self.shift_time ,sr)
@@ -203,6 +171,27 @@ class SpectrogramTestDataset(data.Dataset):
 
         labels = -1  # labelないので-1を返す
         return np.asarray(images), labels
+
+
+def adjust_audio_length(y, sr, total_time=60):
+    try:
+        assert len(y)==total_time * sr
+    except:
+        print('Assert Error')
+        # データの長さを全てtotal_time分にする
+        len_y = len(y)
+        total_length = total_time * sr
+        if len_y < total_length:
+            new_y = np.zeros(total_length, dtype=y.dtype)
+            start = np.random.randint(total_length - len_y)
+            new_y[start:start + len_y] = y
+            y = new_y.astype(np.float32)
+        elif len_y > total_length:
+            start = np.random.randint(len_y - total_length)
+            y = y[start:start + total_length].astype(np.float32)
+        else:
+            y = y.astype(np.float32)
+    return y
 
 """
 ############
