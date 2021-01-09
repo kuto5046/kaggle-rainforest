@@ -34,6 +34,27 @@ class ImprovedPANNsLoss(nn.Module):
         return self.weights[0] * normal_loss + self.weights[1] * auxiliary_loss
 
 
+class CustomBCELoss(nn.Module):
+    """
+    Loss内部でoutput_keyを適用するためにcustom lossを作成
+    
+    """
+    def __init__(self, output_key="clipwise_logit"):
+        super().__init__()
+        self.criterion = nn.BCELoss()
+
+    def forward(self, inputs, target, phase="train"):
+        input = inputs[self.output_key]
+        target = target.float()
+
+        # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
+        if phase == 'valid':
+            input = C.split2one(input, target)
+
+        loss = self.criterion(input, target)
+        return loss
+
+
 # refered following repo
 # https://github.com/ex4sperans/freesound-classification/blob/71b9920ce0ae376aa7f1a3a2943f0f92f4820813/networks/losses.py
 class LSEPLoss(nn.Module):

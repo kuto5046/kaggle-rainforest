@@ -10,7 +10,7 @@ import src.dataset as datasets
 
 from pathlib import Path
 from sklearn.metrics import label_ranking_loss
-from src.criterion import LSEPLoss, LSEPStableLoss, ImprovedPANNsLoss
+from src.criterion import LSEPLoss, LSEPStableLoss, ImprovedPANNsLoss, CustomBCELoss
 from src.transforms import (get_waveform_transforms,
                             get_spectrogram_transforms)
 

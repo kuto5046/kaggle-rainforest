@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: test
+      message: test BCELoss
 
 data:
   root: ./
@@ -57,10 +57,9 @@ dataset:
       eps: 0.000001
 
 loss:
-  name: LSEPStableLoss  # LwlrapLoss  BCEWithLogitsLoss  lsep_loss
-  num_classes: 24
+  name: CustomBCELoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
   params:
-    output_key: logit
+    output_key: clipwise_logit
 
 optimizer:
   name: Adam
@@ -109,6 +108,6 @@ transforms:
   test:
 
 mixup:
-  flag: True
+  flag: False
   alpha: 0.2
   prob: 0.5
