@@ -59,7 +59,7 @@ dataset:
 loss:
   name: CustomBCELoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
   params:
-    output_key: logit
+    output_key: clipwise_output
 
 optimizer:
   name: Adam
@@ -80,7 +80,7 @@ split:
 
 model:
   name: EfficientNetSED
-  output_key: logit
+  output_key: clipwise_output
   params:
     base_model_name: efficientnet-b2
     pretrained: True

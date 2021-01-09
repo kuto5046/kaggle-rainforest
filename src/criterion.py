@@ -41,7 +41,7 @@ class CustomBCELoss(nn.Module):
     """
     def __init__(self, output_key="logit"):
         super(CustomBCELoss, self).__init__()
-        self.criterion = nn.BCELoss()
+        self.loss = nn.BCELoss()
         self.output_key = output_key
 
     def forward(self, inputs, target, phase="train"):
@@ -52,7 +52,7 @@ class CustomBCELoss(nn.Module):
         if phase == 'valid':
             input = C.split2one(input, target)
 
-        loss = self.criterion(input, target)
+        loss = self.loss(input, target)
         return loss
 
 
@@ -60,7 +60,8 @@ class CustomBCELoss(nn.Module):
 # https://github.com/ex4sperans/freesound-classification/blob/71b9920ce0ae376aa7f1a3a2943f0f92f4820813/networks/losses.py
 class LSEPLoss(nn.Module):
     def __init__(self, output_key='logit', average=True):
-        super(LSEPLoss, self).__init__()
+        super().__init__()
+
         self.average = average
         self.output_key = output_key
     
