@@ -465,34 +465,42 @@ class EfficientNetSED(nn.Module):
     def forward(self, input):
         frames_num = input.size(3)
 
-        # (batch_size, channels, freq, frames)
+        # (batch_size, channels, freq, frames) ex->(120, 1408, 7, 12)
         x = self.base_model.extract_features(input)
 
-        # (batch_size, channels, frames)
+        # (batch_size, channels, frames) ex->(120, 1408, 12)
         x = torch.mean(x, dim=2)
 
         # channel smoothing
+        # channel次元上でpoolingを行う
         x1 = F.max_pool1d(x, kernel_size=3, stride=1, padding=1)
         x2 = F.avg_pool1d(x, kernel_size=3, stride=1, padding=1)
         x = x1 + x2
 
         x = F.dropout(x, p=0.5, training=self.training)
-        x = x.transpose(1, 2)
+        x = x.transpose(1, 2)  # torch.Size([120, 1408, 12]) -> torch.Size([120, 12, 1408])
         x = F.relu_(self.fc1(x))
-        x = x.transpose(1, 2)
+        x = x.transpose(1, 2)  # torch.Size([120, 12, 1408]) -> torch.Size([120, 1408, 12])
         x = F.dropout(x, p=0.5, training=self.training)
         (clipwise_output, norm_att, segmentwise_output) = self.att_block(x)
-        clipwise_logit = torch.sum(norm_att * self.att_block.cla(x), dim=2)
-        segmentwise_logit = self.att_block.cla(x).transpose(1, 2)
+        logit = torch.sum(norm_att * self.att_block.cla(x), dim=2)  # claにsigmoidをかけない状態でclipwiseを計算
+        segmentwise_logit = self.att_block.cla(x).transpose(1, 2)  # torch.Size([120, 12, 24])
+        segmentwise_output = segmentwise_output.transpose(1, 2)  # torch.Size([120, 12, 24])
+
+        # Get framewise output
+        framewise_output = interpolate(segmentwise_output, self.interpolate_ratio)  # n_time次元上でをupsampling
+        framewise_output = pad_framewise_output(framewise_output, frames_num)  # n_timesの最後の値で穴埋めしてframes_numに合わせる
 
         framewise_logit = interpolate(segmentwise_logit, self.interpolate_ratio)
         framewise_logit = pad_framewise_output(framewise_logit, frames_num)
 
-
         output_dict = {
-            "segmentwise_logit": segmentwise_logit,
-            "clipwise_logit": clipwise_logit,
+            "clipwise_output": clipwise_output,
+            "framewise_output": framewise_output,
+            "segmentwise_output": segmentwise_output,
+            "logit": logit,
             "framewise_logit": framewise_logit,
+            "segmentwise_logit": segmentwise_logit  
         }
 
         return output_dict
@@ -541,10 +549,10 @@ def interpolate(x: torch.Tensor, ratio: int):
     upsampled = upsampled.reshape(batch_size, time_steps * ratio, classes_num)
     return upsampled
 
-
+# n_timeの最後の値で穴埋めしてframe数になるようにする
 def pad_framewise_output(framewise_output: torch.Tensor, frames_num: int):
-    """Pad framewise_output to the same length as input frames. The pad value
-    is the same as the value of the last frame.
+    """Pad framewise_output to the same length as input frames. 
+       The pad value is the same as the value of the last frame.
     Args:
       framewise_output: (batch_size, frames_num, classes_num)
       frames_num: int, number of frames to pad
@@ -687,11 +695,18 @@ class AttBlockV2(nn.Module):
         init_layer(self.att)
         init_layer(self.cla)
 
-    def forward(self, x):
-        # x: (n_samples, n_in, n_time)
-        norm_att = torch.softmax(torch.tanh(self.att(x)), dim=-1)
-        cla = self.nonlinear_transform(self.cla(x))
-        x = torch.sum(norm_att * cla, dim=2)
+    def forward(self, x):  
+        """
+        Args:
+        x: (n_samples, n_in, n_time)  ex)torch.Size([120, 1408, 12])
+        Outputs:
+        x:(batch_size, classes_num) ex)torch.Size([120, 24])
+        norm_att: batch_size, classes_num, n_time) ex)torch.Size([120, 24, 12])
+        cla: batch_size, classes_num, n_time) ex)torch.Size([120, 24, 12])
+        """
+        norm_att = torch.softmax(torch.tanh(self.att(x)), dim=-1)  # torch.Size([120, 24, 12]) クラス数に圧縮/valueを-1~1/n_timeの次元の総和=１に変換
+        cla = self.nonlinear_transform(self.cla(x))  # self.cla()=self.att()/sigmoid変換
+        x = torch.sum(norm_att * cla, dim=2)  # 要素同士の積 torch.Size([120, 24]): (n_samples, n_class)
         return x, norm_att, cla
 
     def nonlinear_transform(self, x):
@@ -699,7 +714,6 @@ class AttBlockV2(nn.Module):
             return x
         elif self.activation == 'sigmoid':
             return torch.sigmoid(x)
-
 
 
 """
