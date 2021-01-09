@@ -23,6 +23,7 @@ class SpectrogramDataset(data.Dataset):
                  height: int,
                  width: int,
                  period: int,
+                 shift_time: int,
                  strong_label_prob: int, 
                  waveform_transforms=None,
                  spectrogram_transforms=None,
@@ -34,6 +35,7 @@ class SpectrogramDataset(data.Dataset):
         self.height = height
         self.width = width
         self.period = period
+        self.shift_time = shift_time
         self.strong_label_prob = strong_label_prob
         self.waveform_transforms = waveform_transforms
         self.spectrogram_transforms = spectrogram_transforms
@@ -46,6 +48,7 @@ class SpectrogramDataset(data.Dataset):
     def __getitem__(self, idx: int):
         sample = self.df.loc[idx, :]
         recording_id = sample["recording_id"]
+        main_species_id = sample['species_id']
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
         effective_length = sr * self.period
         total_time = 60  # 音声を全て60sに揃える
