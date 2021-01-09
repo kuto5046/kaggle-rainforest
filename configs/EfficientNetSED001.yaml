@@ -57,7 +57,7 @@ dataset:
       eps: 0.000001
 
 loss:
-  name: CustomBCELoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
+  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
   params:
     output_key: clipwise_output
 
