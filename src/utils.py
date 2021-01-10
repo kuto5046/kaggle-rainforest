@@ -5,6 +5,7 @@ import logging
 import os
 import random
 import time
+import requests
 import subprocess
 from datetime import datetime
 import numpy as np
@@ -91,3 +92,19 @@ def get_timestamp(config):
     if config["globals"]["debug"] == True:
         timestamp = "debug"
     return timestamp
+
+
+# 任意のメッセージを通知する関数
+def send_slack_message_notification(message):
+    webhook_url = os.environ['SLACK_WEBHOOK_URL']  
+    data = json.dumps({'text': message})
+    headers = {'content-type': 'application/json'}
+    requests.post(webhook_url, data=data, headers=headers)
+
+# errorを通知する関数
+def send_slack_error_notification(message):
+    webhook_url = os.environ['SLACK_WEBHOOK_URL']  
+    # no_entry_signは行き止まりの絵文字を出力
+    data = json.dumps({"text":":no_entry_sign:" + message})  
+    headers = {'content-type': 'application/json'}
+    requests.post(webhook_url, data=data, headers=headers)
