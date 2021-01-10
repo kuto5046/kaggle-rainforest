@@ -48,7 +48,6 @@ class SpectrogramDataset(data.Dataset):
     def __getitem__(self, idx: int):
         sample = self.df.loc[idx, :]
         recording_id = sample["recording_id"]
-        main_species_id = sample['species_id']
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
         effective_length = sr * self.period
         total_time = 60  # 音声を全て60sに揃える
@@ -78,9 +77,9 @@ class SpectrogramDataset(data.Dataset):
                 # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
                 images.append(image)
 
-            labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
-
             if self.phase == 'valid':
+                labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
+                main_species_id = sample['species_id']
                 labels[main_species_id] = 1.0
                 return np.asarray(images), labels
             elif self.phase == 'test':

@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: test BCELoss
+      message: make best model
 
 data:
   root: ./
@@ -59,7 +59,7 @@ dataset:
 loss:
   name: LSEPStableLoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
   params:
-    output_key: clipwise_output
+    output_key: logit
 
 optimizer:
   name: Adam
@@ -80,7 +80,7 @@ split:
 
 model:
   name: EfficientNetSED
-  output_key: clipwise_output
+  output_key: logit
   params:
     base_model_name: efficientnet-b2
     pretrained: True
