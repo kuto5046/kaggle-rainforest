@@ -21,8 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: white noise TTA
-
+      message: max of framewise_output as clip
 data:
   root: ./
   use_train_data:
@@ -59,7 +58,7 @@ dataset:
 loss:
   name: LSEPStableLoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
   params:
-    output_key: logit
+    output_key: framewise_output
 
 optimizer:
   name: Adam
@@ -80,7 +79,7 @@ split:
 
 model:
   name: EfficientNetSED
-  output_key: logit
+  output_key: framewise_output
   params:
     base_model_name: efficientnet-b2
     pretrained: True
@@ -102,11 +101,11 @@ loader:
 
 transforms:
   train:
-    - name: GaussianNoise
+
   valid:
-    - name: GaussianNoise
+
   test:
-    - name: GaussianNoise
+
 mixup:
   flag: False
   alpha: 0.2

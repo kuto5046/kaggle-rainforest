@@ -245,14 +245,10 @@ def main():
     mlf_logger.finalize()
 
     sub_df.iloc[:, 1:] = sub_preds
-    sub_df.to_csv(output_dir / "submission2.csv", index=False)
+    sub_df.to_csv(output_dir / "submission.csv", index=False)
         
 
 if __name__ == '__main__':
     with utils.timer('Total time'):
-        try:
-            main()
-        except:
-            utils.send_slack_error_notification("[ERROR]\n" + traceback.format_exc()) 
-            print(traceback.format_exc())
+        main()
 

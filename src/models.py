@@ -239,6 +239,8 @@ class SEDLearner(pl.LightningModule):
         output = self.model(x)
         loss = self.criterion(output, y, phase='valid')
         pred = output[self.output_key]
+        if 'framewise' in self.output_key:
+            pred, _ = pred.max(dim=1)
         pred = C.split2one(pred, y)
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred, y)

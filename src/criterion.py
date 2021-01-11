@@ -93,6 +93,8 @@ class LSEPStableLoss(nn.Module):
     
     def forward(self, inputs, target, phase="train"):
         input = inputs[self.output_key]
+        if 'framewise' in self.output_key:
+            input, _ = input.max(dim=1)
         target = target.float()
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
         if phase == 'valid':
