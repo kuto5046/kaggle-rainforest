@@ -216,7 +216,9 @@ class SEDLearner(pl.LightningModule):
 
         output = self.model(x)
         pred = output[self.output_key]
-
+        if 'framewise' in self.output_key:
+            pred, _ = pred.max(dim=1)
+            
         if self.config['mixup']['flag'] and do_mixup:
             loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
