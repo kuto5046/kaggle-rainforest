@@ -112,7 +112,8 @@ def main():
     timestamp = utils.get_timestamp(config)
     output_dir = Path(global_config['output_dir']) / timestamp
     output_dir.mkdir(exist_ok=True, parents=True)
-    utils.send_slack_message_notification(f'[START] timestamp: {timestamp}')
+    if global_config['debug']==False:
+        utils.send_slack_message_notification(f'[START] timestamp: {timestamp}')
 
     # utils config
     logger = utils.get_logger(output_dir/ "output.log")
@@ -213,7 +214,8 @@ def main():
         # test
         preds = test_step(model, sub_df, test_loader, config, output_dir, fold)
         all_preds.append(preds)  # foldの予測結果を格納
-        utils.send_slack_message_notification(f'[FINISH] fold{fold}-lwlrap:{lwlrap_score:.3f}')
+        if global_config['debug']==False:
+            utils.send_slack_message_notification(f'[FINISH] fold{fold}-lwlrap:{lwlrap_score:.3f}')
 
 
     # ループ抜ける
@@ -250,6 +252,7 @@ if __name__ == '__main__':
         try:
             main()
         except:
-            utils.send_slack_error_notification("[ERROR]\n" + traceback.format_exc()) 
+            if global_config['debug']==False:
+                utils.send_slack_error_notification("[ERROR]\n" + traceback.format_exc()) 
             print(traceback.format_exc())
 

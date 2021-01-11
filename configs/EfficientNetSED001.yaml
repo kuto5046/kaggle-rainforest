@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: make best model
+      message: white noise TTA
 
 data:
   root: ./
@@ -102,11 +102,11 @@ loader:
 
 transforms:
   train:
-
+    - name: GaussianNoise
   valid:
-
+    - name: GaussianNoise
   test:
-
+    - name: GaussianNoise
 mixup:
   flag: False
   alpha: 0.2
