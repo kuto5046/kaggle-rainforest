@@ -58,7 +58,7 @@ dataset:
 loss:
   name: LSEPStableLoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
   params:
-    output_key: framewise_output
+    output_key: framewise_logit
 
 optimizer:
   name: Adam
@@ -79,7 +79,7 @@ split:
 
 model:
   name: EfficientNetSED
-  output_key: framewise_output
+  output_key: framewise_logit
   params:
     base_model_name: efficientnet-b2
     pretrained: True
