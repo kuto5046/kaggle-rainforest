@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: random clip with shinmura's ouptut
+      message: random clip with logit
 data:
   root: ./
   use_train_data:
@@ -79,7 +79,7 @@ split:
 
 model:
   name: EfficientNetSED
-  output_key: framewise_logit
+  output_key: logit
   params:
     base_model_name: efficientnet-b2
     pretrained: True
