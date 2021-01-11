@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: max of framewise_output as clip
+      message: random clip with shinmura's ouptut
 data:
   root: ./
   use_train_data:
@@ -40,7 +40,7 @@ dataset:
   width: 400
   period: 10
   shift_time: 10
-  strong_label_prob: 1.0
+  strong_label_prob: 0.0
   params:
     melspec:
       n_fft: 2048
@@ -58,7 +58,7 @@ dataset:
 loss:
   name: LSEPStableLoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
   params:
-    output_key: framewise_logit
+    output_key: logit
 
 optimizer:
   name: Adam
