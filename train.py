@@ -173,29 +173,30 @@ def main():
             verbose=False,
             filename=f'{model_name}-{fold}')
 
+        # model
+        model = get_model(config)
+
         """
         ##############
         train part
         ##############
         """
-        # model
-        model = get_model(config)
-
-        # train
-        trainer = pl.Trainer(
-            logger=loggers, 
-            checkpoint_callback=checkpoint_callback,
-            max_epochs=global_config["max_epochs"],
-            gpus=[0],
-            fast_dev_run=global_config["debug"],
-            deterministic=True)
-        
-        if not global_config['only_pred']:
-            trainer.fit(model, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
+        if global_config['only_pred']==False:
+            # train
+            trainer = pl.Trainer(
+                logger=loggers, 
+                checkpoint_callback=checkpoint_callback,
+                max_epochs=global_config["max_epochs"],
+                gpus=[0],
+                fast_dev_run=global_config["debug"],
+                deterministic=True)
+            
+            if not global_config['only_pred']:
+                trainer.fit(model, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
 
         """
         ##############
-        inference part
+        predict part
         ##############
         """
         # load model
@@ -205,7 +206,7 @@ def main():
             ckpt = torch.load(output_dir / f'{model_name}-{fold}.ckpt')  # TODO foldごとのモデルを取得できるようにする
         model.load_state_dict(ckpt['state_dict'])
         model.eval().to(device)
-
+        
         # valid
         lwlrap_score = valid_step(model, val_df, loaders, config, output_dir, fold)
         mlf_logger.log_metrics({f'LWLRAP/fold{fold}':lwlrap_score}, step=None)
@@ -244,7 +245,7 @@ def main():
     mlf_logger.finalize()
 
     sub_df.iloc[:, 1:] = sub_preds
-    sub_df.to_csv(output_dir / "submission.csv", index=False)
+    sub_df.to_csv(output_dir / "submission2.csv", index=False)
         
 
 if __name__ == '__main__':
@@ -252,7 +253,6 @@ if __name__ == '__main__':
         try:
             main()
         except:
-            if global_config['debug']==False:
-                utils.send_slack_error_notification("[ERROR]\n" + traceback.format_exc()) 
+            utils.send_slack_error_notification("[ERROR]\n" + traceback.format_exc()) 
             print(traceback.format_exc())
 
