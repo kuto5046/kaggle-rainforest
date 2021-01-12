@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: strong clip pred=framewise_output
+      message: scale up image width size
 data:
   root: ./
   use_train_data:
@@ -37,7 +37,7 @@ data:
 dataset:
   name: SpectrogramDataset
   height: 224
-  width: 400
+  width: 1000
   period: 10
   shift_time: 10
   strong_label_prob: 1.0
@@ -79,7 +79,7 @@ split:
 
 model:
   name: EfficientNetSED
-  output_key: framewise_logit
+  output_key: logit
   params:
     base_model_name: efficientnet-b2
     pretrained: True
@@ -87,15 +87,15 @@ model:
 
 loader:
   train:
-    batch_size: 20
+    batch_size: 12
     shuffle: True
     num_workers: 10
   valid:
-    batch_size: 20
+    batch_size: 1
     shuffle: False
     num_workers: 10
   test:
-    batch_size: 20
+    batch_size: 1
     shuffle: False
     num_workers: 10
 
