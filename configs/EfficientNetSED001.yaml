@@ -3,8 +3,8 @@ globals:
   device: cuda
   max_epochs: 30
   output_dir: output
-  timestamp: "0110_121231"
-  only_pred: True
+  timestamp: None
+  only_pred: False
   folds:
     - 0
     - 1
@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: scale up image width size
+      message: time shift
 data:
   root: ./
   use_train_data:
@@ -39,7 +39,7 @@ dataset:
   height: 224
   width: 400
   period: 10
-  shift_time: 5
+  shift_time: 10
   strong_label_prob: 1.0
   params:
     melspec:
@@ -101,6 +101,7 @@ loader:
 
 transforms:
   train:
+    - name: TimeShift
 
   valid:
 
