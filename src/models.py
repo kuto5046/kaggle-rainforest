@@ -257,9 +257,9 @@ class SEDLearner(pl.LightningModule):
         return [optimizer], [scheduler]
 
 
-class PANNsCNN14AttSEDLearner(SEDLearner):
+class PANNsCNN14AttSED(nn.Module):
     def __init__(self, config):
-        super().__init__(config)
+        super().__init__()
 
         window = 'hann'
         center = True
@@ -379,9 +379,9 @@ class PANNsCNN14AttSEDLearner(SEDLearner):
         return output_dict
 
 
-class ResNeStSEDLearner(SEDLearner):
+class ResNeStSED(nn.Module):
     def __init__(self, config):
-        super().__init__(config)
+        super().__init__()
         model_params = config['model']['params']
         base_model = torch.hub.load("zhanghang1989/ResNeSt",
                                     model_params['base_model_name'],
@@ -761,17 +761,19 @@ def get_model(config: dict):
         model = ResNeSt50SamLearner(config)
         return model
     elif model_name == "PANNsCNN14Att":
-        model = PANNsCNN14AttSEDLearner(config)  # TODO num_classes 527
+        model = PANNsCNN14AttSED(config)  # TODO num_classes 527
         checkpoint = torch.load("pretrained/PANNsCNN14Att.pth")
         model.load_state_dict(checkpoint["model"])
         model.att_block = AttBlock(
             2048, model_params["n_classes"], activation="sigmoid")
         model.att_block.init_weights()
         init_layer(model.fc1)
+        learner = SEDLearner(model, config)
         return model
-    elif model_name == "ResNestSED":
-        model = ResNeStSEDLearner(config)
-        return model
+    elif model_name == "ResNeStSED":
+        model = ResNeStSED(config)
+        learner = SEDLearner(model, config)
+        return learner
     elif model_name == "EfficientNetSED":
         model = EfficientNetSED(config)
         learner = SEDLearner(model, config)
