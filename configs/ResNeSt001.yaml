@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: wave2image channel
+      message: random clip
 
 data:
   root: ./
@@ -41,6 +41,7 @@ dataset:
   width: 400
   period: 10
   shift_time: 10
+  strong_label_prob: 0.0
   params:
     melspec:
       n_fft: 2048

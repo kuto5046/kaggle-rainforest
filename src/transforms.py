@@ -163,6 +163,27 @@ class PitchShift(AudioTransform):
         return augmented
 
 
+class TimeShift(AudioTransform):
+    def __init__(self, always_apply=False, p=0.5, max_shift_second=2, sr=48000, padding_mode="replace"):
+        super().__init__(always_apply, p)
+    
+        assert padding_mode in ["replace", "zero"], "`padding_mode` must be either 'replace' or 'zero'"
+        self.max_shift_second = max_shift_second
+        self.sr = sr
+        self.padding_mode = padding_mode
+
+    def apply(self, y: np.ndarray, **params):
+        shift = np.random.randint(-self.sr * self.max_shift_second, self.sr * self.max_shift_second)
+        augmented = np.roll(y, shift)
+        if self.padding_mode == "zero":
+            if shift > 0:
+                augmented[:shift] = 0
+            else:
+                augmented[shift:] = 0
+        return augmented
+
+
+
 class TimeStretch(AudioTransform):
     def __init__(self, always_apply=False, p=0.5, max_rate=1, sr=48000):
         super().__init__(always_apply, p)

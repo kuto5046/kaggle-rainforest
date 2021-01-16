@@ -2,7 +2,7 @@
 FROM nvidia/cuda:11.1-cudnn8-runtime-ubuntu20.04
 
 # 時間設定
-RUN ln -sf  /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
 
 ENV DEBIAN_FRONTEND=noninteractive
 # install basic dependencies
@@ -40,6 +40,7 @@ rm -f Anaconda3-2019.10-Linux-x86_64.sh
 
 # set path
 ENV PATH /opt/anaconda3/bin:$PATH
+ENV SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL
 
 # make workspace
 RUN mkdir /work

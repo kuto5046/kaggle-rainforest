@@ -1,6 +1,7 @@
 import os
 import torch
 import subprocess
+import traceback
 import warnings
 from pathlib import Path
 from datetime import datetime
@@ -33,13 +34,17 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
     # ckptのモデルでoof出力
     preds = []
     scores = []
+    output_key = config['model']['output_key']
     with torch.no_grad():
         # xは複数のlist
         for x_list, y in tqdm(loaders['valid']):
             batch_size = x_list.shape[0]
             x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
             x = x.to(config["globals"]["device"])
-            output = model(x)
+            
+            if "SED" in config["model"]["name"]:
+                output = model.model(x)
+                output = output[output_key]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
             score = LWLRAP(pred, y)
@@ -81,7 +86,9 @@ def test_step(model, sub_df, test_loader, config, output_dir, fold):
             batch_size = x_list.shape[0]
             x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
             x = x.to(config["globals"]["device"])
-            output = model(x)
+            if "SED" in config["model"]["name"]:
+                output = model.model(x)
+                output = output["logit"]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
             pred = pred.detach().cpu().numpy()
@@ -98,13 +105,14 @@ def main():
     warnings.filterwarnings('ignore')
 
     # config
-    config_filename = 'ResNeSt001.yaml'
+    config_filename = 'Conformer001.yaml'
     config = utils.load_config(f"configs/{config_filename}")
     global_config = config['globals']
     hash_value = utils.get_hash(config)  # get git hash value(short ver.)
     timestamp = utils.get_timestamp(config)
     output_dir = Path(global_config['output_dir']) / timestamp
     output_dir.mkdir(exist_ok=True, parents=True)
+    # utils.send_slack_message_notification(f'[START] timestamp: {timestamp}')
 
     # utils config
     logger = utils.get_logger(output_dir/ "output.log")
@@ -158,35 +166,36 @@ def main():
 
         # callback
         checkpoint_callback = ModelCheckpoint(
-            monitor=f'loss/val',
-            mode='min',
+            monitor=f'LWLRAP/val',
+            mode='max',
             dirpath=output_dir,
             verbose=False,
             filename=f'{model_name}-{fold}')
+
+        # model
+        model = get_model(config)
 
         """
         ##############
         train part
         ##############
         """
-        # model
-        model = get_model(config)
-
-        # train
-        trainer = pl.Trainer(
-            logger=loggers, 
-            checkpoint_callback=checkpoint_callback,
-            max_epochs=global_config["max_epochs"],
-            gpus=[0],
-            fast_dev_run=global_config["debug"],
-            deterministic=True)
-        
-        if not global_config['only_pred']:
-            trainer.fit(model, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
+        if global_config['only_pred']==False:
+            # train
+            trainer = pl.Trainer(
+                logger=loggers, 
+                checkpoint_callback=checkpoint_callback,
+                max_epochs=global_config["max_epochs"],
+                gpus=[0],
+                fast_dev_run=global_config["debug"],
+                deterministic=True)
+            
+            if not global_config['only_pred']:
+                trainer.fit(model, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
 
         """
         ##############
-        inference part
+        predict part
         ##############
         """
         # load model
@@ -196,7 +205,7 @@ def main():
             ckpt = torch.load(output_dir / f'{model_name}-{fold}.ckpt')  # TODO foldごとのモデルを取得できるようにする
         model.load_state_dict(ckpt['state_dict'])
         model.eval().to(device)
-
+        
         # valid
         lwlrap_score = valid_step(model, val_df, loaders, config, output_dir, fold)
         mlf_logger.log_metrics({f'LWLRAP/fold{fold}':lwlrap_score}, step=None)
@@ -205,28 +214,34 @@ def main():
         # test
         preds = test_step(model, sub_df, test_loader, config, output_dir, fold)
         all_preds.append(preds)  # foldの予測結果を格納
+        utils.send_slack_message_notification(f'[FINISH] fold{fold}-lwlrap:{lwlrap_score:.3f}')
 
 
     # ループ抜ける
     # final logger 
     # valの結果で加重平均
-    weights = []
-    val_lwlrap_score = 0
-    for i, score in enumerate(all_lwlrap_score):
-        weight = score / np.sum(all_lwlrap_score)
-        val_lwlrap_score += all_lwlrap_score[i] * weight
-        weights.append(weight)
-    
+    mean_method = 'weight_mean'
+    if mean_method == 'mean':
+        val_lwlrap_score = np.mean(all_lwlrap_score, axis=0)
+        sub_preds = np.mean(all_preds, axis=0)  # foldで平均を取る
+    elif mean_method == 'weight_mean':
+        weights = []
+        val_lwlrap_score = 0
+        for i, score in enumerate(all_lwlrap_score):
+            weight = score / np.sum(all_lwlrap_score)
+            val_lwlrap_score += all_lwlrap_score[i] * weight
+            weights.append(weight)
+        # for submission
+        sub_preds = 0
+        for i, pred in enumerate(all_preds):
+            sub_preds += pred * weights[i]
+    else:
+        raise NotImplementedError
+
     mlf_logger.log_metrics({f'LWLRAP/all':val_lwlrap_score}, step=None)
     mlf_logger.log_metrics({f'LWLRAP/LB_Score': 0.0}, step=None)
     mlf_logger.finalize()
 
-    # for submission
-    sub_preds = 0
-    for i, pred in enumerate(all_preds):
-        sub_preds += pred * weights[i]
-
-    #sub_preds = np.mean(all_preds, axis=0)  # foldで平均を取る
     sub_df.iloc[:, 1:] = sub_preds
     sub_df.to_csv(output_dir / "submission.csv", index=False)
         

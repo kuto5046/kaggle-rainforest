@@ -6,6 +6,7 @@ settings.json
 /.vscode/
 debug.ipynb
 /.kaggle/
+*.npy
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

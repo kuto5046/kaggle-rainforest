@@ -11,10 +11,12 @@ from torch.distributions import Beta
 import pytorch_lightning as pl
 import torchvision
 from resnest.torch import resnest50
+from efficientnet_pytorch import EfficientNet
 from sklearn.metrics import accuracy_score
 from src.dataset import SpectrogramDataset
 import src.configuration as C
 from src.metric import LWLRAP
+from src.conformer import ConformerBlock
 import pytorch_lightning as pl
 from torchlibrosa.stft import Spectrogram, LogmelFilterBank
 from torchlibrosa.augmentation import SpecAugmentation
@@ -25,12 +27,18 @@ def calc_acc(pred, y):
     y = y.detach().cpu().numpy()
     return accuracy_score(y, pred)
 
-
+"""
+############
+ Audio tagging model
+############
+"""
 # Learner class(pytorch-lighting)
 class Learner(pl.LightningModule):
-    def __init__(self, config):
+    def __init__(self, model, config):
         super().__init__()
         self.config = config
+        self.model = model
+        self.output_key = config["model"]["output_key"]
         self.criterion = C.get_criterion(self.config)
         self.f1 = F1(num_classes=24)
 
@@ -43,15 +51,18 @@ class Learner(pl.LightningModule):
         if self.config['mixup']['flag'] and do_mixup:
             x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
 
-        pred = self.forward(x)
-
+        output = self.model(x)
+        pred = output[self.output_key]
+        if 'framewise' in self.output_key:
+            pred, _ = pred.max(dim=1)
+    
         if self.config['mixup']['flag'] and do_mixup:
-            loss = mixup_criterion(self.criterion, pred, y, y_shuffle, lam)
+            loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
-            loss = self.criterion(pred, y)
+            loss = self.criterion(output, y, phase="train")
 
         lwlrap = LWLRAP(pred, y)
-        f1_score = self.f1(F.softmax(pred), y)
+        f1_score = self.f1(pred, y)
 
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -63,13 +74,14 @@ class Learner(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         # xが複数の場合
         x_list, y = batch
-        batch_size = x_list.shape[0]
         x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
-        output = self.forward(x)
-        output = output.view(batch_size, -1, y.shape[1])  # y.shape[1]==num_classes
-        pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
-
-        loss = self.criterion(pred, y)
+    
+        output = self.model(x)
+        loss = self.criterion(output, y, phase='valid')
+        pred = output[self.output_key]
+        if 'framewise' in self.output_key:
+            pred, _ = pred.max(dim=1)
+        pred = C.split2one(pred, y)
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred, y)
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -77,15 +89,95 @@ class Learner(pl.LightningModule):
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
 
+
     def configure_optimizers(self):
         optimizer = C.get_optimizer(self.model, self.config)
         scheduler = C.get_scheduler(optimizer, self.config)
         return [optimizer], [scheduler]
+    
+
+# Learner class(pytorch-lighting)
+class SAMLearner(Learner):
+    def __init__(self, model, config):
+        super().__init__(model, config)
+        self.config = config
+        self.criterion = C.get_criterion(self.config)
+        self.f1 = F1(num_classes=24)
+
+    # DEFAULT
+    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx,
+                    optimizer_closure, on_tpu, using_native_amp, using_lbfgs):
+
+        optimizer.first_step(closure=optimizer_closure, zero_grad=True)
+        optimizer.second_step(closure=optimizer_closure, zero_grad=True)
 
 
-class ResNet50Learner(Learner):
+class Conformer(nn.Module):
     def __init__(self, config):
-        super().__init__(config)
+        super().__init__()
+        self.config = config
+        self.model_params = config['model']['params']
+
+        # from https://arxiv.org/pdf/2007.03931.pdf
+        self.convblock = nn.Sequential(
+            nn.Conv2d(3, 16, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((2,2)),
+            nn.Conv2d(16, 32, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((2,2)),
+            nn.Conv2d(32, 64, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(64, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2))  # modified by 1st team to fit output size
+        )
+        self.conformerblock = ConformerBlock(dim=128, **self.model_params)
+        self.decoder = nn.Linear(128, 24, bias=True)
+        self.init_weight()
+
+    def init_weight(self):
+        init_layer(self.decoder)
+
+    def forward(self, input):
+
+        x = self.convblock(input)
+        x = x.squeeze(3).permute((0, 2, 1))  # (batch, channel, 44, 1) -> (batch, 44, channel)
+
+        # conformer block was stacked 4 times
+        x = self.conformerblock(x)
+        x = self.conformerblock(x)
+        x = self.conformerblock(x)
+        x = self.conformerblock(x)
+    
+        x = torch.mean(x, dim=1)  # (batch, ch)
+        logit = self.decoder(x)
+        output_dict = {
+            'logit': logit
+        }
+        return output_dict
+
+class ResNeStSED(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        model_params = config['model']['params']
+        base_model = torch.hub.load("zhanghang1989/ResNeSt",
+                                    model_params['base_model_name'],
+                                    pretrained=model_params['pretrained'])
+
+        layers = list(base_model.children())[:-2]
+        self.encoder = nn.Sequential(*layers)
+        in_features = base_model.fc.in_features
+        self.fc1 = nn.Linear(in_features, in_features, bias=True)
+        self.att_block = AttBlockV2(in_features, model_params['num_classes'], activation="sigmoid")
+
+        self.init_weight()
+        self.interpolate_ratio = 30  # Downsampled ratio
+
+        self.model = nn.Sequential()
+
+    def init_weight(self):
+        init_layer(self.fc1)
+
+class ResNet50(nn.Module):
+    def __init__(self, config):
+        super().__init__()
         self.pretrained = config['model']['params']['pretrained']
         self.num_classes = config['model']['params']['num_classes']
 
@@ -102,7 +194,6 @@ class ResNet50Learner(Learner):
             nn.Linear(1024, 1024), nn.ReLU(), nn.Dropout(p=0.2),
             nn.Linear(1024,self.num_classes))
 
-
     def forward(self, x):
         batch_size = x.size(0)
         x = self.encoder(x)
@@ -111,9 +202,9 @@ class ResNet50Learner(Learner):
         return x
 
 
-class ResNeSt50Learner(Learner):
+class ResNeSt50(nn.Module):
     def __init__(self, config):
-        super().__init__(config)
+        super().__init__()
         self.pretrained = config['model']['params']['pretrained']
         self.num_classes = config['model']['params']['num_classes']
 
@@ -138,94 +229,18 @@ class ResNeSt50Learner(Learner):
 
     def forward(self, x):
 
-        # spec aug
-        # if self.training:
-        #     x = self.spec_augmenter(x)
         x = self.model(x)
         return x
 
 
-class ResNeSt50SamLearner(Learner):
+"""
+###########
+  SED(Sound Event Detection) model
+###########
+"""
+class PANNsCNN14AttSED(nn.Module):
     def __init__(self, config):
-        super().__init__(config)
-        self.pretrained = config['model']['params']['pretrained']
-        self.num_classes = config['model']['params']['num_classes']
-
-        self.model = resnest50(pretrained=self.pretrained)
-        del self.model.fc
-        self.model.fc = nn.Sequential(
-            nn.Linear(2048, 1024),
-            nn.ReLU(),
-            nn.Dropout(p=0.2),
-            nn.Linear(1024, 1024),
-            nn.ReLU(),
-            nn.Dropout(p=0.2),
-            nn.Linear(1024, self.num_classes)
-        )
-
-        # Spec augmenter
-        self.spec_augmenter = SpecAugmentation(
-            time_drop_width=64,
-            time_stripes_num=2,
-            freq_drop_width=8,
-            freq_stripes_num=2)
-
-    def forward(self, x):
-
-        # spec aug
-        # if self.training:
-        #     x = self.spec_augmenter(x)
-
-        x = self.model(x)
-        return x
-
-
-    # DEFAULT
-    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx,
-                    optimizer_closure, on_tpu, using_native_amp, using_lbfgs):
-
-        optimizer.first_step(closure=optimizer_closure, zero_grad=True)
-        optimizer.second_step(closure=optimizer_closure, zero_grad=True)
-
-
-class PANNsCNN14AttLearner(Learner):
-    def __init__(self, config):
-        super().__init__(config)
-        self.pretrained = config['model']['params']['pretrained']
-        self.num_classes = config['model']['params']['num_classes']
-
-        self.model = resnest50(pretrained=self.pretrained)
-        del self.model.fc
-        self.model.fc = nn.Sequential(
-            nn.Linear(2048, 1024),
-            nn.ReLU(),
-            nn.Dropout(p=0.2),
-            nn.Linear(1024, 1024),
-            nn.ReLU(),
-            nn.Dropout(p=0.2),
-            nn.Linear(1024, self.num_classes)
-        )
-
-        # Spec augmenter
-        self.spec_augmenter = SpecAugmentation(
-            time_drop_width=64,
-            time_stripes_num=2,
-            freq_drop_width=8,
-            freq_stripes_num=2)
-
-    def forward(self, x):
-        """
-        # spec aug
-        if self.training:
-            x = self.spec_augmenter(x)
-        """
-        x = self.model(x)
-        return x
-
-
-class PANNsCNN14AttLearner(Learner):
-    def __init__(self, config):
-        super().__init__(config)
+        super().__init__()
 
         window = 'hann'
         center = True
@@ -284,8 +299,9 @@ class PANNsCNN14AttLearner(Learner):
         init_layer(self.fc1)
 
     def forward(self, input):
-        """
-        Input: (batch_size, data_length)"""
+
+        # Input: (batch_size, data_length)
+
 
         # t1 = time.time()
         x = self.spectrogram_extractor(input)  # (batch_size, 1, time_steps, freq_bins)
@@ -344,56 +360,210 @@ class PANNsCNN14AttLearner(Learner):
         return output_dict
 
 
+class ResNeStSED(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        model_params = config['model']['params']
+        base_model = torch.hub.load("zhanghang1989/ResNeSt",
+                                    model_params['base_model_name'],
+                                    pretrained=model_params['pretrained'])
 
-def get_model(config):
-    model_name = config["model"]["name"]
-    if model_name == "ResNet50":
-        model = ResNet50Learner(config)
-        return model
-    elif model_name == "ResNeSt50":
-        model = ResNeSt50Learner(config)
-        return model
-    elif model_name == "ResNeSt50Sam":
-        model = ResNeSt50SamLearner(config)
-        return model
-    elif model_name == "PANNsCNN14Att":
-        model = PANNsCNN14AttLearner(config)
-    else:
-        raise NotImplementedError
+        layers = list(base_model.children())[:-2]
+        self.encoder = nn.Sequential(*layers)
+        in_features = base_model.fc.in_features
+        self.fc1 = nn.Linear(in_features, in_features, bias=True)
+        self.att_block = AttBlockV2(in_features, model_params['num_classes'], activation="sigmoid")
 
-"""
-############
-   mixup
-############
-"""
+        self.init_weight()
+        self.interpolate_ratio = 30  # Downsampled ratio
 
-def mixup_data(x, y, alpha=1.0, use_cuda=True):
-    '''Returns mixed inputs, pairs of targets, and lambda'''
-    if alpha > 0:
-        lam = np.random.beta(alpha, alpha)
-    else:
-        lam = 1
+        self.model = nn.Sequential()
 
-    batch_size = x.size()[0]
-    if use_cuda:
-        index = torch.randperm(batch_size).cuda()
-    else:
-        index = torch.randperm(batch_size)
+    def init_weight(self):
+        init_layer(self.fc1)
 
-    mixed_x = lam * x + (1 - lam) * x[index, :]
-    y_a, y_b = y, y[index]
-    return mixed_x, y_a, y_b, lam
+    def forward(self, input):
+        frames_num = input.size(3)
+
+        # (batch_size, channels, freq, frames)
+        x = self.encoder(input)
+
+        # (batch_size, channels, frames)
+        x = torch.mean(x, dim=2)
+
+        # channel smoothing
+        x1 = F.max_pool1d(x, kernel_size=3, stride=1, padding=1)
+        x2 = F.avg_pool1d(x, kernel_size=3, stride=1, padding=1)
+        x = x1 + x2
+        x = F.dropout(x, p=0.5, training=self.training)
+        x = x.transpose(1, 2)
+        x = F.relu_(self.fc1(x))
+        x = x.transpose(1, 2)
+        x = F.dropout(x, p=0.5, training=self.training)
+        (clipwise_output, norm_att, segmentwise_output) = self.att_block(x)
+
+        logit = torch.sum(norm_att * self.att_block.cla(x), dim=2)
+        segmentwise_logit = self.att_block.cla(x).transpose(1, 2)
+        segmentwise_output = segmentwise_output.transpose(1, 2)
+
+        # Get framewise output
+        framewise_output = interpolate(segmentwise_output, self.interpolate_ratio)
+        framewise_output = pad_framewise_output(framewise_output, frames_num)
+
+        framewise_logit = interpolate(segmentwise_logit, self.interpolate_ratio)
+        framewise_logit = pad_framewise_output(framewise_logit, frames_num)
+
+        output_dict = {
+            "framewise_output": framewise_output,
+            "segmentwise_output": segmentwise_output,
+            "logit": logit,
+            "framewise_logit": framewise_logit,
+            "clipwise_output": clipwise_output
+        }
+
+        return output_dict
 
 
-def mixup_criterion(criterion, pred, y_a, y_b, lam):
-    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
+class EfficientNetSED(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+
+        model_params = config['model']['params'] 
+        if model_params['pretrained']:
+            self.base_model = EfficientNet.from_pretrained(model_params['base_model_name'])
+        else:
+            self.base_model = EfficientNet.from_name(model_params['base_model_name'])
+
+        in_features = self.base_model._fc.in_features
+
+        self.fc1 = nn.Linear(in_features, in_features, bias=True)
+        self.att_block = AttBlockV2(in_features, model_params['num_classes'], activation="sigmoid")
+
+        self.init_weight()
+        self.interpolate_ratio = 30  # Downsampled ratio
+
+    def init_weight(self):
+        init_layer(self.fc1)
 
 
-"""
-##########
-    SED
-##########
-"""
+    def forward(self, input):
+        frames_num = input.size(3)
+
+        # (batch_size, channels, freq, frames) ex->(120, 1408, 7, 12)
+        x = self.base_model.extract_features(input)
+
+        # (batch_size, channels, frames) ex->(120, 1408, 12)
+        x = torch.mean(x, dim=2)
+
+        # channel smoothing
+        # channel次元上でpoolingを行う
+        x1 = F.max_pool1d(x, kernel_size=3, stride=1, padding=1)
+        x2 = F.avg_pool1d(x, kernel_size=3, stride=1, padding=1)
+        x = x1 + x2
+
+        x = F.dropout(x, p=0.5, training=self.training)
+        x = x.transpose(1, 2)  # torch.Size([120, 1408, 12]) -> torch.Size([120, 12, 1408])
+        x = F.relu_(self.fc1(x))
+        x = x.transpose(1, 2)  # torch.Size([120, 12, 1408]) -> torch.Size([120, 1408, 12])
+        x = F.dropout(x, p=0.5, training=self.training)
+        (clipwise_output, norm_att, segmentwise_output) = self.att_block(x)
+        logit = torch.sum(norm_att * self.att_block.cla(x), dim=2)  # claにsigmoidをかけない状態でclipwiseを計算
+        segmentwise_logit = self.att_block.cla(x).transpose(1, 2)  # torch.Size([120, 12, 24])
+        segmentwise_output = segmentwise_output.transpose(1, 2)  # torch.Size([120, 12, 24])
+
+        # Get framewise output
+        framewise_output = interpolate(segmentwise_output, self.interpolate_ratio)  # n_time次元上でをupsampling
+        framewise_output = pad_framewise_output(framewise_output, frames_num)  # n_timesの最後の値で穴埋めしてframes_numに合わせる
+
+        framewise_logit = interpolate(segmentwise_logit, self.interpolate_ratio)
+        framewise_logit = pad_framewise_output(framewise_logit, frames_num)
+
+        output_dict = {
+            "clipwise_output": clipwise_output,
+            "framewise_output": framewise_output,
+            "segmentwise_output": segmentwise_output,
+            "logit": logit,
+            "framewise_logit": framewise_logit,
+            "segmentwise_logit": segmentwise_logit  
+        }
+
+        return output_dict
+
+
+class ConformerSED(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.model_params = config['model']['params']
+        self.interpolate_ratio = 9  # Downsampled ratio
+
+        # from https://arxiv.org/pdf/2007.03931.pdf
+        self.convblock = nn.Sequential(
+            nn.Conv2d(3, 16, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((2,2)),
+            nn.Conv2d(16, 32, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((2,2)),
+            nn.Conv2d(32, 64, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(64, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2))  # modified by 1st team to fit output size
+        )
+        self.conformerblock = ConformerBlock(dim=128, **self.model_params)
+        self.linear = nn.Linear(128, 128, bias=True)
+        self.att_block = AttBlockV2(128, 24, activation="sigmoid")
+
+
+    def forward(self, input):
+        batch_size = input.size(0)
+        frames_num = input.size(3)
+
+        x = self.convblock(input)
+        x = x.squeeze(3).permute((0, 2, 1))  # (batch, channel, 44, 1) -> (batch, 44, channel)
+
+        # conformer block was stacked 4 times
+        x = self.conformerblock(x)
+        x = self.conformerblock(x)
+        x = self.conformerblock(x)
+        x = self.conformerblock(x)
+    
+        # x = torch.mean(x, dim=1).unsqueeze(1)  # (batch, 44, ch)
+        x = x.permute(0, 2, 1)  # (batch, ch, 44)
+
+        # channel smoothing
+        # channel次元上でpoolingを行う
+        x1 = F.max_pool1d(x, kernel_size=3, stride=1, padding=1)
+        x2 = F.avg_pool1d(x, kernel_size=3, stride=1, padding=1)
+        x = x1 + x2
+
+        x = F.dropout(x, p=0.5, training=self.training)
+        x = x.transpose(1, 2)  # torch.Size([batch, 1, 128]) -> torch.Size([batch, 128, 1])
+        x = self.linear(x)
+        x = F.relu_(x)
+        x = x.transpose(1, 2)  # torch.Size([batch, 128, 1]) -> torch.Size([batch, 1, 128])
+        x = F.dropout(x, p=0.5, training=self.training)
+
+        (clipwise_output, norm_att, segmentwise_output) = self.att_block(x)
+        logit = torch.sum(norm_att * self.att_block.cla(x), dim=2)  # claにsigmoidをかけない状態でclipwiseを計算
+        segmentwise_logit = self.att_block.cla(x).transpose(1, 2)  # torch.Size([batch, 44, n_class])
+        segmentwise_output = segmentwise_output.transpose(1, 2)  # torch.Size([batch, 44, n_class])
+
+        # Get framewise output
+        framewise_output = interpolate(segmentwise_output, self.interpolate_ratio)  # n_time次元上でをupsampling
+        framewise_output = pad_framewise_output(framewise_output, frames_num)  # n_timesの最後の値で穴埋めしてframes_numに合わせる
+
+        framewise_logit = interpolate(segmentwise_logit, self.interpolate_ratio)
+        framewise_logit = pad_framewise_output(framewise_logit, frames_num)
+
+        output_dict = {
+            "clipwise_output": clipwise_output,
+            "framewise_output": framewise_output,
+            "segmentwise_output": segmentwise_output,
+            "logit": logit,
+            "framewise_logit": framewise_logit,
+            "segmentwise_logit": segmentwise_logit  
+        }
+
+        return output_dict
+
 def init_layer(layer):
     nn.init.xavier_uniform_(layer.weight)
 
@@ -437,10 +607,10 @@ def interpolate(x: torch.Tensor, ratio: int):
     upsampled = upsampled.reshape(batch_size, time_steps * ratio, classes_num)
     return upsampled
 
-
+# n_timeの最後の値で穴埋めしてframe数になるようにする
 def pad_framewise_output(framewise_output: torch.Tensor, frames_num: int):
-    """Pad framewise_output to the same length as input frames. The pad value
-    is the same as the value of the last frame.
+    """Pad framewise_output to the same length as input frames. 
+       The pad value is the same as the value of the last frame.
     Args:
       framewise_output: (batch_size, frames_num, classes_num)
       frames_num: int, number of frames to pad
@@ -583,11 +753,18 @@ class AttBlockV2(nn.Module):
         init_layer(self.att)
         init_layer(self.cla)
 
-    def forward(self, x):
-        # x: (n_samples, n_in, n_time)
-        norm_att = torch.softmax(torch.tanh(self.att(x)), dim=-1)
-        cla = self.nonlinear_transform(self.cla(x))
-        x = torch.sum(norm_att * cla, dim=2)
+    def forward(self, x):  
+        """
+        Args:
+        x: (n_samples, n_in, n_time)  ex)torch.Size([120, 1408, 12])
+        Outputs:
+        x:(batch_size, classes_num) ex)torch.Size([120, 24])
+        norm_att: batch_size, classes_num, n_time) ex)torch.Size([120, 24, 12])
+        cla: batch_size, classes_num, n_time) ex)torch.Size([120, 24, 12])
+        """
+        norm_att = torch.softmax(torch.tanh(self.att(x)), dim=-1)  # torch.Size([batch, n_class, 1]) クラス数に圧縮/valueを-1~1/n_timeの次元の総和=１に変換
+        cla = self.nonlinear_transform(self.cla(x))  # self.cla()=self.att()/sigmoid変換
+        x = torch.sum(norm_att * cla, dim=2)  # 要素同士の積 torch.Size([120, 24]): (batch, n_class)
         return x, norm_att, cla
 
     def nonlinear_transform(self, x):
@@ -597,223 +774,72 @@ class AttBlockV2(nn.Module):
             return torch.sigmoid(x)
 
 
-""""
+"""
 ############
- SED other archetecture
+   mixup
 ############
 """
 
-class ResNestSED(nn.Module):
-    def __init__(self, base_model_name: str, pretrained=False,
-                 num_classes=264):
-        super().__init__()
-        self.interpolate_ratio = 30  # Downsampled ratio
-        base_model = torch.hub.load("zhanghang1989/ResNeSt",
-                                    base_model_name,
-                                    pretrained=pretrained)
-        layers = list(base_model.children())[:-2]
-        self.encoder = nn.Sequential(*layers)
+def mixup_data(x, y, alpha=1.0, use_cuda=True):
+    '''Returns mixed inputs, pairs of targets, and lambda'''
+    if alpha > 0:
+        lam = np.random.beta(alpha, alpha)
+    else:
+        lam = 1
 
-        in_features = base_model.fc.in_features
+    batch_size = x.size()[0]
+    if use_cuda:
+        index = torch.randperm(batch_size).cuda()
+    else:
+        index = torch.randperm(batch_size)
 
-        self.fc1 = nn.Linear(in_features, in_features, bias=True)
-        self.att_block = AttBlockV2(in_features, num_classes, activation="sigmoid")
-
-        self.init_weight()
-
-    def init_weight(self):
-        init_layer(self.fc1)
-
-    def forward(self, input):
-        frames_num = input.size(3)
-
-        # (batch_size, channels, freq, frames)
-        x = self.encoder(input)
-
-        # (batch_size, channels, frames)
-        x = torch.mean(x, dim=2)
-
-        # channel smoothing
-        x1 = F.max_pool1d(x, kernel_size=3, stride=1, padding=1)
-        x2 = F.avg_pool1d(x, kernel_size=3, stride=1, padding=1)
-        x = x1 + x2
-
-        x = F.dropout(x, p=0.5, training=self.training)
-        x = x.transpose(1, 2)
-        x = F.relu_(self.fc1(x))
-        x = x.transpose(1, 2)
-        x = F.dropout(x, p=0.5, training=self.training)
-        (clipwise_output, norm_att, segmentwise_output) = self.att_block(x)
-        logit = torch.sum(norm_att * self.att_block.cla(x), dim=2)
-        segmentwise_logit = self.att_block.cla(x).transpose(1, 2)
-        segmentwise_output = segmentwise_output.transpose(1, 2)
-
-        # Get framewise output
-        framewise_output = interpolate(segmentwise_output,
-                                       self.interpolate_ratio)
-        framewise_output = pad_framewise_output(framewise_output, frames_num)
-
-        framewise_logit = interpolate(segmentwise_logit, self.interpolate_ratio)
-        framewise_logit = pad_framewise_output(framewise_logit, frames_num)
-
-        output_dict = {
-            "framewise_output": framewise_output,
-            "segmentwise_output": segmentwise_output,
-            "logit": logit,
-            "framewise_logit": framewise_logit,
-            "clipwise_output": clipwise_output
-        }
-
-        return output_dict
+    mixed_x = lam * x + (1 - lam) * x[index, :]
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, lam
 
 
-class EfficientNetSED(nn.Module):
-    def __init__(self, base_model_name: str, pretrained=False,
-                 num_classes=264):
-        super().__init__()
-        self.interpolate_ratio = 30  # Downsampled ratio
-        if pretrained:
-            self.base_model = EfficientNet.from_pretrained(base_model_name)
-        else:
-            self.base_model = EfficientNet.from_name(base_model_name)
+def mixup_criterion(criterion, pred, y_a, y_b, lam, phase='train'):
+    return lam * criterion(pred, y_a, phase) + (1 - lam) * criterion(pred, y_b, phase)
 
-        in_features = self.base_model._fc.in_features
 
-        self.fc1 = nn.Linear(in_features, in_features, bias=True)
-        self.att_block = AttBlockV2(in_features, num_classes, activation="sigmoid")
-
-        self.init_weight()
-
-    def init_weight(self):
-        init_layer(self.fc1)
-
-    def forward(self, input):
-        frames_num = input.size(3)
-
-        # (batch_size, channels, freq, frames)
-        x = self.base_model.extract_features(input)
-
-        # (batch_size, channels, frames)
-        x = torch.mean(x, dim=2)
-
-        # channel smoothing
-        x1 = F.max_pool1d(x, kernel_size=3, stride=1, padding=1)
-        x2 = F.avg_pool1d(x, kernel_size=3, stride=1, padding=1)
-        x = x1 + x2
-
-        x = F.dropout(x, p=0.5, training=self.training)
-        x = x.transpose(1, 2)
-        x = F.relu_(self.fc1(x))
-        x = x.transpose(1, 2)
-        x = F.dropout(x, p=0.5, training=self.training)
-        (clipwise_output, norm_att, segmentwise_output) = self.att_block(x)
-        logit = torch.sum(norm_att * self.att_block.cla(x), dim=2)
-        segmentwise_logit = self.att_block.cla(x).transpose(1, 2)
-        segmentwise_output = segmentwise_output.transpose(1, 2)
-
-        # Get framewise output
-        framewise_output = interpolate(segmentwise_output,
-                                       self.interpolate_ratio)
-        framewise_output = pad_framewise_output(framewise_output, frames_num)
-
-        framewise_logit = interpolate(segmentwise_logit, self.interpolate_ratio)
-        framewise_logit = pad_framewise_output(framewise_logit, frames_num)
-
-        output_dict = {
-            "framewise_output": framewise_output,
-            "segmentwise_output": segmentwise_output,
-            "logit": logit,
-            "framewise_logit": framewise_logit,
-            "clipwise_output": clipwise_output
-        }
-
-        return output_dict
-
-"""
 def get_model(config: dict):
-    model_config = config["model"]
-    model_name = model_config["name"]
-    model_params = model_config["params"]
+    model_name = config["model"]["name"]
+    model_params = config["model"]["params"]
+    if model_name == "ResNet50":
+        model = ResNet50(config)
+        learner = Learner(model, config)
+    
+    elif model_name == "ResNeSt50":
+        model = ResNeSt50(config)
+        learner = Learner(model, config)
 
-    if model_name == "PANNsCNN14Att":
-        if model_params["pretrained"]:
-            model = PANNsCNN14Att(  # type: ignore
-                sample_rate=32000,
-                window_size=1024,
-                hop_size=320,
-                mel_bins=64,
-                fmin=50,
-                fmax=14000,
-                classes_num=527)
-            checkpoint = torch.load("pretrained/PANNsCNN14Att.pth")
-            model.load_state_dict(checkpoint["model"])
+    elif model_name == "ResNeSt50Sam":
+        model = ResNeSt50(config)
+        learner = SAMLearner(model, config)
 
-            model.att_block = AttBlock(
-                2048, model_params["n_classes"], activation="sigmoid")
-            model.att_block.init_weights()
-            init_layer(model.fc1)
-        else:
-            model = PANNsCNN14Att(  # type: ignore
-                sample_rate=model_params["sample_rate"],
-                window_size=model_params["window_size"],
-                hop_size=model_params["hop_size"],
-                mel_bins=model_params["mel_bins"],
-                fmin=model_params["fmin"],
-                fmax=model_params["fmax"],
-                classes_num=model_params["n_classes"])
-        return model
-    elif model_name == "ResNestSED":
-        model = ResNestSED(  # type: ignore
-            **model_params)
-        return model
+    elif model_name == "Conformer":
+        model = Conformer(config)
+        learner = Learner(model, config)
+
+    elif model_name == "PANNsCNN14Att":
+        model = PANNsCNN14AttSED(config)  # TODO num_classes 527
+        checkpoint = torch.load("pretrained/PANNsCNN14Att.pth")
+        model.load_state_dict(checkpoint["model"])
+        model.att_block = AttBlock(
+            2048, model_params["n_classes"], activation="sigmoid")
+        model.att_block.init_weights()
+        init_layer(model.fc1)
+        learner = Learner(model, config)
+    elif model_name == "ResNeStSED":
+        model = ResNeStSED(config)
+        learner = Learner(model, config)
     elif model_name == "EfficientNetSED":
-        model = EfficientNetSED(  # type: ignore
-            **model_params)
-        return model
+        model = EfficientNetSED(config)
+        learner = Learner(model, config)
+    elif model_name == "ConformerSED":
+        model = ConformerSED(config)
+        learner = Learner(model, config)
     else:
         raise NotImplementedError
-
-
-def get_model_for_inference(config: dict, weights_dir: str):
-    model_config = config["model"]
-    model_name = model_config["name"]
-    model_params = model_config["params"]
-
-    if model_name == "PANNsCNN14Att":
-        if model_params["pretrained"]:
-            params = {
-                "sample_rate": 32000,
-                "window_size": 1024,
-                "hop_size": 320,
-                "mel_bins": 64,
-                "fmin": 50,
-                "fmax": 14000,
-                "classes_num": model_params["n_classes"]
-            }
-            model = PANNsCNN14Att(**params)  # type: ignore
-        else:
-            model = PANNsCNN14Att(  # type: ignore
-                sample_rate=model_params["sample_rate"],
-                window_size=model_params["window_size"],
-                hop_size=model_params["hop_size"],
-                mel_bins=model_params["mel_bins"],
-                fmin=model_params["fmin"],
-                fmax=model_params["fmax"],
-                classes_num=model_params["n_classes"])
-    elif model_name == "ResNestSED":
-        model = ResNestSED(  # type: ignore
-            base_model_name=model_params["base_model_name"],
-            pretrained=False,
-            num_classes=model_params["num_classes"])
-    else:
-        raise NotImplementedError
-
-    if not torch.cuda.is_available():
-        weights = torch.load(weights_dir, map_location="cpu")
-    else:
-        weights = torch.load(weights_dir)
-    model.load_state_dict(weights["model_state_dict"])
-    return model
-
-
-"""
+    
+    return learner

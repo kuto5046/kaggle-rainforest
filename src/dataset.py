@@ -10,85 +10,33 @@ import warnings
 from pathlib import Path
 
 
-
-class SpectrogramDataset(data.Dataset):
-    def __init__(self,
-                 df: pd.DataFrame,
-                 datadir: Path,
-                 height: int,
-                 width: int,
-                 period: int,
-                 waveform_transforms=None,
-                 spectrogram_transforms=None,
-                 melspectrogram_parameters={},
-                 pcen_parameters = {}):
-        self.df = df
-        self.datadir = datadir
-        self.height = height
-        self.width = width
-        self.period = period
-        self.waveform_transforms = waveform_transforms
-        self.spectrogram_transforms = spectrogram_transforms
-        self.melspectrogram_parameters = melspectrogram_parameters
-        self.pcen_parameters = pcen_parameters
-        self.count = 0
-
-    def __len__(self):
-        return len(self.df)
-
-    def __getitem__(self, idx: int):
-        sample = self.df.loc[idx, :]
-        recording_id = sample["recording_id"]
-        main_species_id = sample["species_id"]
-        # y, sr = sf.read(self.datadir / str(main_species_id) / f"{recording_id}.wav")  # for resample
-        y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
-        effective_length = sr * self.period
-
-        # 破損しているデータはskip
-        if len(y) == 0:
-            self.count += 1
-            print(f"num_unknown_audio: {self.count}")
-            print(f"wav_name: {recording_id}")
-
-        p = random.random()
-        if p < 1.0:
-            y, labels = clip_time_audio2(self.df, y, sr, idx, effective_length, main_species_id)
-        else:
-            y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
-
-        if self.waveform_transforms:
-            y = self.waveform_transforms(y)
-        # image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
-        image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
-        # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
-
-        return image, labels
-
-
 """
 valid/testではtime flagは使わない
 60s分にaudioの長さを揃える
 10s単位に分割してリスト化してimage変換
 """
-class SpectrogramValDataset(data.Dataset):
+class SpectrogramDataset(data.Dataset):
     def __init__(self,
                  df: pd.DataFrame,
+                 phase: str,
                  datadir: Path,
                  height: int,
                  width: int,
                  period: int,
                  shift_time: int,
+                 strong_label_prob: int, 
                  waveform_transforms=None,
                  spectrogram_transforms=None,
                  melspectrogram_parameters={},
-                 pcen_parameters={}):
-
+                 pcen_parameters = {}):
         self.df = df
+        self.phase = phase
         self.datadir = datadir
         self.height = height
         self.width = width
         self.period = period
         self.shift_time = shift_time
+        self.strong_label_prob = strong_label_prob
         self.waveform_transforms = waveform_transforms
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
@@ -100,81 +48,53 @@ class SpectrogramValDataset(data.Dataset):
     def __getitem__(self, idx: int):
         sample = self.df.loc[idx, :]
         recording_id = sample["recording_id"]
-        main_species_id = sample["species_id"]
-
-        total_time = 60  # 音声を全て60sに揃える
-        # y, sr = sf.read(self.datadir / str(main_species_id) / f"{recording_id}.wav")  # for resample
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
-
-        if self.waveform_transforms:
-            y = self.waveform_transforms(y)
-
-        # データの長さを全てtotal_time分にする
-        len_y = len(y)
-        total_length = total_time * sr
-        if len_y < total_length:
-            new_y = np.zeros(total_length, dtype=y.dtype)
-            start = np.random.randint(total_length - len_y)
-            new_y[start:start + len_y] = y
-            y = new_y.astype(np.float32)
-        elif len_y > total_length:
-            start = np.random.randint(len_y - total_length)
-            y = y[start:start + total_length].astype(np.float32)
-        else:
-            y = y.astype(np.float32)
-
-        # PERIODO単位に分割(現在は6等分)
-        split_y = split_audio(y, total_time, self.period, self.shift_time, sr)
-        
-        images = []
-        # 分割した音声を一つずつ画像化してリストで返す
-        for y in split_y:
-            # image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
-            image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
-            # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
-            images.append(image)
-
-        labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
-        labels[main_species_id] = 1.0
-        
-        return np.asarray(images), labels
-
-
-class SpectrogramTestDataset(data.Dataset):
-    def __init__(self,
-                 df: pd.DataFrame,
-                 datadir: Path,
-                 height: int,
-                 width: int,
-                 period: int, 
-                 shift_time: int,
-                 waveform_transforms=None,
-                 spectrogram_transforms=None,
-                 melspectrogram_parameters={},
-                 pcen_parameters={}):
-        self.df = df
-        self.datadir = datadir
-        self.height = height
-        self.width = width
-        self.period = period
-        self.shift_time = shift_time
-        self.waveform_transforms = waveform_transforms
-        self.spectrogram_transforms = spectrogram_transforms
-        self.melspectrogram_parameters = melspectrogram_parameters
-        self.pcen_parameters = pcen_parameters
-
-    def __len__(self):
-        return len(self.df)
-
-    def __getitem__(self, idx: int):
-        sample = self.df.loc[idx, :]
-        recording_id = sample["recording_id"]
+        effective_length = sr * self.period
         total_time = 60  # 音声を全て60sに揃える
-        y, sr = sf.read(self.datadir / f"{recording_id}.flac")
-
+        y = adjust_audio_length(y, sr, total_time)
         if self.waveform_transforms:
             y = self.waveform_transforms(y)
 
+        if self.phase == 'train':
+            p = random.random()
+            if p < self.strong_label_prob:
+                y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length)
+            else:
+                y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
+            image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
+            # image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
+            # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
+            return image, labels
+        else:  # valid or test
+            # PERIODO単位に分割(現在は6等分)
+            split_y = split_audio(y, total_time, self.period, self.shift_time, sr)
+            
+            images = []
+            # 分割した音声を一つずつ画像化してリストで返す
+            for y in split_y:
+                image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
+                # image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
+                # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
+                images.append(image)
+
+            if self.phase == 'valid':
+                labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
+                main_species_id = sample['species_id']
+                labels[main_species_id] = 1.0
+                return np.asarray(images), labels
+            elif self.phase == 'test':
+                labels = -1  # testなので-1を返す
+                return np.asarray(images), labels
+            else:
+                raise NotImplementedError
+
+
+
+def adjust_audio_length(y, sr, total_time=60):
+    try:
+        assert len(y)==total_time * sr
+    except:
+        print('Assert Error')
         # データの長さを全てtotal_time分にする
         len_y = len(y)
         total_length = total_time * sr
@@ -188,20 +108,7 @@ class SpectrogramTestDataset(data.Dataset):
             y = y[start:start + total_length].astype(np.float32)
         else:
             y = y.astype(np.float32)
-
-        # PERIODO単位に分割(現在は6等分)
-        split_y = split_audio(y, total_time, self.period, self.shift_time ,sr)
-
-        images = []
-        # 分割した音声を一つずつ画像化してリストで返す
-        for y in split_y:
-            # image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
-            image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
-            # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
-            images.append(image)
-
-        labels = -1  # labelないので-1を返す
-        return np.asarray(images), labels
+    return y
 
 """
 ############
@@ -355,7 +262,7 @@ def random_clip_audio(df, y, sr, idx, effective_length):
 
     labels = np.zeros(len(df['species_id'].unique()), dtype=np.float32)
     for species_id in all_tp_events["species_id"].unique():
-        labels[int(species_id)] = 0.5  # weak label
+        labels[int(species_id)] = 1.0
     
     return y, labels
 
@@ -388,7 +295,7 @@ def clip_time_audio1(df, y, sr, idx, effective_length, main_species_id):
 
 # こちらはlabel付けにバッファを取っているのでアライさんの処理が必要
 # これがベース
-def clip_time_audio2(df, y, sr, idx, effective_length, main_species_id):
+def strong_clip_audio(df, y, sr, idx, effective_length):
     
     t_min = df.t_min.values[idx]*sr
     t_max = df.t_max.values[idx]*sr
@@ -423,6 +330,7 @@ def clip_time_audio2(df, y, sr, idx, effective_length, main_species_id):
     # dfには同じrecording_idだけどclipしたt内に別のラベルがあるものもある
     # そこでそれには正しいidを付けたい
     recording_id = df.loc[idx, "recording_id"]
+    main_species_id = df.loc[idx, "species_id"]
     query_string = f"recording_id == '{recording_id}' & "
     query_string += f"t_min < {ending_time} & t_max > {beginning_time}"
 
