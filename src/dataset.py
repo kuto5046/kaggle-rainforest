@@ -1,5 +1,6 @@
 
 import cv2
+import math
 import random
 import librosa
 import numpy as np
@@ -58,7 +59,8 @@ class SpectrogramDataset(data.Dataset):
         if self.phase == 'train':
             p = random.random()
             if p < self.strong_label_prob:
-                y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length)
+                # y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length)
+                y, labels = framewise_cliping(self.df, y, sr, idx, effective_length, self.width)
             else:
                 y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
             image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
@@ -346,6 +348,70 @@ def strong_clip_audio(df, y, sr, idx, effective_length):
     
     return y, labels
 
+
+def framewise_cliping(df, y, sr, idx, effective_length, width=400):
+    """
+    output:
+    y: 10sの音声 (480000)
+    labels: 画像frameに合わせたstrong label (24, 400)
+
+    """
+    t_min = df.t_min.values[idx]*sr
+    t_max = df.t_max.values[idx]*sr
+
+    # Positioning sound slice
+    t_center = np.round((t_min + t_max) / 2)
+    
+    # 開始点の仮決定 
+    beginning = t_center - effective_length / 2
+    # overしたらaudioの最初からとする
+    if beginning < 0:
+        beginning = 0
+    beginning = np.random.randint(beginning, t_center)
+
+    # 開始点と終了点の決定
+    ending = beginning + effective_length
+    # overしたらaudioの最後までとする
+    if ending > len(y):
+        ending = len(y)
+    beginning = ending - effective_length
+
+    y = y[beginning:ending].astype(np.float32)
+
+    # flame→time変換
+    beginning_time = beginning / sr
+    ending_time = ending / sr
+
+    # dfには同じrecording_idだけどclipしたt内に別のラベルがあるものもある
+    # そこでそれには正しいidを付けたい
+    recording_id = df.loc[idx, "recording_id"]
+    query_string = f"recording_id == '{recording_id}' & "
+    query_string += f"t_min < {ending_time} & t_max > {beginning_time}"
+
+    # 同じrecording_idのもので音声内にラベルがあるものを全て取得
+    all_tp_events = df.query(query_string)
+
+   # 音声のframeに合わせた2次元のstrong label (24, 400)
+    labels = np.zeros((width, 24), dtype=np.float32)
+    for idx, row in all_tp_events.iterrows():
+        # label用に正規化した値
+        t_min = row['t_min']
+        t_max = row['t_max']
+
+        # begining_time外にt_minが飛び出しているときはbegining_timeで上書き
+        if t_min < beginning_time:
+            t_min = beginning_time
+        # ending_time外にt_maxが飛び出しているときはending_timeで上書き
+        if ending_time < t_max:
+            t_max = ending_time
+
+        # 画像のスケールに合わせて正規化
+        beginning_frame = math.floor((t_min / 60) * width)  # 切り捨て
+        ending_frame = math.ceil((t_max / 60) * width)  # 切り上げ
+
+        labels[beginning_frame:ending_frame, row['species_id']] = 1
+    
+    return y, labels
 
 
 def strong_clip_audio(df, y, sr, idx, effective_length):

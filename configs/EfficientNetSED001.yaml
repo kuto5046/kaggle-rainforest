@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: time shift
+      message: strong_labeling
 data:
   root: ./
   use_train_data:
@@ -37,7 +37,7 @@ data:
 dataset:
   name: SpectrogramDataset
   height: 224
-  width: 1000
+  width: 400
   period: 10
   shift_time: 10
   strong_label_prob: 1.0
@@ -58,7 +58,7 @@ dataset:
 loss:
   name: LSEPStableLoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
   params:
-    output_key: logit
+    output_key: framewise_logit
 
 optimizer:
   name: Adam

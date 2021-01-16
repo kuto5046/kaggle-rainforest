@@ -53,13 +53,19 @@ class Learner(pl.LightningModule):
 
         output = self.model(x)
         pred = output[self.output_key]
-        if 'framewise' in self.output_key:
-            pred, _ = pred.max(dim=1)
     
         if self.config['mixup']['flag'] and do_mixup:
             loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
             loss = self.criterion(output, y, phase="train")
+
+        if 'framewise' in self.output_key:
+            pred, _ = pred.max(dim=1)
+        
+        # TODO 一時的にここに追加。後ほどパラメータを実装する
+        strong_type = True
+        if strong_type==True:
+            y, _ = y.max(dim=1)
 
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred, y)
