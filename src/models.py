@@ -16,6 +16,7 @@ from sklearn.metrics import accuracy_score
 from src.dataset import SpectrogramDataset
 import src.configuration as C
 from src.metric import LWLRAP
+from src.conformer import ConformerBlock
 import pytorch_lightning as pl
 from torchlibrosa.stft import Spectrogram, LogmelFilterBank
 from torchlibrosa.augmentation import SpecAugmentation
@@ -426,8 +427,7 @@ class ResNeStSED(nn.Module):
         segmentwise_output = segmentwise_output.transpose(1, 2)
 
         # Get framewise output
-        framewise_output = interpolate(segmentwise_output,
-                                       self.interpolate_ratio)
+        framewise_output = interpolate(segmentwise_output, self.interpolate_ratio)
         framewise_output = pad_framewise_output(framewise_output, frames_num)
 
         framewise_logit = interpolate(segmentwise_logit, self.interpolate_ratio)
@@ -509,6 +509,80 @@ class EfficientNetSED(nn.Module):
 
         return output_dict
 
+
+class ConformerSED(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.model_params = config['model']['params']
+        self.interpolate_ratio = 9  # Downsampled ratio
+
+        # from https://arxiv.org/pdf/2007.03931.pdf
+        self.convblock = nn.Sequential(
+            nn.Conv2d(3, 16, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((2,2)),
+            nn.Conv2d(16, 32, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((2,2)),
+            nn.Conv2d(32, 64, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(64, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2))  # modified by 1st team to fit output size
+        )
+        self.conformerblock = ConformerBlock(dim=128, **self.model_params)
+        self.linear = nn.Linear(128, 128, bias=True)
+        self.att_block = AttBlockV2(128, 24, activation="sigmoid")
+
+
+    def forward(self, input):
+        batch_size = input.size(0)
+        frames_num = input.size(3)
+
+        x = self.convblock(input)
+        x = x.squeeze(3).permute((0, 2, 1))  # (batch, channel, 44, 1) -> (batch, 44, channel)
+
+        # conformer block was stacked 4 times
+        x = self.conformerblock(x)
+        x = self.conformerblock(x)
+        x = self.conformerblock(x)
+        x = self.conformerblock(x)
+    
+        # x = torch.mean(x, dim=1).unsqueeze(1)  # (batch, 44, ch)
+        x = x.permute(0, 2, 1)  # (batchm ch, 44)
+
+        # channel smoothing
+        # channel次元上でpoolingを行う
+        x1 = F.max_pool1d(x, kernel_size=3, stride=1, padding=1)
+        x2 = F.avg_pool1d(x, kernel_size=3, stride=1, padding=1)
+        x = x1 + x2
+
+        x = F.dropout(x, p=0.5, training=self.training)
+        x = x.transpose(1, 2)  # torch.Size([batch, 1, 128]) -> torch.Size([batch, 128, 1])
+        x = self.linear(x)
+        x = F.relu_(x)
+        x = x.transpose(1, 2)  # torch.Size([batch, 128, 1]) -> torch.Size([batch, 1, 128])
+        x = F.dropout(x, p=0.5, training=self.training)
+
+        (clipwise_output, norm_att, segmentwise_output) = self.att_block(x)
+        logit = torch.sum(norm_att * self.att_block.cla(x), dim=2)  # claにsigmoidをかけない状態でclipwiseを計算
+        segmentwise_logit = self.att_block.cla(x).transpose(1, 2)  # torch.Size([batch, 44, n_class])
+        segmentwise_output = segmentwise_output.transpose(1, 2)  # torch.Size([batch, 44, n_class])
+
+        # Get framewise output
+        framewise_output = interpolate(segmentwise_output, self.interpolate_ratio)  # n_time次元上でをupsampling
+        framewise_output = pad_framewise_output(framewise_output, frames_num)  # n_timesの最後の値で穴埋めしてframes_numに合わせる
+
+        framewise_logit = interpolate(segmentwise_logit, self.interpolate_ratio)
+        framewise_logit = pad_framewise_output(framewise_logit, frames_num)
+
+        output_dict = {
+            "clipwise_output": clipwise_output,
+            "framewise_output": framewise_output,
+            "segmentwise_output": segmentwise_output,
+            "logit": logit,
+            "framewise_logit": framewise_logit,
+            "segmentwise_logit": segmentwise_logit  
+        }
+
+        return output_dict
 
 def init_layer(layer):
     nn.init.xavier_uniform_(layer.weight)
@@ -708,9 +782,9 @@ class AttBlockV2(nn.Module):
         norm_att: batch_size, classes_num, n_time) ex)torch.Size([120, 24, 12])
         cla: batch_size, classes_num, n_time) ex)torch.Size([120, 24, 12])
         """
-        norm_att = torch.softmax(torch.tanh(self.att(x)), dim=-1)  # torch.Size([120, 24, 12]) クラス数に圧縮/valueを-1~1/n_timeの次元の総和=１に変換
+        norm_att = torch.softmax(torch.tanh(self.att(x)), dim=-1)  # torch.Size([batch, n_class, 1]) クラス数に圧縮/valueを-1~1/n_timeの次元の総和=１に変換
         cla = self.nonlinear_transform(self.cla(x))  # self.cla()=self.att()/sigmoid変換
-        x = torch.sum(norm_att * cla, dim=2)  # 要素同士の積 torch.Size([120, 24]): (n_samples, n_class)
+        x = torch.sum(norm_att * cla, dim=2)  # 要素同士の積 torch.Size([120, 24]): (batch, n_class)
         return x, norm_att, cla
 
     def nonlinear_transform(self, x):
@@ -776,6 +850,10 @@ def get_model(config: dict):
         return learner
     elif model_name == "EfficientNetSED":
         model = EfficientNetSED(config)
+        learner = SEDLearner(model, config)
+        return learner
+    elif model_name == "ConformerSED":
+        model = ConformerSED(config)
         learner = SEDLearner(model, config)
         return learner
     else:
