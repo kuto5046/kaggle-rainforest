@@ -118,6 +118,56 @@ class Conformer(nn.Module):
         self.config = config
         self.model_params = config['model']['params']
 
+        """
+        # from https://arxiv.org/pdf/2007.03931.pdf
+        self.convblock = nn.Sequential(
+            nn.Conv2d(3, 16, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((2,2)),
+            nn.Conv2d(16, 32, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((2,2)),
+            nn.Conv2d(32, 64, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(64, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2))  # modified by 1st team to fit output size
+        )
+        dim = 128
+        """
+    
+        self.model = resnest50(pretrained=True)
+        dim = self.model.fc.in_features
+        layers = list(self.model.children())[:-2]
+        self.encoder = nn.Sequential(*layers)
+        self.conformerblock = ConformerBlock(dim=dim, **self.model_params)
+        self.decoder = nn.Sequential(
+            nn.Linear(dim, dim), nn.ReLU(), nn.Dropout(p=0.2),
+            nn.Linear(dim, dim), nn.ReLU(), nn.Dropout(p=0.2),
+            nn.Linear(dim, 24))
+
+        self.init_weight()
+
+    def init_weight(self):
+        init_weights(self.decoder)
+
+    def forward(self, input):
+        batch_size = input.shape[0]
+        x = self.encoder(input)
+        x = x.view(batch_size, x.shape[1], -1).permute((0, 2, 1))
+        x = self.conformerblock(x)
+        x = x.permute((0, 2, 1))
+        x = F.adaptive_max_pool1d(x, 1).squeeze()
+        x = x.view(batch_size, -1)
+        logit = self.decoder(x)
+        output_dict = {
+            'logit': logit
+        }
+        return output_dict
+
+"""
+class Conformer(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.model_params = config['model']['params']
+
         # from https://arxiv.org/pdf/2007.03931.pdf
         self.convblock = nn.Sequential(
             nn.Conv2d(3, 16, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((2,2)),
@@ -152,6 +202,8 @@ class Conformer(nn.Module):
             'logit': logit
         }
         return output_dict
+"""
+
 
 class ResNeStSED(nn.Module):
     def __init__(self, config):
@@ -230,7 +282,10 @@ class ResNeSt50(nn.Module):
     def forward(self, x):
 
         x = self.model(x)
-        return x
+        output_dict = {
+            "logit": x 
+        }
+        return output_dict
 
 
 """

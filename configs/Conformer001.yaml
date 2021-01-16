@@ -35,7 +35,7 @@ data:
 dataset:
   name: SpectrogramDataset
   height: 224
-  width: 400
+  width: 496
   period: 10
   shift_time: 10
   strong_label_prob: 1.0
@@ -80,7 +80,7 @@ model:
   output_key: logit
   num_classes: 24
   params:
-    dim_head: 64
+    dim_head: 128
     heads: 8
     ff_mult: 4
     conv_expansion_factor: 2
@@ -92,7 +92,7 @@ model:
 
 loader:
   train:
-    batch_size: 20
+    batch_size: 16
     shuffle: True
     num_workers: 10
   valid:
