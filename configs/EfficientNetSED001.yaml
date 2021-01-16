@@ -37,7 +37,7 @@ data:
 dataset:
   name: SpectrogramDataset
   height: 224
-  width: 400
+  width: 1000
   period: 10
   shift_time: 10
   strong_label_prob: 1.0

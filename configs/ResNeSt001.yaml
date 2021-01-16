@@ -1,16 +1,13 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 30
+  max_epochs: 50
   output_dir: output
   timestamp: None
   only_pred: False
   folds:
     - 0
-    - 1
-    - 2
-    - 3
-    - 4
+
   debug: False
   kaggle: False
 
@@ -21,8 +18,8 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: random clip
-
+      message: confomer
+  
 data:
   root: ./
   use_train_data:
@@ -41,7 +38,7 @@ dataset:
   width: 400
   period: 10
   shift_time: 10
-  strong_label_prob: 0.0
+  strong_label_prob: 1.0
   params:
     melspec:
       n_fft: 2048
@@ -57,10 +54,9 @@ dataset:
       eps: 0.000001
 
 loss:
-  name: lsep_loss_stable  # LwlrapLoss  BCEWithLogitsLoss  lsep_loss
-  num_classes: 24
+  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
   params:
-    pos_weight: None
+    output_key: logit
 
 optimizer:
   name: Adam
@@ -81,21 +77,23 @@ split:
 
 model:
   name: ResNeSt50
+  output_key: logit
   params:
     pretrained: True
     num_classes: 24
+    
 
 loader:
   train:
-    batch_size: 20
+    batch_size: 16
     shuffle: True
     num_workers: 10
   valid:
-    batch_size: 20
+    batch_size: 10
     shuffle: False
     num_workers: 10
   test:
-    batch_size: 20
+    batch_size: 10
     shuffle: False
     num_workers: 10
 

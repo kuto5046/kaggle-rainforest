@@ -1,15 +1,17 @@
 globals:
   seed: 42
-  device: cpu
-  num_epochs: 1
+  device: cuda
+  max_epochs: 30
   output_dir: output
-  minimize_metric: False
-  model_name: ResNet
-  output_type: logits
-  weights:
+  timestamp: None
+  only_pred: False
   folds:
     - 0
-  debug: True
+    - 1
+    - 2
+    - 3
+    - 4
+  debug: False
   kaggle: False
 
 mlflow:
@@ -18,30 +20,45 @@ mlflow:
       timestamp: None
       model_name: None
       loss_name: None
-  
+      hash_value: None
+      message: time shift
 data:
   root: ./
   use_train_data:
     - tp
    #  - fp 
-  train_df_path: input/rainforest-resample-data/resample-train/train.csv
-  train_audio_path: input/rainforest-resample-data/resample-train/
-  test_audio_path: input/rainforest-resample-data/resample-test/
+  train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
+  train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
+  train_audio_path: input/rfcx-species-audio-detection/train
+  test_audio_path: input/rfcx-species-audio-detection/test
   sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
+
 
 dataset:
   name: SpectrogramDataset
-  img_size: 224
+  height: 224
+  width: 1000
+  period: 10
+  shift_time: 10
+  strong_label_prob: 1.0
   params:
-    n_mels: 128
-    fmin: 20
-    fmax: 16000
+    melspec:
+      n_fft: 2048
+      n_mels: 128
+      fmin: 80
+      fmax: 15000
+      power: 2.0
+    pcen:
+      gain: 0.98
+      bias: 2
+      power: 0.5
+      time_constant: 0.4
+      eps: 0.000001
 
 loss:
-  name: BCEWithLogitsLoss
-  num_classes: 24
+  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
   params:
-    pos_weight: None
+    output_key: logit
 
 optimizer:
   name: Adam
@@ -62,20 +79,34 @@ split:
 
 model:
   name: ResNet50
+  output_key: logit
   params:
     pretrained: True
     num_classes: 24
 
 loader:
   train:
-    batch_size: 16
+    batch_size: 20
     shuffle: True
-    num_workers: 0
+    num_workers: 10
   valid:
-    batch_size: 1
+    batch_size: 10
     shuffle: False
-    num_workers: 0
+    num_workers: 10
   test:
-    batch_size: 1
+    batch_size: 10
     shuffle: False
-    num_workers: 0
+    num_workers: 10
+
+transforms:
+  train:
+    - name: TimeShift
+
+  valid:
+
+  test:
+
+mixup:
+  flag: False
+  alpha: 0.2
+  prob: 0.5
