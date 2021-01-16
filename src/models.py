@@ -32,181 +32,17 @@ def calc_acc(pred, y):
  Audio tagging model
 ############
 """
-
 # Learner class(pytorch-lighting)
 class Learner(pl.LightningModule):
-    def __init__(self, config):
-        super().__init__()
-        self.config = config
-        self.criterion = C.get_criterion(self.config)
-        self.f1 = F1(num_classes=24)
-
-    
-    def training_step(self, batch, batch_idx):
-        x, y = batch
-        p = random.random()
-        do_mixup = True if p < self.config['mixup']['prob'] else False
-
-        if self.config['mixup']['flag'] and do_mixup:
-            x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
-
-        pred = self.forward(x)
-
-        if self.config['mixup']['flag'] and do_mixup:
-            loss = mixup_criterion(self.criterion, pred, y, y_shuffle, lam)
-        else:
-            loss = self.criterion(pred, y)
-
-        lwlrap = LWLRAP(pred, y)
-        f1_score = self.f1(pred, y)
-
-        self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-
-        return loss
-    
-    # batchのxはlist型
-    def validation_step(self, batch, batch_idx):
-        # xが複数の場合
-        x_list, y = batch
-        x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
-    
-        output = self.forward(x)
-        loss = self.criterion(output, y, phase='valid')
-        pred = C.split2one(output, y)
-        lwlrap = LWLRAP(pred, y)
-        f1_score = self.f1(pred, y)
-        self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        return loss
-
-    def configure_optimizers(self):
-        optimizer = C.get_optimizer(self.model, self.config)
-        scheduler = C.get_scheduler(optimizer, self.config)
-        return [optimizer], [scheduler]
-
-
-class ResNet50Learner(Learner):
-    def __init__(self, config):
-        super().__init__(config)
-        self.pretrained = config['model']['params']['pretrained']
-        self.num_classes = config['model']['params']['num_classes']
-
-        self.model = torchvision.models.resnet50(pretrained=self.pretrained)
-        layers = list(self.model.children())[:-2]  # 後ろ２層を除く(adaptiveAvgpooling(1,1)とlinear)
-        layers.append(nn.AdaptiveMaxPool2d(1))  # 後ろに追加 この処理で(1,1) → 1に変換している
-        self.encoder = nn.Sequential(*layers)  # 1chで出力するencoder
-
-        in_features = self.model.fc.in_features  # 最終層の入力ch
-
-        # 最終層のch数合わせ(１層で一気に行ってはだめ？)
-        self.classifier = nn.Sequential(
-            nn.Linear(in_features, 1024), nn.ReLU(), nn.Dropout(p=0.2),
-            nn.Linear(1024, 1024), nn.ReLU(), nn.Dropout(p=0.2),
-            nn.Linear(1024,self.num_classes))
-
-
-    def forward(self, x):
-        batch_size = x.size(0)
-        x = self.encoder(x)
-        x = x.view(batch_size, -1)
-        x = self.classifier(x)
-        return x
-
-
-class ResNeSt50Learner(Learner):
-    def __init__(self, config):
-        super().__init__(config)
-        self.pretrained = config['model']['params']['pretrained']
-        self.num_classes = config['model']['params']['num_classes']
-
-        self.model = resnest50(pretrained=self.pretrained)
-        del self.model.fc
-        self.model.fc = nn.Sequential(
-            nn.Linear(2048, 1024),
-            nn.ReLU(),
-            nn.Dropout(p=0.2),
-            nn.Linear(1024, 1024),
-            nn.ReLU(),
-            nn.Dropout(p=0.2),
-            nn.Linear(1024, self.num_classes)
-        )
-
-        # Spec augmenter
-        self.spec_augmenter = SpecAugmentation(
-            time_drop_width=64,
-            time_stripes_num=2,
-            freq_drop_width=8,
-            freq_stripes_num=2)
-
-    def forward(self, x):
-
-        # spec aug
-        # if self.training:
-        #     x = self.spec_augmenter(x)
-        x = self.model(x)
-        return x
-
-
-class ResNeSt50SamLearner(Learner):
-    def __init__(self, config):
-        super().__init__(config)
-        self.pretrained = config['model']['params']['pretrained']
-        self.num_classes = config['model']['params']['num_classes']
-
-        self.model = resnest50(pretrained=self.pretrained)
-        del self.model.fc
-        self.model.fc = nn.Sequential(
-            nn.Linear(2048, 1024),
-            nn.ReLU(),
-            nn.Dropout(p=0.2),
-            nn.Linear(1024, 1024),
-            nn.ReLU(),
-            nn.Dropout(p=0.2),
-            nn.Linear(1024, self.num_classes)
-        )
-
-        # Spec augmenter
-        self.spec_augmenter = SpecAugmentation(
-            time_drop_width=64,
-            time_stripes_num=2,
-            freq_drop_width=8,
-            freq_stripes_num=2)
-
-    def forward(self, x):
-
-        # spec aug
-        # if self.training:
-        #     x = self.spec_augmenter(x)
-
-        x = self.model(x)
-        return x
-
-
-    # DEFAULT
-    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx,
-                    optimizer_closure, on_tpu, using_native_amp, using_lbfgs):
-
-        optimizer.first_step(closure=optimizer_closure, zero_grad=True)
-        optimizer.second_step(closure=optimizer_closure, zero_grad=True)
-
-"""
-###########
-  SED(Sound Event Detection) model
-###########
-"""
-# Learner class(pytorch-lighting)
-class SEDLearner(pl.LightningModule):
     def __init__(self, model, config):
         super().__init__()
-        self.model = model
         self.config = config
+        self.model = model
         self.output_key = config["model"]["output_key"]
         self.criterion = C.get_criterion(self.config)
         self.f1 = F1(num_classes=24)
 
+    
     def training_step(self, batch, batch_idx):
         x, y = batch
         p = random.random()
@@ -219,7 +55,7 @@ class SEDLearner(pl.LightningModule):
         pred = output[self.output_key]
         if 'framewise' in self.output_key:
             pred, _ = pred.max(dim=1)
-            
+    
         if self.config['mixup']['flag'] and do_mixup:
             loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
@@ -239,6 +75,7 @@ class SEDLearner(pl.LightningModule):
         # xが複数の場合
         x_list, y = batch
         x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
+    
         output = self.model(x)
         loss = self.criterion(output, y, phase='valid')
         pred = output[self.output_key]
@@ -252,12 +89,155 @@ class SEDLearner(pl.LightningModule):
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
 
+
     def configure_optimizers(self):
         optimizer = C.get_optimizer(self.model, self.config)
         scheduler = C.get_scheduler(optimizer, self.config)
         return [optimizer], [scheduler]
+    
+
+# Learner class(pytorch-lighting)
+class SAMLearner(Learner):
+    def __init__(self, model, config):
+        super().__init__(model, config)
+        self.config = config
+        self.criterion = C.get_criterion(self.config)
+        self.f1 = F1(num_classes=24)
+
+    # DEFAULT
+    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx,
+                    optimizer_closure, on_tpu, using_native_amp, using_lbfgs):
+
+        optimizer.first_step(closure=optimizer_closure, zero_grad=True)
+        optimizer.second_step(closure=optimizer_closure, zero_grad=True)
 
 
+class Conformer(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.model_params = config['model']['params']
+
+        # from https://arxiv.org/pdf/2007.03931.pdf
+        self.convblock = nn.Sequential(
+            nn.Conv2d(3, 16, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((2,2)),
+            nn.Conv2d(16, 32, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((2,2)),
+            nn.Conv2d(32, 64, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(64, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2)),
+            nn.Conv2d(128, 128, kernel_size=(3,3)), nn.ReLU(), nn.MaxPool2d((1,2))  # modified by 1st team to fit output size
+        )
+        self.conformerblock = ConformerBlock(dim=128, **self.model_params)
+        self.decoder = nn.Linear(128, 24, bias=True)
+        self.init_weight()
+
+    def init_weight(self):
+        init_layer(self.decoder)
+
+    def forward(self, input):
+
+        x = self.convblock(input)
+        x = x.squeeze(3).permute((0, 2, 1))  # (batch, channel, 44, 1) -> (batch, 44, channel)
+
+        # conformer block was stacked 4 times
+        x = self.conformerblock(x)
+        x = self.conformerblock(x)
+        x = self.conformerblock(x)
+        x = self.conformerblock(x)
+    
+        x = torch.mean(x, dim=1)  # (batch, ch)
+        logit = self.decoder(x)
+        output_dict = {
+            'logit': logit
+        }
+        return output_dict
+
+class ResNeStSED(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        model_params = config['model']['params']
+        base_model = torch.hub.load("zhanghang1989/ResNeSt",
+                                    model_params['base_model_name'],
+                                    pretrained=model_params['pretrained'])
+
+        layers = list(base_model.children())[:-2]
+        self.encoder = nn.Sequential(*layers)
+        in_features = base_model.fc.in_features
+        self.fc1 = nn.Linear(in_features, in_features, bias=True)
+        self.att_block = AttBlockV2(in_features, model_params['num_classes'], activation="sigmoid")
+
+        self.init_weight()
+        self.interpolate_ratio = 30  # Downsampled ratio
+
+        self.model = nn.Sequential()
+
+    def init_weight(self):
+        init_layer(self.fc1)
+
+class ResNet50(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.pretrained = config['model']['params']['pretrained']
+        self.num_classes = config['model']['params']['num_classes']
+
+        self.model = torchvision.models.resnet50(pretrained=self.pretrained)
+        layers = list(self.model.children())[:-2]  # 後ろ２層を除く(adaptiveAvgpooling(1,1)とlinear)
+        layers.append(nn.AdaptiveMaxPool2d(1))  # 後ろに追加 この処理で(1,1) → 1に変換している
+        self.encoder = nn.Sequential(*layers)  # 1chで出力するencoder
+
+        in_features = self.model.fc.in_features  # 最終層の入力ch
+
+        # 最終層のch数合わせ(１層で一気に行ってはだめ？)
+        self.classifier = nn.Sequential(
+            nn.Linear(in_features, 1024), nn.ReLU(), nn.Dropout(p=0.2),
+            nn.Linear(1024, 1024), nn.ReLU(), nn.Dropout(p=0.2),
+            nn.Linear(1024,self.num_classes))
+
+    def forward(self, x):
+        batch_size = x.size(0)
+        x = self.encoder(x)
+        x = x.view(batch_size, -1)
+        x = self.classifier(x)
+        return x
+
+
+class ResNeSt50(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.pretrained = config['model']['params']['pretrained']
+        self.num_classes = config['model']['params']['num_classes']
+
+        self.model = resnest50(pretrained=self.pretrained)
+        del self.model.fc
+        self.model.fc = nn.Sequential(
+            nn.Linear(2048, 1024),
+            nn.ReLU(),
+            nn.Dropout(p=0.2),
+            nn.Linear(1024, 1024),
+            nn.ReLU(),
+            nn.Dropout(p=0.2),
+            nn.Linear(1024, self.num_classes)
+        )
+
+        # Spec augmenter
+        self.spec_augmenter = SpecAugmentation(
+            time_drop_width=64,
+            time_stripes_num=2,
+            freq_drop_width=8,
+            freq_stripes_num=2)
+
+    def forward(self, x):
+
+        x = self.model(x)
+        return x
+
+
+"""
+###########
+  SED(Sound Event Detection) model
+###########
+"""
 class PANNsCNN14AttSED(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -546,7 +526,7 @@ class ConformerSED(nn.Module):
         x = self.conformerblock(x)
     
         # x = torch.mean(x, dim=1).unsqueeze(1)  # (batch, 44, ch)
-        x = x.permute(0, 2, 1)  # (batchm ch, 44)
+        x = x.permute(0, 2, 1)  # (batch, ch, 44)
 
         # channel smoothing
         # channel次元上でpoolingを行う
@@ -826,14 +806,21 @@ def get_model(config: dict):
     model_name = config["model"]["name"]
     model_params = config["model"]["params"]
     if model_name == "ResNet50":
-        model = ResNet50Learner(config)
-        return model
+        model = ResNet50(config)
+        learner = Learner(model, config)
+    
     elif model_name == "ResNeSt50":
-        model = ResNeSt50Learner(config)
-        return model
+        model = ResNeSt50(config)
+        learner = Learner(model, config)
+
     elif model_name == "ResNeSt50Sam":
-        model = ResNeSt50SamLearner(config)
-        return model
+        model = ResNeSt50(config)
+        learner = SAMLearner(model, config)
+
+    elif model_name == "Conformer":
+        model = Conformer(config)
+        learner = Learner(model, config)
+
     elif model_name == "PANNsCNN14Att":
         model = PANNsCNN14AttSED(config)  # TODO num_classes 527
         checkpoint = torch.load("pretrained/PANNsCNN14Att.pth")
@@ -842,19 +829,17 @@ def get_model(config: dict):
             2048, model_params["n_classes"], activation="sigmoid")
         model.att_block.init_weights()
         init_layer(model.fc1)
-        learner = SEDLearner(model, config)
-        return model
+        learner = Learner(model, config)
     elif model_name == "ResNeStSED":
         model = ResNeStSED(config)
-        learner = SEDLearner(model, config)
-        return learner
+        learner = Learner(model, config)
     elif model_name == "EfficientNetSED":
         model = EfficientNetSED(config)
-        learner = SEDLearner(model, config)
-        return learner
+        learner = Learner(model, config)
     elif model_name == "ConformerSED":
         model = ConformerSED(config)
-        learner = SEDLearner(model, config)
-        return learner
+        learner = Learner(model, config)
     else:
         raise NotImplementedError
+    
+    return learner

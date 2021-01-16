@@ -76,7 +76,7 @@ split:
     shuffle: True
 
 model:
-  name: ConformerSED
+  name: Conformer
   output_key: logit
   num_classes: 24
   params:

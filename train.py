@@ -105,7 +105,7 @@ def main():
     warnings.filterwarnings('ignore')
 
     # config
-    config_filename = 'ConformerSED001.yaml'
+    config_filename = 'Conformer001.yaml'
     config = utils.load_config(f"configs/{config_filename}")
     global_config = config['globals']
     hash_value = utils.get_hash(config)  # get git hash value(short ver.)
