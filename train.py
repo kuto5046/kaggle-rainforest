@@ -164,10 +164,10 @@ def main():
         val_df = df.loc[val_idx, :].reset_index(drop=True)
         # reのデータはtpのデータで上書きしたい
         if 'tp' in config['data']['use_train_data']:
-            val_df = val_df[val_df['data_type']=='tp']  # valid scoreの質を担保するために追加(tpデータと一緒に学習する場合のみOK)
+            val_df = val_df[val_df['data_type']=='tp'].reset_index(drop=True) # valid scoreの質を担保するために追加(tpデータと一緒に学習する場合のみOK)
         else:
             # valデータに分類されたものでrecording_idが同じものをtp_dfから抽出
-            val_df = tp_df[tp_df['recording_id'].isin(val_df['recording_id'].unique())]
+            val_df = tp_df[tp_df['recording_id'].isin(val_df['recording_id'].unique())].reset_index(drop=True)
         
         loaders = {
             phase: C.get_loader(df_, datadir, config, phase)
