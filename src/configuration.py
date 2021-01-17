@@ -72,17 +72,17 @@ def get_metadata(config: dict):
     train_audio_path = Path(data_config["root"]) / Path(data_config["train_audio_path"])
     train_tp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_tp_df_path"])).reset_index(drop=True)
     train_fp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_fp_df_path"])).reset_index(drop=True)
+    train_re = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_re_df_path"])).reset_index(drop=True)
+
     train_tp["data_type"] = "tp"
     train_fp["data_type"] = "fp"
-    train = pd.concat([train_tp, train_fp])
-    if data_config['use_train_data'] == ['tp']:
-        return train[train['data_type']=='tp'], train_audio_path
-    elif data_config['use_train_data'] == ['fp']:
-        return train[train['data_type']=='fp'], train_audio_path
-    elif data_config['use_train_data'] == ['tp', 'fp']:
-        return train, train_audio_path
-    else:
-        print("exception error")
+    train_re["data_type"] = "re"
+
+    train = pd.concat([train_tp, train_fp, train_re])
+
+    df = train[train['data_type'].isin(data_config['use_train_data'])]
+    return df, train_audio_path
+
 
 
 def get_test_metadata(config: dict):

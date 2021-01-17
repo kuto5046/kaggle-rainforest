@@ -7,10 +7,6 @@ globals:
   only_pred: False
   folds:
     - 0
-    - 1
-    - 2
-    - 3
-    - 4
   debug: False
   kaggle: False
 
@@ -21,14 +17,16 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: time shift
+      message: relabel
 data:
   root: ./
   use_train_data:
-    - tp
-   #  - fp 
+    - re
+    # - tp
+    # - fp 
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
   train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
+  train_re_df_path: input/rfcx-species-audio-detection/train_re.csv
   train_audio_path: input/rfcx-species-audio-detection/train
   test_audio_path: input/rfcx-species-audio-detection/test
   sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
@@ -37,7 +35,7 @@ data:
 dataset:
   name: SpectrogramDataset
   height: 224
-  width: 1000
+  width: 400
   period: 10
   shift_time: 10
   strong_label_prob: 1.0
@@ -91,17 +89,16 @@ loader:
     shuffle: True
     num_workers: 10
   valid:
-    batch_size: 10
+    batch_size: 20
     shuffle: False
     num_workers: 10
   test:
-    batch_size: 10
+    batch_size: 20
     shuffle: False
     num_workers: 10
 
 transforms:
   train:
-    - name: TimeShift
 
   valid:
 
