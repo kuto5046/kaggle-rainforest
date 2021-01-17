@@ -66,6 +66,7 @@ def get_split(config: dict):
     return sms.__getattribute__(name)(**split_config["params"])
 
 
+
 # flac data
 def get_metadata(config: dict):
     data_config = config["data"]
@@ -78,11 +79,17 @@ def get_metadata(config: dict):
     train_fp["data_type"] = "fp"
     train_re["data_type"] = "re"
     train_re = train_re[(train_re['t_max'] - train_re['t_min']) > 1.0]  # ラベルの秒数で足切り
+    
+    # 各クラス最大40こまで
+    train_re2 = pd.DataFrame()
+    for s in train_re['species_id'].unique():
+        temp = train_re[train_re['species_id']==s]
+        train_re2 = pd.concat([train_re2, temp.sample(40)])
 
     # train = pd.concat([train_tp, train_fp, train_re])
     # df = train[train['data_type'].isin(data_config['use_train_data'])].reset_index(drop=True)
 
-    return train_tp, train_re, train_audio_path
+    return train_tp, train_re2, train_audio_path
 
 
 
