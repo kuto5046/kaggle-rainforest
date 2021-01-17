@@ -22,7 +22,7 @@ data:
   root: ./
   use_train_data:
     - re
-    # - tp
+    - tp
     # - fp 
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
   train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
