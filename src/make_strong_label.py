@@ -13,15 +13,15 @@ def main():
         framewise_output = np.load(npy_file)
         filename = os.path.split(npy_file)[1]
         recording_id = filename[:9]
-        # prelabeled_species_id = int(filename[10:-4])
+        prelabeled_species_id = int(filename[10:-4])
         frame_length = len(framewise_output)
 
         # 設定したし閾値より高い予測値のもののみでラベル付け
         thresholded = (framewise_output > threshold) * 1
         # 全てのクラスを順に見ていく
         for species_id in range(thresholded.shape[1]):
-            # 該当クラスが検知されていなければpass
-            if thresholded[:, species_id].mean() == 0:
+            # 該当クラスが検知されていない or 該当クラスと事前にラベル付けされているクラスが異なる場合はpass
+            if (thresholded[:, species_id].mean() == 0) or (species_id != prelabeled_species_id):
                 pass
             else:
                 detected = np.argwhere(thresholded[:, species_id]).reshape(-1)  # 全てのframeから検知されているframeのindexのみを取り出す
