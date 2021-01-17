@@ -77,11 +77,11 @@ def get_metadata(config: dict):
     train_tp["data_type"] = "tp"
     train_fp["data_type"] = "fp"
     train_re["data_type"] = "re"
+    train_re = train_re[(train_re['t_max'] - train_re['t_min']) > 1.0]  # ラベルの秒数で足切り
 
     train = pd.concat([train_tp, train_fp, train_re])
 
-    df = train[train['data_type'].isin(data_config['use_train_data'])]
-    df = df[(df['t_max'] - df['t_min']) > 1.0]  # ラベルの秒数で足切り
+    df = train[train['data_type'].isin(data_config['use_train_data'])].reset_index(drop=True)
     return df, train_audio_path
 
 
