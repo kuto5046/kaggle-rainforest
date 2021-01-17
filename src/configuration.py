@@ -84,7 +84,12 @@ def get_metadata(config: dict):
     train_re2 = pd.DataFrame()
     for s in train_re['species_id'].unique():
         temp = train_re[train_re['species_id']==s]
-        train_re2 = pd.concat([train_re2, temp.sample(40)])
+        try:
+            sampling_data = temp.sample(40)
+        except:
+            # 40こサンプリングできない場合(データが40以下の場合はある分だけ追加)
+            sampling_data = temp
+        train_re2 = pd.concat([train_re2, sampling_data])
 
     # train = pd.concat([train_tp, train_fp, train_re])
     # df = train[train['data_type'].isin(data_config['use_train_data'])].reset_index(drop=True)
