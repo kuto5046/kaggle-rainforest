@@ -74,6 +74,8 @@ def get_metadata(config: dict):
     train_tp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_tp_df_path"])).reset_index(drop=True)
     train_fp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_fp_df_path"])).reset_index(drop=True)
     train_re = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_re_df_path"])).reset_index(drop=True)
+    train_re_v2 = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_re_v2_df_path"])).reset_index(drop=True)
+    train_re = pd.concat([train_re, train_re_v2]).reset_index(drop=True)
 
     train_tp["data_type"] = "tp"
     train_fp["data_type"] = "fp"
