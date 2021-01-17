@@ -120,7 +120,10 @@ def main():
     device = C.get_device(global_config["device"])
 
     # data
-    df, datadir = C.get_metadata(config)
+    tp_df, re_df, datadir = C.get_metadata(config)
+    df = pd.concat([tp_df, re_df])
+    df = df[df['data_type'].isin(config['data']['use_train_data'])].reset_index(drop=True)
+
     sub_df, test_datadir = C.get_test_metadata(config)
     test_loader = C.get_loader(sub_df, test_datadir, config, phase="test")
     splitter = C.get_split(config)
@@ -159,6 +162,13 @@ def main():
         # dataloader
         trn_df = df.loc[trn_idx, :].reset_index(drop=True)
         val_df = df.loc[val_idx, :].reset_index(drop=True)
+        # reのデータはtpのデータで上書きしたい
+        if 'tp' in config['data']['use_train_data']:
+            val_df = val_df[val_df['data_type']=='tp']  # valid scoreの質を担保するために追加(tpデータと一緒に学習する場合のみOK)
+        else:
+            # valデータに分類されたものでrecording_idが同じものをtp_dfから抽出
+            val_df = tp_df[tp_df['recording_id'].isin(val_df['recording_id'].unique())]
+        
         loaders = {
             phase: C.get_loader(df_, datadir, config, phase)
             for df_, phase in zip([trn_df, val_df], ["train", "valid"])
