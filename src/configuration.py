@@ -81,6 +81,7 @@ def get_metadata(config: dict):
     train = pd.concat([train_tp, train_fp, train_re])
 
     df = train[train['data_type'].isin(data_config['use_train_data'])]
+    df = df[(df['t_max'] - df['t_min']) > 1.0]  # ラベルの秒数で足切り
     return df, train_audio_path
 
 

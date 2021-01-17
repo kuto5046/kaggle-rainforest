@@ -80,7 +80,7 @@ class SpectrogramDataset(data.Dataset):
             if self.phase == 'valid':
                 labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
                 main_species_id = sample['species_id']
-                labels[main_species_id] = 1.0
+                labels[int(main_species_id)] = 1.0
                 return np.asarray(images), labels
             elif self.phase == 'test':
                 labels = -1  # testなので-1を返す
