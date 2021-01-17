@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: relabel
+      message: add relabel 40 data
 data:
   root: ./
   use_train_data:
