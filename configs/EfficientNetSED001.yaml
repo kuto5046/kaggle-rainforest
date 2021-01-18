@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: add v1+v2 relabel 40 data
+      message: relabel v3 40 data
 data:
   root: ./
   use_train_data:
@@ -30,7 +30,7 @@ data:
     # - fp 
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
   train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
-  train_re_df_path: input/rfcx-species-audio-detection/train_re_v4.csv
+  train_re_df_path: input/rfcx-species-audio-detection/train_re_v3.csv
   # train_re_v2_df_path: input/rfcx-species-audio-detection/train_re_v2.csv
   train_audio_path: input/rfcx-species-audio-detection/train
   test_audio_path: input/rfcx-species-audio-detection/test
