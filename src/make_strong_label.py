@@ -120,38 +120,41 @@ def v3():
         thresholded = (framewise_output > threshold) * 1
         species_ranking = np.argsort(thresholded.sum(axis=0))[::-1]
         top5_species_id = species_ranking[:5]
+        # 上位５に入っていれば追加しない
         if prelabeled_species_id in top5_species_id:
             pass
-
-        species_id = prelabeled_species_id
-        if (thresholded[:, species_id].mean() == 0):
-            print(recording_id)  # 正解のクラスを全く予測できていないrecording_idを表示
-            bad_recording_ids.append(recording_id)
-            pass
+        # 成績の悪いものを追加する
         else:
-            detected = np.argwhere(thresholded[:, species_id]).reshape(-1)  # 全てのframeから検知されているframeのindexのみを取り出す
-            head_idx = 0
-            tail_idx = 0
-            while True:
-                # 音声frameが一つのみ or 音声frameが一つ先のframeと途切れている場合
-                if (tail_idx + 1 == len(detected)) or (detected[tail_idx + 1] - detected[tail_idx] != 1):
-                    t_min = detected[head_idx] * (audio_time/frame_length)  # frame -> audioになるようにスケールを合わせる
-                    t_max = detected[tail_idx] * (audio_time/frame_length)  # frame -> audioになるようにスケールを合わせる
-                    estimated_event = {
-                        "recording_id": recording_id,
-                        "species_id": species_id,
-                        "t_min": t_min.astype(np.float16),
-                        "t_max": t_max.astype(np.float16),
-                    }
-                    estimated_event_list.append(estimated_event)
-                    head_idx = tail_idx + 1
-                    tail_idx = tail_idx + 1
-                    if head_idx >= len(detected):
-                        break
-                else:
-                    tail_idx += 1
+            species_id = prelabeled_species_id
+            if (thresholded[:, species_id].mean() == 0):
+                print(recording_id)  # 正解のクラスを全く予測できていないrecording_idを表示
+                bad_recording_ids.append(recording_id)
+                pass
+            else:
+                detected = np.argwhere(thresholded[:, species_id]).reshape(-1)  # 全てのframeから検知されているframeのindexのみを取り出す
+                head_idx = 0
+                tail_idx = 0
+                while True:
+                    # 音声frameが一つのみ or 音声frameが一つ先のframeと途切れている場合
+                    if (tail_idx + 1 == len(detected)) or (detected[tail_idx + 1] - detected[tail_idx] != 1):
+                        t_min = detected[head_idx] * (audio_time/frame_length)  # frame -> audioになるようにスケールを合わせる
+                        t_max = detected[tail_idx] * (audio_time/frame_length)  # frame -> audioになるようにスケールを合わせる
+                        estimated_event = {
+                            "recording_id": recording_id,
+                            "species_id": species_id,
+                            "t_min": t_min.astype(np.float16),
+                            "t_max": t_max.astype(np.float16),
+                        }
+                        estimated_event_list.append(estimated_event)
+                        head_idx = tail_idx + 1
+                        tail_idx = tail_idx + 1
+                        if head_idx >= len(detected):
+                            break
+                    else:
+                        tail_idx += 1
     bad_recording_ids = "\n".join(bad_recording_ids)
-    with open(input_dir + 'bad_recording_ids.txt', 'w') as f:
+
+    with open('../input/rfcx-species-audio-detection/bad_recording_ids_v3.txt', 'w') as f:
         f.writelines(bad_recording_ids)
 
     relabeled_df = pd.DataFrame(estimated_event_list)
@@ -175,38 +178,35 @@ def v4():
         # 設定したし閾値より高い予測値のもののみでラベル付け
         thresholded = (framewise_output > threshold) * 1
         species_ranking = np.argsort(thresholded.sum(axis=0))[::-1]
-        top3_species_id = species_ranking[:3]
+        top_species_id = species_ranking[:1]
 
-        # 上位３つに入っていなければ使わない
-        if prelabeled_species_id not in top3_species_id:
-            pass
-
-        species_id = prelabeled_species_id
-        if (thresholded[:, species_id].mean() == 0):
-            print(recording_id)  # 正解のクラスを全く予測できていないrecording_idを表示
-            pass
-        else:
-            detected = np.argwhere(thresholded[:, species_id]).reshape(-1)  # 全てのframeから検知されているframeのindexのみを取り出す
-            head_idx = 0
-            tail_idx = 0
-            while True:
-                # 音声frameが一つのみ or 音声frameが一つ先のframeと途切れている場合
-                if (tail_idx + 1 == len(detected)) or (detected[tail_idx + 1] - detected[tail_idx] != 1):
-                    t_min = detected[head_idx] * (audio_time/frame_length)  # frame -> audioになるようにスケールを合わせる
-                    t_max = detected[tail_idx] * (audio_time/frame_length)  # frame -> audioになるようにスケールを合わせる
-                    estimated_event = {
-                        "recording_id": recording_id,
-                        "species_id": species_id,
-                        "t_min": t_min.astype(np.float16),
-                        "t_max": t_max.astype(np.float16),
-                    }
-                    estimated_event_list.append(estimated_event)
-                    head_idx = tail_idx + 1
-                    tail_idx = tail_idx + 1
-                    if head_idx >= len(detected):
-                        break
-                else:
-                    tail_idx += 1
+        # 上位３つに入っているもののみ追加
+        if prelabeled_species_id in top_species_id:
+            species_id = prelabeled_species_id
+            if (thresholded[:, species_id].mean() == 0):
+                print(recording_id)  # 正解のクラスを全く予測できていないrecording_idを表示
+            else:
+                detected = np.argwhere(thresholded[:, species_id]).reshape(-1)  # 全てのframeから検知されているframeのindexのみを取り出す
+                head_idx = 0
+                tail_idx = 0
+                while True:
+                    # 音声frameが一つのみ or 音声frameが一つ先のframeと途切れている場合
+                    if (tail_idx + 1 == len(detected)) or (detected[tail_idx + 1] - detected[tail_idx] != 1):
+                        t_min = detected[head_idx] * (audio_time/frame_length)  # frame -> audioになるようにスケールを合わせる
+                        t_max = detected[tail_idx] * (audio_time/frame_length)  # frame -> audioになるようにスケールを合わせる
+                        estimated_event = {
+                            "recording_id": recording_id,
+                            "species_id": species_id,
+                            "t_min": t_min.astype(np.float16),
+                            "t_max": t_max.astype(np.float16),
+                        }
+                        estimated_event_list.append(estimated_event)
+                        head_idx = tail_idx + 1
+                        tail_idx = tail_idx + 1
+                        if head_idx >= len(detected):
+                            break
+                    else:
+                        tail_idx += 1
 
 
     relabeled_df = pd.DataFrame(estimated_event_list)
