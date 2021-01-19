@@ -173,7 +173,7 @@ def main():
             bad_recording_ids = f.readlines()
         bad_recording_ids = [i.replace('\n', '') for i in bad_recording_ids]
 
-        trn_df = trn_df[~trn_df['recording_id'].notin(bad_recording_ids)]
+        trn_df = trn_df[~trn_df['recording_id'].isin(bad_recording_ids)]
         
         loaders = {
             phase: C.get_loader(df_, datadir, config, phase)
