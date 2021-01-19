@@ -87,7 +87,7 @@ def get_metadata(config: dict):
     for s in train_re['species_id'].unique():
         temp = train_re[train_re['species_id']==s]
         try:
-            sampling_data = temp.sample(100)
+            sampling_data = temp.sample(40)
         except:
             # 40こサンプリングできない場合(データが40以下の場合はある分だけ追加)
             sampling_data = temp

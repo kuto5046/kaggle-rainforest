@@ -41,11 +41,11 @@ class SpectrogramDataset(data.Dataset):
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
         self.pcen_parameters = pcen_parameters
-        with open('input/rfcx-species-audio-detection/too_bad_recording_ids_v5.txt') as f:
-            self.too_bad_recording_ids = f.readlines()
 
         with open('input/rfcx-species-audio-detection/bad_recording_ids_v5.txt') as f:
-            self.bad_recording_ids = f.readlines()
+            bad_recording_ids = f.readlines()
+        self.bad_recording_ids = [i.replace('\n', '') for i in bad_recording_ids]
+
         
     def __len__(self):
         return len(self.df)
