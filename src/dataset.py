@@ -41,7 +41,12 @@ class SpectrogramDataset(data.Dataset):
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
         self.pcen_parameters = pcen_parameters
+        with open('input/rfcx-species-audio-detection/too_bad_recording_ids_v5.txt') as f:
+            self.too_bad_recording_ids = f.readlines()
 
+        with open('input/rfcx-species-audio-detection/bad_recording_ids_v5.txt') as f:
+            self.bad_recording_ids = f.readlines()
+        
     def __len__(self):
         return len(self.df)
 
@@ -57,10 +62,15 @@ class SpectrogramDataset(data.Dataset):
 
         if self.phase == 'train':
             p = random.random()
-            if p < self.strong_label_prob:
-                y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length)
-            else:
+
+            # 良くないrecording_idはrandom clipする
+            if recording_id in self.bad_recording_ids:
                 y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
+            else:
+                if p < self.strong_label_prob:
+                    y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length)
+                else:
+                    y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
             image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
             # image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
             # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)

@@ -101,7 +101,7 @@ def v2():
     relabeled_df.to_csv(output_path, index=False)
 
 
-# 間違えているデータのみにそのクラスを学習させる
+# 間違えているデータ(rankingが５以下)のみにそのクラスを学習させる
 def v3():
     threshold = 0.95
     audio_time = 60
@@ -212,5 +212,46 @@ def v4():
     relabeled_df = pd.DataFrame(estimated_event_list)
     relabeled_df.to_csv(output_path, index=False)
 
+
+# 間違えているデータ(rankingが5位以上)のrecoring_idを取得する
+def v5():
+    threshold = 0.95
+    input_dir = "../output/sed_result/0110_121231/"
+    bad_recording_ids = []
+    too_bad_recording_ids = []
+    for npy_file in glob.glob(input_dir + '*.npy'):
+        framewise_output = np.load(npy_file)
+        filename = os.path.split(npy_file)[1]
+        recording_id = filename[:9]
+        prelabeled_species_id = int(filename[10:-4])
+
+        # 設定したし閾値より高い予測値のもののみでラベル付け
+        thresholded = (framewise_output > threshold) * 1
+        species_ranking = np.argsort(thresholded.sum(axis=0))[::-1]
+        top5_species_id = species_ranking[:5]
+        # 上位５に入っていれば追加しない
+        if prelabeled_species_id in top5_species_id:
+            pass
+        # 成績の悪いものを追加する
+        else:
+            species_id = prelabeled_species_id
+            if (thresholded[:, species_id].mean() == 0):
+                print(recording_id)  # 正解のクラスを全く予測できていないrecording_idを表示
+                too_bad_recording_ids.append(recording_id)
+
+            bad_recording_ids.append(recording_id)
+
+    print("bad", len(bad_recording_ids))
+    print("too bad", len(too_bad_recording_ids))
+    bad_recording_ids = "\n".join(bad_recording_ids)
+    too_bad_recording_ids = "\n".join(too_bad_recording_ids)
+    with open('../input/rfcx-species-audio-detection/bad_recording_ids_v5.txt', 'w') as f:
+        f.writelines(bad_recording_ids)
+
+    with open('../input/rfcx-species-audio-detection/too_bad_recording_ids_v5.txt', 'w') as f:
+        f.writelines(too_bad_recording_ids)
+
+
+
 if __name__=="__main__":
-    v4()
+    v5()
