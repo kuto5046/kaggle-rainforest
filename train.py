@@ -168,13 +168,14 @@ def main():
         else:
             # valデータに分類されたものでrecording_idが同じものをtp_dfから抽出
             val_df = tp_df[tp_df['recording_id'].isin(val_df['recording_id'].unique())].reset_index(drop=True)
-
+        """
+        # 結果の悪いものを取り除く
         with open('input/rfcx-species-audio-detection/bad_recording_ids_v5.txt') as f:
             bad_recording_ids = f.readlines()
         bad_recording_ids = [i.replace('\n', '') for i in bad_recording_ids]
 
         trn_df = trn_df[~trn_df['recording_id'].isin(bad_recording_ids)].reset_index(drop=True)
-        
+        """
         loaders = {
             phase: C.get_loader(df_, datadir, config, phase)
             for df_, phase in zip([trn_df, val_df], ["train", "valid"])

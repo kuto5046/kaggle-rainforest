@@ -42,11 +42,15 @@ class SpectrogramDataset(data.Dataset):
         self.melspectrogram_parameters = melspectrogram_parameters
         self.pcen_parameters = pcen_parameters
 
+        """
         with open('input/rfcx-species-audio-detection/bad_recording_ids_v5.txt') as f:
             bad_recording_ids = f.readlines()
         self.bad_recording_ids = [i.replace('\n', '') for i in bad_recording_ids]
+        """
+        with open('input/rfcx-species-audio-detection/too_good_recording_ids_v6.txt') as f:
+            too_good_recording_ids = f.readlines()
+        self.too_good_recording_ids = [i.replace('\n', '') for i in too_good_recording_ids]
 
-        
     def __len__(self):
         return len(self.df)
 
@@ -63,8 +67,8 @@ class SpectrogramDataset(data.Dataset):
         if self.phase == 'train':
             p = random.random()
 
-            # 良くないrecording_idはrandom clipする
-            if recording_id in self.bad_recording_ids:
+            # 良いrecording_idはrandom clipする
+            if recording_id in self.too_good_recording_ids:
                 y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
             else:
                 if p < self.strong_label_prob:

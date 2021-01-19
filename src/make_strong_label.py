@@ -252,6 +252,40 @@ def v5():
         f.writelines(too_bad_recording_ids)
 
 
+# 正解しているデータ(ranking1位)かつframeの長さが1/3以上(800以上のもの)のrecoring_idを取得する
+def v6():
+    threshold = 0.99
+    input_dir = "../output/sed_result/0110_121231/"
+    good_recording_ids = []
+    too_good_recording_ids = []
+    for npy_file in glob.glob(input_dir + '*.npy'):
+        framewise_output = np.load(npy_file)
+        filename = os.path.split(npy_file)[1]
+        recording_id = filename[:9]
+        prelabeled_species_id = int(filename[10:-4])
+
+        # 設定したし閾値より高い予測値のもののみでラベル付け
+        thresholded = (framewise_output > threshold) * 1
+        species_ranking = np.argsort(thresholded.sum(axis=0))[::-1]
+        top_species_id = species_ranking[:1]
+        
+        # 上位５に入っていれば追加しない
+        if prelabeled_species_id in top_species_id:
+            good_recording_ids.append(recording_id)
+            species_id = prelabeled_species_id
+            detected = np.argwhere(thresholded[:, species_id]).reshape(-1)  # 全てのframeから検知されているframeのindexのみを取り出す
+            if len(detected) >= 1200:
+                too_good_recording_ids.append(recording_id)
+
+    print("good", len(good_recording_ids))
+    print("too good", len(too_good_recording_ids))
+    good_recording_ids = "\n".join(good_recording_ids)
+    too_good_recording_ids = "\n".join(too_good_recording_ids)
+    with open('../input/rfcx-species-audio-detection/good_recording_ids_v6.txt', 'w') as f:
+        f.writelines(good_recording_ids)
+
+    with open('../input/rfcx-species-audio-detection/too_good_recording_ids_v6.txt', 'w') as f:
+        f.writelines(too_good_recording_ids)
 
 if __name__=="__main__":
-    v5()
+    v6()

@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: relabel v5(bad data=random clip)
+      message: relabel v6(good data=random clip)
 data:
   root: ./
   use_train_data:
