@@ -180,7 +180,7 @@ def v4():
         species_ranking = np.argsort(thresholded.sum(axis=0))[::-1]
         top_species_id = species_ranking[:1]
 
-        # 上位３つに入っているもののみ追加
+        # 上位1つに入っているもののみ追加
         if prelabeled_species_id in top_species_id:
             species_id = prelabeled_species_id
             if (thresholded[:, species_id].mean() == 0):
