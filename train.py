@@ -171,7 +171,7 @@ def main():
 
         with open('input/rfcx-species-audio-detection/bad_recording_ids_v5.txt') as f:
             bad_recording_ids = f.readlines()
-        self.bad_recording_ids = [i.replace('\n', '') for i in bad_recording_ids]
+        bad_recording_ids = [i.replace('\n', '') for i in bad_recording_ids]
 
         trn_df = trn_df[~trn_df['recording_id'].notin(bad_recording_ids)]
         
