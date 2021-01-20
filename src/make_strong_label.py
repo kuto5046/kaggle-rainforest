@@ -103,12 +103,11 @@ def v2():
 
 # 間違えているデータ(rankingが５以下)のみにそのクラスを学習させる
 def v3():
-    threshold = 0.95
+    threshold = 0.8
     audio_time = 60
     input_dir = "../output/sed_result/0110_121231/"
     output_path = "../input/rfcx-species-audio-detection/train_re_v3.csv"
     estimated_event_list = []
-    bad_recording_ids = []
     for npy_file in glob.glob(input_dir + '*.npy'):
         framewise_output = np.load(npy_file)
         filename = os.path.split(npy_file)[1]
@@ -117,19 +116,17 @@ def v3():
         frame_length = len(framewise_output)
 
         # 設定したし閾値より高い予測値のもののみでラベル付け
-        thresholded = (framewise_output > threshold) * 1
+        thresholded = (framewise_output > np.max(framewise_output)*threshold) * 1
         species_ranking = np.argsort(thresholded.sum(axis=0))[::-1]
-        top5_species_id = species_ranking[:5]
-        # 上位５に入っていれば追加しない
-        if prelabeled_species_id in top5_species_id:
+        top3_species_id = species_ranking[:3]
+        # 上位3に入っていれば追加しない
+        if prelabeled_species_id in top3_species_id:
             pass
         # 成績の悪いものを追加する
         else:
             species_id = prelabeled_species_id
             if (thresholded[:, species_id].mean() == 0):
                 print(recording_id)  # 正解のクラスを全く予測できていないrecording_idを表示
-                bad_recording_ids.append(recording_id)
-                pass
             else:
                 detected = np.argwhere(thresholded[:, species_id]).reshape(-1)  # 全てのframeから検知されているframeのindexのみを取り出す
                 head_idx = 0
@@ -152,10 +149,6 @@ def v3():
                             break
                     else:
                         tail_idx += 1
-    bad_recording_ids = "\n".join(bad_recording_ids)
-
-    with open('../input/rfcx-species-audio-detection/bad_recording_ids_v3.txt', 'w') as f:
-        f.writelines(bad_recording_ids)
 
     relabeled_df = pd.DataFrame(estimated_event_list)
     relabeled_df.to_csv(output_path, index=False)
@@ -288,4 +281,4 @@ def v6():
         f.writelines(too_good_recording_ids)
 
 if __name__=="__main__":
-    v6()
+    v3()

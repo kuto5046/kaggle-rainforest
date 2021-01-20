@@ -46,10 +46,11 @@ class SpectrogramDataset(data.Dataset):
         with open('input/rfcx-species-audio-detection/bad_recording_ids_v5.txt') as f:
             bad_recording_ids = f.readlines()
         self.bad_recording_ids = [i.replace('\n', '') for i in bad_recording_ids]
-        """
+        
         with open('input/rfcx-species-audio-detection/too_good_recording_ids_v6.txt') as f:
             too_good_recording_ids = f.readlines()
         self.too_good_recording_ids = [i.replace('\n', '') for i in too_good_recording_ids]
+        """
 
     def __len__(self):
         return len(self.df)
@@ -66,15 +67,10 @@ class SpectrogramDataset(data.Dataset):
 
         if self.phase == 'train':
             p = random.random()
-
-            # 良いrecording_idはrandom clipする
-            if recording_id in self.too_good_recording_ids:
-                y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
+            if p < self.strong_label_prob:
+                y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length)
             else:
-                if p < self.strong_label_prob:
-                    y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length)
-                else:
-                    y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
+                y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
             image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
             # image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
             # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
@@ -92,9 +88,11 @@ class SpectrogramDataset(data.Dataset):
                 images.append(image)
 
             if self.phase == 'valid':
+                query_string = f"recording_id == '{recording_id}'"
+                all_tp_events = self.df.query(query_string)
                 labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
-                main_species_id = sample['species_id']
-                labels[int(main_species_id)] = 1.0
+                for species_id in all_tp_events["species_id"].unique():
+                    labels[int(species_id)] = 1.0
                 return np.asarray(images), labels
             elif self.phase == 'test':
                 labels = -1  # testなので-1を返す
@@ -242,7 +240,7 @@ def split_audio(y, total_time, period, shift_time, sr):
         start = shift_length * i
         finish = start + effective_length
         split_y.append(y[start:finish])
-    
+
     return split_y
 
 """
