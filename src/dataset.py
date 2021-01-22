@@ -78,9 +78,11 @@ class SpectrogramDataset(data.Dataset):
                 images.append(image)
 
             if self.phase == 'valid':
+                query_string = f"recording_id == '{recording_id}'"
+                all_tp_events = self.df.query(query_string)
                 labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
-                main_species_id = sample['species_id']
-                labels[int(main_species_id)] = 1.0
+                for species_id in all_tp_events["species_id"].unique():
+                    labels[int(species_id)] = 1.0
                 return np.asarray(images), labels
             elif self.phase == 'test':
                 labels = -1  # testなので-1を返す
