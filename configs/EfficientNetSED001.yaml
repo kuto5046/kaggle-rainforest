@@ -7,6 +7,10 @@ globals:
   only_pred: False
   folds:
     - 0
+    - 1
+    - 2
+    - 3
+    - 4
   debug: False
   kaggle: False
 
@@ -17,12 +21,12 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: relabel
+      message: 10s pseudo labeling
 data:
   root: ./
   use_train_data:
     - tp
-    - pseudo
+    # - pseudo
     # - tp
     # - fp 
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
