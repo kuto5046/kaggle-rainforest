@@ -72,14 +72,13 @@ def get_metadata(config: dict):
     train_audio_path = Path(data_config["root"]) / Path(data_config["train_audio_path"])
     train_tp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_tp_df_path"])).reset_index(drop=True)
     train_fp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_fp_df_path"])).reset_index(drop=True)
-    train_re = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_re_df_path"])).reset_index(drop=True)
+    train_pseudo = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_pseudo_df_path"])).reset_index(drop=True)
 
     train_tp["data_type"] = "tp"
     train_fp["data_type"] = "fp"
-    train_re["data_type"] = "re"
-    train_re = train_re[(train_re['t_max'] - train_re['t_min']) > 1.0]  # ラベルの秒数で足切り
+    train_pseudo["data_type"] = "pseudo"
 
-    train = pd.concat([train_tp, train_fp, train_re])
+    train = pd.concat([train_tp, train_fp, train_pseudo])
 
     df = train[train['data_type'].isin(data_config['use_train_data'])].reset_index(drop=True)
     return df, train_audio_path

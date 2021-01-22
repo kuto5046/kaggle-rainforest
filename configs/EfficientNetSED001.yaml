@@ -21,12 +21,13 @@ mlflow:
 data:
   root: ./
   use_train_data:
-    - re
+    - tp
+    - pseudo
     # - tp
     # - fp 
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
   train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
-  train_re_df_path: input/rfcx-species-audio-detection/train_re.csv
+  train_pseudo_df_path: input/rfcx-species-audio-detection/pseudo.csv
   train_audio_path: input/rfcx-species-audio-detection/train
   test_audio_path: input/rfcx-species-audio-detection/test
   sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
