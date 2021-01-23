@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as data
 import sklearn.model_selection as sms
+from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 from src.sam import SAM
 import src.dataset as datasets
 
@@ -61,9 +62,11 @@ def get_criterion(config: dict):
 
 def get_split(config: dict):
     split_config = config["split"]
-    name = split_config["name"]
-
-    return sms.__getattribute__(name)(**split_config["params"])
+    split_name = split_config["name"]
+    if hasattr(sms, split_name):
+        return sms.__getattribute__(split_name)(**split_config["params"])
+    else:
+        return globals().get(split_name)(**split_config["params"])
 
 
 # flac data
