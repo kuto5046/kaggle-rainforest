@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: 10s pseudo labeling
+      message: 60s pseudo labeling
 data:
   root: ./
   use_train_data:
@@ -31,7 +31,7 @@ data:
     # - fp 
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
   train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
-  train_pseudo_df_path: input/rfcx-species-audio-detection/pseudo.csv
+  train_pseudo_df_path: input/rfcx-species-audio-detection/train_ps60.csv
   train_audio_path: input/rfcx-species-audio-detection/train
   test_audio_path: input/rfcx-species-audio-detection/test
   sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
