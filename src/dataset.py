@@ -41,17 +41,15 @@ class SpectrogramDataset(data.Dataset):
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
         self.pcen_parameters = pcen_parameters
-        self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60.csv').reset_index(drop=True)
+        self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps10.csv').reset_index(drop=True)
         # self.train_pseudo = None
     
     def __len__(self):
-        return len(self.df['recording_id'].unique())  # recording_idの数分だけループを回す
+        return len(self.df)
 
     def __getitem__(self, idx: int):
-        # sample = self.df.loc[idx, :]
-        # recording_id = sample["recording_id"]
-        recording_id = self.df['recording_id'].unique()[idx]
-        
+        sample = self.df.loc[idx, :]
+        recording_id = sample["recording_id"]
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
         effective_length = sr * self.period
         total_time = 60  # 音声を全て60sに揃える
@@ -351,13 +349,22 @@ def strong_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
         else:
             labels[int(species_id)] = 1.0  # secondaly label
     
-    labels = add_pseudo_label(labels, recording_id, pseudo_df)
+    labels = add_pseudo_label(labels, recording_id, pseudo_df, beginning_time, ending_time)
     return y, labels
 
 
-def add_pseudo_label(labels, recording_id, pseudo_df):
+def add_pseudo_label(labels, recording_id, pseudo_df, beginning_time=None, ending_time=None):
+    
     try:
-        pseudo_labels = pseudo_df.loc[pseudo_df['recording_id']==recording_id, "0":"23"].values[0]
+        query_string = f"recording_id == '{recording_id}'"
+        if beginning_time == None and ending_time == None:
+            pass
+        else:
+            query_string += f" & t_min < {ending_time} & t_max > {beginning_time}"
+
+        # 同じrecording_idのものを
+        all_tp_events = pseudo_df.query(query_string)
+        pseudo_labels = (np.sum(all_tp_events.loc[:, "0":"23"].values, axis=0) > 0).astype('float32')
     except:
         pseudo_labels = np.zeros(24)
     labels = (np.sum([labels, pseudo_labels], axis=0) > 0).astype('float32')  # labelsとpseudo labelを合体
