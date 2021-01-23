@@ -175,6 +175,14 @@ def main():
         # model
         model = get_model(config)
 
+        # load pretrained model
+        if global_config['pretrained']:
+            try:
+                ckpt = torch.load(Path(global_config['pretrained_model_dir']) / f'{model_name}-{fold}-v0.ckpt') 
+            except:
+                ckpt = torch.load(Path(global_config['pretrained_model_dir']) / f'{model_name}-{fold}.ckpt')
+            model.load_state_dict(ckpt['state_dict'])
+
         """
         ##############
         train part
@@ -200,9 +208,9 @@ def main():
         """
         # load model
         try:
-            ckpt = torch.load(output_dir / f'{model_name}-{fold}-v0.ckpt')  # TODO foldごとのモデルを取得できるようにする
+            ckpt = torch.load(output_dir / f'{model_name}-{fold}-v0.ckpt')
         except:
-            ckpt = torch.load(output_dir / f'{model_name}-{fold}.ckpt')  # TODO foldごとのモデルを取得できるようにする
+            ckpt = torch.load(output_dir / f'{model_name}-{fold}.ckpt')
         model.load_state_dict(ckpt['state_dict'])
         model.eval().to(device)
         
