@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: pseudo labeling 60s(multilabelkfold)
+      message: test change dataset
 data:
   root: ./
   use_train_data:

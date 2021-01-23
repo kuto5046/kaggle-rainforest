@@ -45,11 +45,13 @@ class SpectrogramDataset(data.Dataset):
         # self.train_pseudo = None
     
     def __len__(self):
-        return len(self.df)
+        return len(self.df['recording_id'].unique())  # recording_idの数分だけループを回す
 
     def __getitem__(self, idx: int):
-        sample = self.df.loc[idx, :]
-        recording_id = sample["recording_id"]
+        # sample = self.df.loc[idx, :]
+        # recording_id = sample["recording_id"]
+        recording_id = self.df['recording_id'].unique()[idx]
+        
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
         effective_length = sr * self.period
         total_time = 60  # 音声を全て60sに揃える
