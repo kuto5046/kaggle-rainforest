@@ -41,8 +41,9 @@ class SpectrogramDataset(data.Dataset):
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
         self.pcen_parameters = pcen_parameters
-        self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60.csv').reset_index(drop=True)
-
+        # self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60.csv').reset_index(drop=True)
+        self.train_pseudo = None
+    
     def __len__(self):
         return len(self.df)
 

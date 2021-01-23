@@ -21,7 +21,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: 60s pseudo labeling
+      message: baseline
 data:
   root: ./
   use_train_data:
