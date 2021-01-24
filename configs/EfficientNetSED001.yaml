@@ -1,12 +1,18 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 30
+  max_epochs: 10
   output_dir: output
   timestamp: None
+  pretrained: True
+  pretrained_model_dir: "./output/0123_181828/"
   only_pred: False
   folds:
     - 0
+    - 1
+    - 2
+    - 3
+    - 4
   debug: False
   kaggle: False
 
@@ -17,16 +23,15 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: relabel
+      message: pseudo sampling label epoch=10
 data:
   root: ./
   use_train_data:
-    - re
-    # - tp
+    - tp
     # - fp 
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
   train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
-  train_re_df_path: input/rfcx-species-audio-detection/train_re.csv
+  train_pseudo_df_path: input/rfcx-species-audio-detection/train_ps60.csv
   train_audio_path: input/rfcx-species-audio-detection/train
   test_audio_path: input/rfcx-species-audio-detection/test
   sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
@@ -54,7 +59,7 @@ dataset:
       eps: 0.000001
 
 loss:
-  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
+  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss CustomBCEWithLogitsLoss
   params:
     output_key: logit
 
@@ -69,7 +74,7 @@ scheduler:
     T_max: 10
 
 split:
-  name: StratifiedKFold
+  name: StratifiedKFold  # MultilabelStratifiedKFold  StratifiedKFold
   params:
     n_splits: 5
     random_state: 42

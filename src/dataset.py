@@ -9,7 +9,7 @@ import torch.utils.data as data
 import warnings
 from pathlib import Path
 
-
+PSEUDO_LABEL_VALUE = 1.0
 """
 valid/testではtime flagは使わない
 60s分にaudioの長さを揃える
@@ -41,11 +41,16 @@ class SpectrogramDataset(data.Dataset):
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
         self.pcen_parameters = pcen_parameters
-
+        self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60.csv').reset_index(drop=True)
+        label_columns = [f"{col}" for col in range(24)]
+        self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
+        # self.train_pseudo = None
+    
     def __len__(self):
         return len(self.df)
 
     def __getitem__(self, idx: int):
+        train_pseudo = self.train_pseudo.sample(frac=0.5)  # 毎回50%sampling
         sample = self.df.loc[idx, :]
         recording_id = sample["recording_id"]
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
@@ -58,9 +63,9 @@ class SpectrogramDataset(data.Dataset):
         if self.phase == 'train':
             p = random.random()
             if p < self.strong_label_prob:
-                y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length)
+                y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length, train_pseudo)
             else:
-                y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
+                y, labels = random_clip_audio(self.df, y, sr, idx, effective_length, train_pseudo)
             image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
             # image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
             # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
@@ -83,6 +88,7 @@ class SpectrogramDataset(data.Dataset):
                 labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
                 for species_id in all_tp_events["species_id"].unique():
                     labels[int(species_id)] = 1.0
+                labels = add_pseudo_label(labels, recording_id, train_pseudo)  # pseudo label
                 return np.asarray(images), labels
             elif self.phase == 'test':
                 labels = -1  # testなので-1を返す
@@ -240,7 +246,7 @@ only use train
 ############
 """
 
-def random_clip_audio(df, y, sr, idx, effective_length):
+def random_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
     len_y = len(y)
     if len_y < effective_length:
         new_y = np.zeros(effective_length, dtype=y.dtype)
@@ -265,39 +271,15 @@ def random_clip_audio(df, y, sr, idx, effective_length):
     labels = np.zeros(len(df['species_id'].unique()), dtype=np.float32)
     for species_id in all_tp_events["species_id"].unique():
         labels[int(species_id)] = 1.0
-    
+    labels = add_pseudo_label(labels, recording_id, pseudo_df)
+     
     return y, labels
 
 
 # こちらはlabelに限定しているのでアライさんの処理は不要
-# 有効でなかった
-def clip_time_audio1(df, y, sr, idx, effective_length, main_species_id):
-    # dfから時間ラベルをflame単位で取得しclip
-    t_min = int(np.round(df.t_min.values[idx]*sr))
-    t_max = int(np.round(df.t_max.values[idx]*sr))
-    y = y[t_min:t_max]
-
-    len_y = len(y)
-    if len_y < effective_length:
-        new_y = np.zeros(effective_length, dtype=y.dtype)
-        start = np.random.randint(effective_length - len_y)
-        new_y[start:start + len_y] = y
-        y = new_y.astype(np.float32)
-    elif len_y > effective_length:
-        start = np.random.randint(len_y - effective_length)
-        y = y[start:start + effective_length].astype(np.float32)
-    else:
-        y = y.astype(np.float32)
-
-    labels = np.zeros(len(df['species_id'].unique()), dtype=np.float32)
-    labels[main_species_id] = 1.0
-    
-    return y, labels
-
-
 # こちらはlabel付けにバッファを取っているのでアライさんの処理が必要
 # これがベース
-def strong_clip_audio(df, y, sr, idx, effective_length):
+def strong_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
     
     t_min = df.t_min.values[idx]*sr
     t_max = df.t_max.values[idx]*sr
@@ -344,62 +326,30 @@ def strong_clip_audio(df, y, sr, idx, effective_length):
         if species_id == main_species_id:
             labels[int(species_id)] = 1.0  # main label
         else:
-            labels[int(species_id)] = 0.5  # secondaly label
+            labels[int(species_id)] = 1.0  # secondaly label
     
+    labels = add_pseudo_label(labels, recording_id, pseudo_df, beginning_time, ending_time)
     return y, labels
 
 
-
-def strong_clip_audio(df, y, sr, idx, effective_length):
+def add_pseudo_label(labels, recording_id, pseudo_df, beginning_time=None, ending_time=None):
     
-    t_min = df.t_min.values[idx]*sr
-    t_max = df.t_max.values[idx]*sr
-
-    # Positioning sound slice
-    t_center = np.round((t_min + t_max) / 2)
-    
-    # 開始点の仮決定 
-    beginning = t_center - effective_length / 2
-    # overしたらaudioの最初からとする
-    if beginning < 0:
-        beginning = 0
-    beginning = np.random.randint(beginning, t_center)
-
-    # 開始点と終了点の決定
-    ending = beginning + effective_length
-    # overしたらaudioの最後までとする
-    if ending > len(y):
-        ending = len(y)
-    beginning = ending - effective_length
-
-    y = y[beginning:ending].astype(np.float32)
-    # assert len(y)==effective_length, f"not much audio length in {idx}. The length of y is {len(y)} not {effective_length}."
-
-    # TODO 以下アライさんが追加した部分
-    # https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/200922#1102470
-
-    # flame→time変換
-    beginning_time = beginning / sr
-    ending_time = ending / sr
-
-    # dfには同じrecording_idだけどclipしたt内に別のラベルがあるものもある
-    # そこでそれには正しいidを付けたい
-    recording_id = df.loc[idx, "recording_id"]
-    main_species_id = df.loc[idx, "species_id"]
-    query_string = f"recording_id == '{recording_id}' & "
-    query_string += f"t_min < {ending_time} & t_max > {beginning_time}"
-
-    # 同じrecording_idのものを
-    all_tp_events = df.query(query_string)
-
-    labels = np.zeros(len(df['species_id'].unique()), dtype=np.float32)
-    for species_id in all_tp_events["species_id"].unique():
-        if species_id == main_species_id:
-            labels[int(species_id)] = 1.0  # main label
+    try:
+        query_string = f"recording_id == '{recording_id}'"
+        if beginning_time == None and ending_time == None:
+            pass
         else:
-            labels[int(species_id)] = 0.5  # secondaly label
-    
-    return y, labels
+            query_string += f" & t_min < {ending_time} & t_max > {beginning_time}"
+
+        # 同じrecording_idのものを
+        all_tp_events = pseudo_df.query(query_string)
+        pseudo_labels = (np.sum(all_tp_events.loc[:, "0":"23"].values, axis=0) > 0).astype('float32')
+        pseudo_labels = np.where(pseudo_labels > 0, PSEUDO_LABEL_VALUE, pseudo_labels)  # label smoothing
+    except:
+        pseudo_labels = np.zeros(24)
+    labels = np.sum([labels, pseudo_labels], axis=0)  # labelsとpseudo labelを合体
+    labels = np.where(labels >= 1.0, 1.0, labels).astype('float32')  # 1以上のものは1にする 
+    return labels
 
 
 # 10sのうちの音声の時間比率でラベル付け

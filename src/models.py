@@ -896,5 +896,6 @@ def get_model(config: dict):
         learner = Learner(model, config)
     else:
         raise NotImplementedError
+
     
     return learner

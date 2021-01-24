@@ -33,15 +33,15 @@ class ImprovedPANNsLoss(nn.Module):
 
         return self.weights[0] * normal_loss + self.weights[1] * auxiliary_loss
 
-
-class CustomBCELoss(nn.Module):
+# sigmoidを内包しているのでlogitを入力とする
+class CustomBCEWithLogitsLoss(nn.Module):
     """
     Loss内部でoutput_keyを適用するためにcustom lossを作成
     
     """
     def __init__(self, output_key="logit"):
-        super(CustomBCELoss, self).__init__()
-        self.loss = nn.BCELoss()
+        super().__init__()
+        self.loss = nn.BCEWithLogitsLoss()
         self.output_key = output_key
 
     def forward(self, inputs, target, phase="train"):

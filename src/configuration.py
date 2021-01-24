@@ -5,12 +5,13 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as data
 import sklearn.model_selection as sms
+from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 from src.sam import SAM
 import src.dataset as datasets
 
 from pathlib import Path
 from sklearn.metrics import label_ranking_loss
-from src.criterion import LSEPLoss, LSEPStableLoss, ImprovedPANNsLoss, CustomBCELoss
+from src.criterion import LSEPLoss, LSEPStableLoss, ImprovedPANNsLoss, CustomBCEWithLogitsLoss
 from src.transforms import (get_waveform_transforms,
                             get_spectrogram_transforms)
 
@@ -61,9 +62,11 @@ def get_criterion(config: dict):
 
 def get_split(config: dict):
     split_config = config["split"]
-    name = split_config["name"]
-
-    return sms.__getattribute__(name)(**split_config["params"])
+    split_name = split_config["name"]
+    if hasattr(sms, split_name):
+        return sms.__getattribute__(split_name)(**split_config["params"])
+    else:
+        return globals().get(split_name)(**split_config["params"])
 
 
 # flac data
@@ -72,16 +75,13 @@ def get_metadata(config: dict):
     train_audio_path = Path(data_config["root"]) / Path(data_config["train_audio_path"])
     train_tp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_tp_df_path"])).reset_index(drop=True)
     train_fp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_fp_df_path"])).reset_index(drop=True)
-    train_re = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_re_df_path"])).reset_index(drop=True)
 
     train_tp["data_type"] = "tp"
     train_fp["data_type"] = "fp"
-    train_re["data_type"] = "re"
-    train_re = train_re[(train_re['t_max'] - train_re['t_min']) > 1.0]  # ラベルの秒数で足切り
 
-    train = pd.concat([train_tp, train_fp, train_re])
-
+    train = pd.concat([train_tp, train_fp])
     df = train[train['data_type'].isin(data_config['use_train_data'])].reset_index(drop=True)
+
     return df, train_audio_path
 
 
