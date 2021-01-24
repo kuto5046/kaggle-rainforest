@@ -9,7 +9,7 @@ import torch.utils.data as data
 import warnings
 from pathlib import Path
 
-
+PSEUDO_LABEL_VALUE = 0.8
 """
 valid/testではtime flagは使わない
 60s分にaudioの長さを揃える
@@ -42,6 +42,8 @@ class SpectrogramDataset(data.Dataset):
         self.melspectrogram_parameters = melspectrogram_parameters
         self.pcen_parameters = pcen_parameters
         self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60.csv').reset_index(drop=True)
+        label_columns = [f"{col}" for col in range(24)]
+        self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
         # self.train_pseudo = None
     
     def __len__(self):
@@ -62,7 +64,7 @@ class SpectrogramDataset(data.Dataset):
             if p < self.strong_label_prob:
                 y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length, self.train_pseudo)
             else:
-                y, labels = random_clip_audio(self.df, y, sr, idx, effective_length)
+                y, labels = random_clip_audio(self.df, y, sr, idx, effective_length, self.train_pseudo)
             image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
             # image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
             # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
@@ -243,7 +245,7 @@ only use train
 ############
 """
 
-def random_clip_audio(df, y, sr, idx, effective_length):
+def random_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
     len_y = len(y)
     if len_y < effective_length:
         new_y = np.zeros(effective_length, dtype=y.dtype)
@@ -268,7 +270,8 @@ def random_clip_audio(df, y, sr, idx, effective_length):
     labels = np.zeros(len(df['species_id'].unique()), dtype=np.float32)
     for species_id in all_tp_events["species_id"].unique():
         labels[int(species_id)] = 1.0
-    
+    labels = add_pseudo_label(labels, recording_id, pseudo_df)
+     
     return y, labels
 
 
@@ -340,11 +343,11 @@ def add_pseudo_label(labels, recording_id, pseudo_df, beginning_time=None, endin
         # 同じrecording_idのものを
         all_tp_events = pseudo_df.query(query_string)
         pseudo_labels = (np.sum(all_tp_events.loc[:, "0":"23"].values, axis=0) > 0).astype('float32')
-        pseudo_labels = np.where(pseudo_labels > 0, 0.5, pseudo_labels)  # label smoothing
+        pseudo_labels = np.where(pseudo_labels > 0, PSEUDO_LABEL_VALUE, pseudo_labels)  # label smoothing
     except:
         pseudo_labels = np.zeros(24)
     labels = np.sum([labels, pseudo_labels], axis=0)  # labelsとpseudo labelを合体
-    labels = np.where(labels > 0.5, 1, labels)
+    labels = np.where(labels >= 1.0, 1.0, labels).astype('float32')  # 1以上のものは1にする 
     return labels
 
 
