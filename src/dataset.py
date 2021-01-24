@@ -41,10 +41,13 @@ class SpectrogramDataset(data.Dataset):
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
         self.pcen_parameters = pcen_parameters
+        """
+        # pseudo labeling
         self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60.csv').reset_index(drop=True)
         label_columns = [f"{col}" for col in range(24)]
         self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
-        # self.train_pseudo = None
+        """
+        self.train_pseudo = None
     
     def __len__(self):
         return len(self.df)
@@ -345,6 +348,7 @@ def add_pseudo_label(labels, recording_id, pseudo_df, beginning_time=None, endin
         all_tp_events = pseudo_df.query(query_string)
         pseudo_labels = (np.sum(all_tp_events.loc[:, "0":"23"].values, axis=0) > 0).astype('float32')
         pseudo_labels = np.where(pseudo_labels > 0, PSEUDO_LABEL_VALUE, pseudo_labels)  # label smoothing
+    # pseudo_dfがNoneだったり該当のrecording_idのpseudo_labelがない場合はスキップされる    
     except:
         pseudo_labels = np.zeros(24)
     labels = np.sum([labels, pseudo_labels], axis=0)  # labelsとpseudo labelを合体
