@@ -33,6 +33,8 @@ class ImprovedPANNsLoss(nn.Module):
 
         return self.weights[0] * normal_loss + self.weights[1] * auxiliary_loss
 
+
+# based https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/213075
 class FocalLoss(nn.Module):
     def __init__(self, output_key="logit", gamma=2.0, alpha=1.0):
         super().__init__()
@@ -52,6 +54,7 @@ class FocalLoss(nn.Module):
         bce_loss = self.loss(input, target)
         probas = torch.sigmoid(input)
         loss = torch.where(target >= 0.5, self.alpha * (1. - probas)**self.gamma * bce_loss, probas**self.gamma * bce_loss)
+        loss = loss.mean()
         return loss
 
 # sigmoidを内包しているのでlogitを入力とする
@@ -77,8 +80,7 @@ class BCEWithLogitsLoss(nn.Module):
         return loss
 
 
-# refered following repo
-# https://github.com/ex4sperans/freesound-classification/blob/71b9920ce0ae376aa7f1a3a2943f0f92f4820813/networks/losses.py
+# based https://github.com/ex4sperans/freesound-classification/blob/71b9920ce0ae376aa7f1a3a2943f0f92f4820813/networks/losses.py
 class LSEPLoss(nn.Module):
     def __init__(self, output_key='logit', average=True):
         super().__init__()
@@ -105,7 +107,7 @@ class LSEPLoss(nn.Module):
         else:
             return lsep
 
-
+# based https://github.com/ex4sperans/freesound-classification/blob/71b9920ce0ae376aa7f1a3a2943f0f92f4820813/networks/losses.py
 class LSEPStableLoss(nn.Module):
     def __init__(self, output_key="logit", average=True):
         super(LSEPStableLoss, self).__init__()
