@@ -33,8 +33,29 @@ class ImprovedPANNsLoss(nn.Module):
 
         return self.weights[0] * normal_loss + self.weights[1] * auxiliary_loss
 
+class FocalLoss(nn.Module):
+    def __init__(self, output_key="logit", gamma=0.1, alpha=1.0):
+        super().__init__()
+        self.loss = nn.BCEWithLogitsLoss(reduction='none')
+        self.output_key = output_key
+        self.gamma = gamma
+        self.alpha = alpha
+
+    def forward(self, inputs, target, phase='train'):
+        input = inputs[self.output_key]
+        target = target.float()
+        
+        # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
+        if phase == 'valid':
+            input = C.split2one(input, target)
+
+        bce_loss = self.loss(input, target)
+        probas = torch.sigmoid(input)
+        loss = torch.where(target >= 0.5, self.alpha * (1. - probas)**self.gamma * bce_loss, probas**self.gamma * bce_loss)
+        return loss
+
 # sigmoidを内包しているのでlogitを入力とする
-class CustomBCEWithLogitsLoss(nn.Module):
+class BCEWithLogitsLoss(nn.Module):
     """
     Loss内部でoutput_keyを適用するためにcustom lossを作成
     

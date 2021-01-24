@@ -11,7 +11,7 @@ import src.dataset as datasets
 
 from pathlib import Path
 from sklearn.metrics import label_ranking_loss
-from src.criterion import LSEPLoss, LSEPStableLoss, ImprovedPANNsLoss, CustomBCEWithLogitsLoss
+from src.criterion import LSEPLoss, LSEPStableLoss, ImprovedPANNsLoss, BCEWithLogitsLoss, FocalLoss
 from src.transforms import (get_waveform_transforms,
                             get_spectrogram_transforms)
 
@@ -52,10 +52,10 @@ def get_criterion(config: dict):
     loss_name = loss_config["name"]
     loss_params = {} if loss_config.get("params") is None else loss_config.get("params")
 
-    if hasattr(nn, loss_name):
-        criterion = nn.__getattribute__(loss_name)(**loss_params)
-    else:
-        criterion = globals().get(loss_name)(**loss_params)
+    # if hasattr(nn, loss_name):
+    #     criterion = nn.__getattribute__(loss_name)(**loss_params)
+    # else:
+    criterion = globals().get(loss_name)(**loss_params)
 
     return criterion
 
