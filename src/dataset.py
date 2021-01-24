@@ -41,7 +41,7 @@ class SpectrogramDataset(data.Dataset):
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
         self.pcen_parameters = pcen_parameters
-        self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps10.csv').reset_index(drop=True)
+        self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60.csv').reset_index(drop=True)
         # self.train_pseudo = None
     
     def __len__(self):
@@ -273,31 +273,6 @@ def random_clip_audio(df, y, sr, idx, effective_length):
 
 
 # こちらはlabelに限定しているのでアライさんの処理は不要
-# 有効でなかった
-def clip_time_audio1(df, y, sr, idx, effective_length, main_species_id):
-    # dfから時間ラベルをflame単位で取得しclip
-    t_min = int(np.round(df.t_min.values[idx]*sr))
-    t_max = int(np.round(df.t_max.values[idx]*sr))
-    y = y[t_min:t_max]
-
-    len_y = len(y)
-    if len_y < effective_length:
-        new_y = np.zeros(effective_length, dtype=y.dtype)
-        start = np.random.randint(effective_length - len_y)
-        new_y[start:start + len_y] = y
-        y = new_y.astype(np.float32)
-    elif len_y > effective_length:
-        start = np.random.randint(len_y - effective_length)
-        y = y[start:start + effective_length].astype(np.float32)
-    else:
-        y = y.astype(np.float32)
-
-    labels = np.zeros(len(df['species_id'].unique()), dtype=np.float32)
-    labels[main_species_id] = 1.0
-    
-    return y, labels
-
-
 # こちらはlabel付けにバッファを取っているのでアライさんの処理が必要
 # これがベース
 def strong_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
@@ -365,9 +340,11 @@ def add_pseudo_label(labels, recording_id, pseudo_df, beginning_time=None, endin
         # 同じrecording_idのものを
         all_tp_events = pseudo_df.query(query_string)
         pseudo_labels = (np.sum(all_tp_events.loc[:, "0":"23"].values, axis=0) > 0).astype('float32')
+        pseudo_labels = np.where(pseudo_labels > 0, 0.5, pseudo_labels)  # label smoothing
     except:
         pseudo_labels = np.zeros(24)
-    labels = (np.sum([labels, pseudo_labels], axis=0) > 0).astype('float32')  # labelsとpseudo labelを合体
+    labels = np.sum([labels, pseudo_labels], axis=0)  # labelsとpseudo labelを合体
+    labels = np.where(labels > 0.5, 1, labels)
     return labels
 
 

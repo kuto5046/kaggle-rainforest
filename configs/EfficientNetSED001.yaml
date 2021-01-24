@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: 10s pseudo labeling
+      message: 60s pseudo labeling with label smoothing
 data:
   root: ./
   use_train_data:
