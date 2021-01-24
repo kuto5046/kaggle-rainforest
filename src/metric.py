@@ -27,6 +27,8 @@ def LRAP(preds, labels):
 def LWLRAP(preds, labels):
     preds = preds.to('cpu')
     labels = labels.to('cpu')
+
+    labels[labels > 0.0] = 1.0  # label smoothingする場合もスコア計算のため1にしてしまう
     # Ranks of the predictions
     ranked_classes = torch.argsort(preds, dim=-1, descending=True)
     # i, j corresponds to rank of prediction in row i
