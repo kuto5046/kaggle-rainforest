@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: baseline with LSEPLoss
+      message: baseline with BCELoss
 data:
   root: ./
   use_train_data:
@@ -59,7 +59,7 @@ dataset:
       eps: 0.000001
 
 loss:
-  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss CustomBCEWithLogitsLoss
+  name: CustomBCEWithLogitsLoss  # LSEPStableLoss LSEPLoss CustomBCEWithLogitsLoss
   params:
     output_key: logit
 
