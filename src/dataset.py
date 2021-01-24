@@ -53,7 +53,10 @@ class SpectrogramDataset(data.Dataset):
         return len(self.df)
 
     def __getitem__(self, idx: int):
-        train_pseudo = self.train_pseudo.sample(frac=0.5)  # 毎回50%sampling
+        if self.train_pseudo==None:
+            train_pseudo = None
+        else:
+            train_pseudo = self.train_pseudo.sample(frac=0.5)  # 毎回50%sampling
         sample = self.df.loc[idx, :]
         recording_id = sample["recording_id"]
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
