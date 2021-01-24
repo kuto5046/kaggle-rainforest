@@ -34,7 +34,7 @@ class ImprovedPANNsLoss(nn.Module):
         return self.weights[0] * normal_loss + self.weights[1] * auxiliary_loss
 
 class FocalLoss(nn.Module):
-    def __init__(self, output_key="logit", gamma=0.1, alpha=1.0):
+    def __init__(self, output_key="logit", gamma=2.0, alpha=1.0):
         super().__init__()
         self.loss = nn.BCEWithLogitsLoss(reduction='none')
         self.output_key = output_key
