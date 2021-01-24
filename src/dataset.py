@@ -9,7 +9,7 @@ import torch.utils.data as data
 import warnings
 from pathlib import Path
 
-PSEUDO_LABEL_VALUE = 0.8
+PSEUDO_LABEL_VALUE = 1.0
 """
 valid/testではtime flagは使わない
 60s分にaudioの長さを揃える
