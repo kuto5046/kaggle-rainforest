@@ -9,7 +9,7 @@ import torch.utils.data as data
 import warnings
 from pathlib import Path
 
-PSEUDO_LABEL_VALUE = 0.5
+PSEUDO_LABEL_VALUE = 1.0
 """
 valid/testではtime flagは使わない
 60s分にaudioの長さを揃える
@@ -50,6 +50,7 @@ class SpectrogramDataset(data.Dataset):
         return len(self.df)
 
     def __getitem__(self, idx: int):
+        train_pseudo = self.train_pseudo.sample(frac=0.5)  # 毎回50%sampling
         sample = self.df.loc[idx, :]
         recording_id = sample["recording_id"]
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
@@ -62,9 +63,9 @@ class SpectrogramDataset(data.Dataset):
         if self.phase == 'train':
             p = random.random()
             if p < self.strong_label_prob:
-                y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length, self.train_pseudo)
+                y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length, train_pseudo)
             else:
-                y, labels = random_clip_audio(self.df, y, sr, idx, effective_length, self.train_pseudo)
+                y, labels = random_clip_audio(self.df, y, sr, idx, effective_length, train_pseudo)
             image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
             # image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
             # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
@@ -87,7 +88,7 @@ class SpectrogramDataset(data.Dataset):
                 labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
                 for species_id in all_tp_events["species_id"].unique():
                     labels[int(species_id)] = 1.0
-                labels = add_pseudo_label(labels, recording_id, self.train_pseudo)  # pseudo label
+                labels = add_pseudo_label(labels, recording_id, train_pseudo)  # pseudo label
                 return np.asarray(images), labels
             elif self.phase == 'test':
                 labels = -1  # testなので-1を返す
