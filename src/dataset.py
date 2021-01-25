@@ -55,11 +55,8 @@ class SpectrogramDataset(data.Dataset):
 
     def __getitem__(self, idx: int):
         
-        if self.train_pseudo==None:
-            train_pseudo = None
-        else:
-            # train_pseudo = self.train_pseudo.sample(frac=0.5)  # 毎回50%sampling
-            train_pseudo = self.train_pseudo
+        # train_pseudo = self.train_pseudo.sample(frac=0.5)  # 毎回50%sampling
+        train_pseudo = self.train_pseudo
         
         sample = self.df.loc[idx, :]
         recording_id = sample["recording_id"]

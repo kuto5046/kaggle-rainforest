@@ -78,8 +78,9 @@ def get_metadata(config: dict):
 
     train_tp["data_type"] = "tp"
     train_fp["data_type"] = "fp"
+    train_fp['species_id'] = 0  # ダミーデータ あとで上書きする
 
-    train = pd.concat([train_tp, train_fp[['recording_id', 't_min', 't_max']]])
+    train = pd.concat([train_tp, train_fp[['recording_id', 'species_id', 'data_type', 't_min', 't_max']]])
     df = train[train['data_type'].isin(data_config['use_train_data'])].reset_index(drop=True)
 
     return df, train_audio_path
