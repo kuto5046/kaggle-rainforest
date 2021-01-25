@@ -28,7 +28,7 @@ data:
   root: ./
   use_train_data:
     - tp
-    - fp 
+    # - fp 
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
   train_fp_df_path: input/rfcx-species-audio-detection/train_fp_vote3_numlabel234_decrease3.csv
   train_pseudo_df_path: input/rfcx-species-audio-detection/train_ps60.csv
