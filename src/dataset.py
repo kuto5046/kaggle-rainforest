@@ -41,22 +41,26 @@ class SpectrogramDataset(data.Dataset):
         self.spectrogram_transforms = spectrogram_transforms
         self.melspectrogram_parameters = melspectrogram_parameters
         self.pcen_parameters = pcen_parameters
-        """
+        
         # pseudo labeling
-        self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60.csv').reset_index(drop=True)
+        self.train_tp_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60.csv').reset_index(drop=True)
+        self.train_fp_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_fp_vote3_numlabel234_decrease3.csv').reset_index(drop=True)
+        self.train_pseudo = pd.concat([self.train_tp_pseudo, self.train_fp_pseudo])
         label_columns = [f"{col}" for col in range(24)]
         self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
-        """
-        self.train_pseudo = None
-    
+        # self.train_pseudo = None
+
     def __len__(self):
         return len(self.df)
 
     def __getitem__(self, idx: int):
+        
         if self.train_pseudo==None:
             train_pseudo = None
         else:
-            train_pseudo = self.train_pseudo.sample(frac=0.5)  # 毎回50%sampling
+            # train_pseudo = self.train_pseudo.sample(frac=0.5)  # 毎回50%sampling
+            train_pseudo = self.train_pseudo
+        
         sample = self.df.loc[idx, :]
         recording_id = sample["recording_id"]
         y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
@@ -320,7 +324,11 @@ def strong_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
     # dfには同じrecording_idだけどclipしたt内に別のラベルがあるものもある
     # そこでそれには正しいidを付けたい
     recording_id = df.loc[idx, "recording_id"]
-    main_species_id = df.loc[idx, "species_id"]
+    try:  # tp data
+        main_species_id = df.loc[idx, "species_id"]
+    except:  # fp data
+        main_species_id = None
+
     query_string = f"recording_id == '{recording_id}' & "
     query_string += f"t_min < {ending_time} & t_max > {beginning_time}"
 
