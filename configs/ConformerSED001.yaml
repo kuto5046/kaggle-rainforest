@@ -4,6 +4,8 @@ globals:
   max_epochs: 50
   output_dir: output
   timestamp: None
+  pretrained: False
+  pretrained_model_dir: None #"./output/0123_181828/"
   only_pred: False
   folds:
     - 0
@@ -83,7 +85,7 @@ model:
     dim_head: 64
     heads: 8
     ff_mult: 4
-    conv_expansion_factor: 2
+    conv_expansion_factor: 3
     conv_kernel_size: 7
     attn_dropout: 0.1
     ff_dropout: 0.1
