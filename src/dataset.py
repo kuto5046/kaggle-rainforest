@@ -44,7 +44,7 @@ class SpectrogramDataset(data.Dataset):
         
         # pseudo labeling
         self.train_tp_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60.csv').reset_index(drop=True)
-        self.train_fp_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_fp_vote3_numlabel234_decrease3.csv').reset_index(drop=True)
+        self.train_fp_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_fp_pseudo.csv').reset_index(drop=True)
         self.train_pseudo = pd.concat([self.train_tp_pseudo, self.train_fp_pseudo])
         label_columns = [f"{col}" for col in range(24)]
         self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
