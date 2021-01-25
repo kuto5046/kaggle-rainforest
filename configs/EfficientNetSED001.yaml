@@ -1,11 +1,11 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 30
+  max_epochs: 5
   output_dir: output
   timestamp: None
-  pretrained: False
-  pretrained_model_dir: None #"./output/0123_181828/"
+  pretrained: True
+  pretrained_model_dir: "./output/0123_181828/"
   only_pred: False
   folds:
     - 0
@@ -23,14 +23,14 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: baseline with FocalLoss with gamma=2
+      message: fp data(vote3/num_label234/decrease3)
 data:
   root: ./
   use_train_data:
     - tp
-    # - fp 
+    - fp 
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
-  train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
+  train_fp_df_path: input/rfcx-species-audio-detection/train_fp_vote3_numlabel234_decrease3.csv
   train_pseudo_df_path: input/rfcx-species-audio-detection/train_ps60.csv
   train_audio_path: input/rfcx-species-audio-detection/train
   test_audio_path: input/rfcx-species-audio-detection/test
@@ -59,7 +59,7 @@ dataset:
       eps: 0.000001
 
 loss:
-  name: FocalLoss  # LSEPStableLoss LSEPLoss BCEWithLogitsLoss FocalLoss
+  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss BCEWithLogitsLoss FocalLoss
   params:
     output_key: logit
 
