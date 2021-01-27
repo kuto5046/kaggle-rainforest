@@ -75,7 +75,7 @@ class BCEWithLogitsLoss(nn.Module):
     """
     def __init__(self, output_key="logit"):
         super().__init__()
-        self.posi_loss = nn.BCEWithLogitsLoss(reduction='sum')
+        self.posi_loss = nn.BCEWithLogitsLoss(reduction='mean')
         self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.output_key = output_key
 
@@ -93,7 +93,7 @@ class BCEWithLogitsLoss(nn.Module):
 
         posi_loss = self.posi_loss(input, posi_y)
         nega_loss = self.nega_loss(input, nega_y)
-        nega_loss = (nega_loss*nega_mask).sum()  #  / nega_mask.sum()
+        nega_loss = (nega_loss*nega_mask).sum() / nega_mask.sum()  # mean
         loss = posi_loss + nega_loss
         return loss
 
