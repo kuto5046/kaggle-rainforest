@@ -16,6 +16,7 @@ from sklearn.metrics import accuracy_score
 from src.dataset import SpectrogramDataset
 import src.configuration as C
 from src.metric import LWLRAP
+import src.criterion as criterion
 from src.conformer import ConformerBlock
 import pytorch_lightning as pl
 from torchlibrosa.stft import Spectrogram, LogmelFilterBank
@@ -32,6 +33,105 @@ def calc_acc(pred, y):
  Audio tagging model
 ############
 """
+class MeanTeacherLearner(pl.LightningModule):
+    def ___init__(self, model, config):
+        self.config = config
+        self.student_model = model
+        self.student = nn.DataParallel(self.student_model).cuda()
+
+        self.teacher_model = model
+        for param in self.teacher_model.parameters():
+            param.detach_()
+        
+        self.output_key = config['model']['output_key']
+        self.class_criterion = C.get_criterion()
+        self.consistency_criterion = criterion.softmax_mse_loss
+        self.epoch = 0
+        # self.residual_logit_criterion = criterion.symmetric_mse_loss
+        self.global_step = 0
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        p = random.random()
+        do_mixup = True if p < self.config['mixup']['prob'] else False
+
+        if self.config['mixup']['flag'] and do_mixup:
+            x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
+
+        student_output = self.student_model(x)
+        teacher_output = self.teacher_model(x)
+
+        student_logit = student_output["logit"]
+        teacher_logit = teacher_output["logit"]
+        if 'framewise' in self.output_key:
+            student_logit = student_logit.max(dim=1)[0]
+            teacher_logit = teacher_logit.max(dim=1)[0]
+        
+        # 通常のlossでlabelとのlossを計算(NOLABELのものへの対処は？)
+        if self.config['mixup']['flag'] and do_mixup:
+            student_class_loss = mixup_criterion(self.criterion, student_output, y, y_shuffle, lam, phase='train')
+            # teacher_class_loss = mixup_criterion(self.criterion, teacher_output, y, y_shuffle, lam, phase='train')
+        else:
+            student_class_loss = self.criterion(student_output, y, phase="train")
+            # teacher_class_loss = self.criterion(student_output, y, phase='train')
+
+        consistency_weight = get_current_consistency_weight(self.epoch)
+        consistency_loss = consistency_weight * self.consistency_criterion(student_logit, teacher_logit)
+
+        loss = student_class_loss + consistency_loss
+
+        lwlrap = LWLRAP(student_logit, y)
+        f1_score = self.f1(student_logit, y)
+
+        self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+
+        return loss
+    
+    # batchのxはlist型
+    def validation_step(self, batch, batch_idx):
+        # xが複数の場合
+        x_list, y = batch
+        x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
+    
+        output = self.model(x)
+        class_loss = self.criterion(output, y, phase='valid')
+        pred = output['logit']
+        pred = C.split2one(pred, y)
+        lwlrap = LWLRAP(pred, y)
+        f1_score = self.f1(pred, y)
+        self.log(f'loss/val', class_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        return class_loss
+
+    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx,
+                    optimizer_closure, on_tpu, using_native_amp, using_lbfgs):
+
+        optimizer.step(closure=optimizer_closure, zero_grad=True)
+        self.global_step += 1
+        update_ema_variables(self.student_model, self.teacher_model, 0.999, self.global_step)
+
+
+    def configure_optimizers(self):
+        optimizer = C.get_optimizer(self.model, self.config)
+        scheduler = C.get_scheduler(optimizer, self.config)
+        return [optimizer], [scheduler]
+
+
+def get_current_consistency_weight(epoch):
+    # Consistency ramp-up from https://arxiv.org/abs/1610.02242
+    return args.consistency * ramps.sigmoid_rampup(epoch, 30)
+
+def update_ema_variables(model, ema_model, alpha, global_step):
+    # Use the true average until the exponential average is more correct
+    alpha = min(1 - 1 / (global_step + 1), alpha)
+    for ema_param, param in zip(ema_model.parameters(), model.parameters()):
+        ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
+
+
+
 # Learner class(pytorch-lighting)
 class Learner(pl.LightningModule):
     def __init__(self, model, config):
