@@ -94,8 +94,9 @@ class BCEWithLogitsLoss(nn.Module):
         nega_y = torch.zeros(input.shape).to('cuda')  # dummy
 
         posi_loss = self.posi_loss(input, posi_y)
+        posi_loss = posi_loss.sum()
         nega_loss = self.nega_loss(input, nega_y)
-        nega_loss = (nega_loss*nega_mask).sum() / nega_mask.sum()  # mean
+        nega_loss = (nega_loss*nega_mask).sum()
         loss = posi_loss + nega_loss
         return loss
 
