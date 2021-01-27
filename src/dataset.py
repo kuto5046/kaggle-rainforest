@@ -43,13 +43,13 @@ class SpectrogramDataset(data.Dataset):
         self.pcen_parameters = pcen_parameters
         
         # pseudo labeling
-        self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_tp_frame_ps2.csv').reset_index(drop=True)
+        # self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_tp_frame_ps2.csv').reset_index(drop=True)
         # self.train_fp_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_fp_pseudo.csv').reset_index(drop=True)
         # self.train_pseudo = pd.concat([self.train_tp_pseudo, self.train_fp_pseudo])
-        label_columns = [f"{col}" for col in range(24)]
-        self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
+        # label_columns = [f"{col}" for col in range(24)]
+        # self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
         
-        # self.train_pseudo = None
+        self.train_pseudo = None
 
     def __len__(self):
         return len(self.df)

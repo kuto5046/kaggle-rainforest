@@ -1,11 +1,11 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 5
+  max_epochs: 30
   output_dir: output
   timestamp: None
-  pretrained: True
-  pretrained_model_dir: ./output/0123_181828/
+  pretrained: False
+  pretrained_model_dir: None
   only_pred: False
   folds:
     - 0
@@ -23,13 +23,13 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: tp framewise label second label=1.0
+      message: baseline
 data:
   root: ./
   use_train_data:
     - tp
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
-  train_fp_df_path: input/rfcx-species-audio-detection/train_fp_pseudo.csv
+  train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
   train_tp_frame_ps_df_path: input/rfcx-species-audio-detection/train_tp_frame_ps.csv
   train_audio_path: input/rfcx-species-audio-detection/train
   test_audio_path: input/rfcx-species-audio-detection/test
