@@ -47,7 +47,7 @@ def LWLRAP(preds, labels):
     score_mask_matrix, _ = torch.sort(labels, dim=-1, descending=True)
     scores = score_matrix * score_mask_matrix
     score = scores.sum() / labels.sum()
-    if score == np.nan:
+    if torch.isnan(score):
         return 0.
     else:
         return score.item()
