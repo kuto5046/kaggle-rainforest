@@ -60,7 +60,8 @@ class Learner(pl.LightningModule):
             loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
             loss = self.criterion(output, y, phase="train")
-
+        
+        y = torch.where(y > 0., 1., 0.)  # 正例のみ残す
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred, y)
 
@@ -82,6 +83,7 @@ class Learner(pl.LightningModule):
         if 'framewise' in self.output_key:
             pred, _ = pred.max(dim=1)
         pred = C.split2one(pred, y)
+        y = torch.where(y > 0., 1., 0.)  # 正例のみ残す
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred, y)
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)

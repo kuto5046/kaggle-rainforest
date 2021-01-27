@@ -23,14 +23,14 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: tp framewise label second label=1.0
+      message: tp/fp
 data:
   root: ./
   use_train_data:
     - tp
+    - fp
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
-  train_fp_df_path: input/rfcx-species-audio-detection/train_fp_pseudo.csv
-  train_tp_frame_ps_df_path: input/rfcx-species-audio-detection/train_tp_frame_ps.csv
+  train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
   train_audio_path: input/rfcx-species-audio-detection/train
   test_audio_path: input/rfcx-species-audio-detection/test
   sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
@@ -58,7 +58,7 @@ dataset:
       eps: 0.000001
 
 loss:
-  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss BCEWithLogitsLoss FocalLoss
+  name: BCEWithLogitsLoss  # LSEPStableLoss LSEPLoss BCEWithLogitsLoss FocalLoss
   params:
     output_key: logit
 
