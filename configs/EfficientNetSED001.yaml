@@ -30,7 +30,6 @@ data:
     - tp
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
   train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
-  train_tp_frame_ps_df_path: input/rfcx-species-audio-detection/train_tp_frame_ps.csv
   train_audio_path: input/rfcx-species-audio-detection/train
   test_audio_path: input/rfcx-species-audio-detection/test
   sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
