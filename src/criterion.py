@@ -38,7 +38,7 @@ class ImprovedPANNsLoss(nn.Module):
 class FocalLoss(nn.Module):
     def __init__(self, output_key="logit", gamma=2.0, alpha=1.0):
         super().__init__()
-        self.posi_loss = nn.BCEWithLogitsLoss()
+        self.posi_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.output_key = output_key
         self.gamma = gamma
@@ -47,20 +47,22 @@ class FocalLoss(nn.Module):
     def forward(self, inputs, target, phase='train'):
         input = inputs[self.output_key]
         target = target.float()
-        # posi_mask = ((target == 1).sum(2)>0).float()
+        posi_mask = (target == 1).float()
         nega_mask = (target == -1).float()  # (20, 24)
         
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
         if phase == 'valid':
             input = C.split2one(input, target)
         
-        posi_y = torch.where(target > 0., 1., 0.).to('cuda')
+        # posi_y = torch.where(target > 0., 1., 0.).to('cuda')
+        posi_y = torch.ones(input.shape).to('cuda')
         nega_y = torch.zeros(input.shape).to('cuda')  # dummy
 
         posi_loss = self.posi_loss(input, posi_y)
         nega_loss = self.nega_loss(input, nega_y)  # 全て負例と見做してloss計算
         probas = input.sigmoid()
-        posi_loss = torch.where(target >= 0.5, (1. - probas)**self.gamma * posi_loss, probas**self.gamma * posi_loss)
+        posi_loss = posi_loss * posi_mask
+        posi_loss = torch.where(target >= 0.5, (1. - probas)**self.gamma * posi_loss, probas**self.gamma * posi_loss).mean()
         nega_loss = (nega_loss * nega_mask).sum() / nega_mask.sum()  # ラベルのついているクラスのみlossを残す
         loss = posi_loss + nega_loss
 
