@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: baseline stage2
+      message: baseline stage2 1cycle
 data:
   root: ./
   use_train_data:

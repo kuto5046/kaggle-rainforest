@@ -43,7 +43,7 @@ class SpectrogramDataset(data.Dataset):
         self.pcen_parameters = pcen_parameters
         
         # pseudo labeling
-        self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60.csv').reset_index(drop=True)
+        self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60_v2.csv').reset_index(drop=True)
         # self.train_fp_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_fp_pseudo.csv').reset_index(drop=True)
         # self.train_pseudo = pd.concat([self.train_tp_pseudo, self.train_fp_pseudo])
         label_columns = [f"{col}" for col in range(24)]
