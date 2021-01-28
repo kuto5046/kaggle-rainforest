@@ -19,15 +19,14 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: tp framewise label second label=1.0
+      message: mean-teacher
 data:
   root: ./
   use_train_data:
     - tp
     - fp
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
-  train_fp_df_path: input/rfcx-species-audio-detection/train_fp_pseudo.csv
-  train_tp_frame_ps_df_path: input/rfcx-species-audio-detection/train_tp_frame_ps.csv
+  train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
   train_audio_path: input/rfcx-species-audio-detection/train
   test_audio_path: input/rfcx-species-audio-detection/test
   sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
@@ -87,12 +86,10 @@ model:
 loader:
   train:
     batch_size: 20
-    shuffle: True
-    num_workers: 10
+    secondary_batch_size: 16
   valid:
     batch_size: 20
-    shuffle: False
-    num_workers: 10
+    secondary_batch_size: 16
   test:
     batch_size: 20
     shuffle: False

@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 from torch.distributions import Beta
 
+
 import pytorch_lightning as pl
 import torchvision
 from resnest.torch import resnest50
@@ -34,21 +35,20 @@ def calc_acc(pred, y):
 ############
 """
 class MeanTeacherLearner(pl.LightningModule):
-    def ___init__(self, model, config):
+    def __init__(self, model, config):
+        super().__init__()
         self.config = config
         self.student_model = model
-        self.student = nn.DataParallel(self.student_model).cuda()
-
         self.teacher_model = model
         for param in self.teacher_model.parameters():
-            param.detach_()
+            param.detach_()  # 勾配は計算しない
         
         self.output_key = config['model']['output_key']
-        self.class_criterion = C.get_criterion()
+        self.class_criterion = C.get_criterion(self.config)
         self.consistency_criterion = criterion.softmax_mse_loss
         self.epoch = 0
-        # self.residual_logit_criterion = criterion.symmetric_mse_loss
-        self.global_step = 0
+        self.step = 0
+        self.f1 = F1(num_classes=24)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -69,10 +69,10 @@ class MeanTeacherLearner(pl.LightningModule):
         
         # 通常のlossでlabelとのlossを計算(NOLABELのものへの対処は？)
         if self.config['mixup']['flag'] and do_mixup:
-            student_class_loss = mixup_criterion(self.criterion, student_output, y, y_shuffle, lam, phase='train')
+            student_class_loss = mixup_criterion(self.class_criterion, student_output, y, y_shuffle, lam, phase='train')
             # teacher_class_loss = mixup_criterion(self.criterion, teacher_output, y, y_shuffle, lam, phase='train')
         else:
-            student_class_loss = self.criterion(student_output, y, phase="train")
+            student_class_loss = self.class_criterion(student_output, y, phase="train")
             # teacher_class_loss = self.criterion(student_output, y, phase='train')
 
         consistency_weight = get_current_consistency_weight(self.epoch)
@@ -95,8 +95,8 @@ class MeanTeacherLearner(pl.LightningModule):
         x_list, y = batch
         x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
     
-        output = self.model(x)
-        class_loss = self.criterion(output, y, phase='valid')
+        output = self.student_model(x)
+        class_loss = self.class_criterion(output, y, phase='valid')
         pred = output['logit']
         pred = C.split2one(pred, y)
         lwlrap = LWLRAP(pred, y)
@@ -109,27 +109,36 @@ class MeanTeacherLearner(pl.LightningModule):
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx,
                     optimizer_closure, on_tpu, using_native_amp, using_lbfgs):
 
-        optimizer.step(closure=optimizer_closure, zero_grad=True)
-        self.global_step += 1
-        update_ema_variables(self.student_model, self.teacher_model, 0.999, self.global_step)
+        optimizer.step(closure=optimizer_closure)
+        self.step += 1
+        update_ema_variables(self.student_model, self.teacher_model, 0.999, self.step)
 
 
     def configure_optimizers(self):
-        optimizer = C.get_optimizer(self.model, self.config)
+        optimizer = C.get_optimizer(self.student_model, self.config)
         scheduler = C.get_scheduler(optimizer, self.config)
         return [optimizer], [scheduler]
 
 
 def get_current_consistency_weight(epoch):
     # Consistency ramp-up from https://arxiv.org/abs/1610.02242
-    return args.consistency * ramps.sigmoid_rampup(epoch, 30)
+    return 1.0 * sigmoid_rampup(epoch, 30)
 
+
+def sigmoid_rampup(current, rampup_length):
+    """Exponential rampup from https://arxiv.org/abs/1610.02242"""
+    if rampup_length == 0:
+        return 1.0
+    else:
+        current = np.clip(current, 0.0, rampup_length)
+        phase = 1.0 - current / rampup_length
+        return float(np.exp(-5.0 * phase * phase))
+    
 def update_ema_variables(model, ema_model, alpha, global_step):
     # Use the true average until the exponential average is more correct
     alpha = min(1 - 1 / (global_step + 1), alpha)
     for ema_param, param in zip(ema_model.parameters(), model.parameters()):
         ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
-
 
 
 # Learner class(pytorch-lighting)
@@ -942,7 +951,7 @@ def get_model(config: dict):
         learner = Learner(model, config)
     elif model_name == "EfficientNetSED":
         model = EfficientNetSED(config)
-        learner = Learner(model, config)
+        learner = MeanTeacherLearner(model, config)
     elif model_name == "ConformerSED":
         model = ConformerSED(config)
         learner = Learner(model, config)
