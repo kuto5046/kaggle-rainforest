@@ -46,8 +46,6 @@ class MeanTeacherLearner(pl.LightningModule):
         self.output_key = config['model']['output_key']
         self.class_criterion = C.get_criterion(self.config)
         self.consistency_criterion = criterion.softmax_mse_loss
-        self.epoch = 0
-        self.step = 0
         self.f1 = F1(num_classes=24)
 
     def training_step(self, batch, batch_idx):
@@ -61,8 +59,8 @@ class MeanTeacherLearner(pl.LightningModule):
         student_output = self.student_model(x)
         teacher_output = self.teacher_model(x)
 
-        student_logit = student_output["logit"]
-        teacher_logit = teacher_output["logit"]
+        student_logit = student_output[self.output_key]
+        teacher_logit = teacher_output[self.output_key]
         if 'framewise' in self.output_key:
             student_logit = student_logit.max(dim=1)[0]
             teacher_logit = teacher_logit.max(dim=1)[0]
@@ -75,7 +73,7 @@ class MeanTeacherLearner(pl.LightningModule):
             student_class_loss = self.class_criterion(student_output, y, phase="train")
             # teacher_class_loss = self.criterion(student_output, y, phase='train')
 
-        consistency_weight = get_current_consistency_weight(self.epoch)
+        consistency_weight = get_current_consistency_weight(self.current_epoch)
         consistency_loss = consistency_weight * self.consistency_criterion(student_logit, teacher_logit)
 
         loss = student_class_loss + consistency_loss
@@ -88,6 +86,7 @@ class MeanTeacherLearner(pl.LightningModule):
         self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
 
         return loss
+
     
     # batchのxはlist型
     def validation_step(self, batch, batch_idx):
@@ -110,8 +109,7 @@ class MeanTeacherLearner(pl.LightningModule):
                     optimizer_closure, on_tpu, using_native_amp, using_lbfgs):
 
         optimizer.step(closure=optimizer_closure)
-        self.step += 1
-        update_ema_variables(self.student_model, self.teacher_model, 0.999, self.step)
+        update_ema_variables(self.student_model, self.teacher_model, 0.999, self.grobal_step)
 
 
     def configure_optimizers(self):
@@ -119,7 +117,7 @@ class MeanTeacherLearner(pl.LightningModule):
         scheduler = C.get_scheduler(optimizer, self.config)
         return [optimizer], [scheduler]
 
-
+# 最初は影響を小さくしておく
 def get_current_consistency_weight(epoch):
     # Consistency ramp-up from https://arxiv.org/abs/1610.02242
     return 1.0 * sigmoid_rampup(epoch, 30)
