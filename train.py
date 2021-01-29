@@ -161,7 +161,7 @@ def main():
         val_df = df.loc[val_idx, :].reset_index(drop=True)
         loaders = {
             phase: C.get_loader(df_, datadir, config, phase)
-            for df_, phase in zip([trn_df, val_df], ["train", "valid"])
+            for df_, phase in zip([trn_df, val_df[val_df["data_type"]=="tp"]], ["train", "valid"])
         }
 
         # callback

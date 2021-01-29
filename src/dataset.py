@@ -330,9 +330,13 @@ def strong_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
     all_events = df.query(query_string)
 
     labels = np.zeros(24, dtype=np.float32)
-    for idx, row in all_events.iterrows():
-        if row['data_type'] == 'tp':
+    for idx, row in all_events.iterrows(): 
+        if row['data_type'] == 'tp':  # もしかしたらfpも混ざっているかもしれないので
             labels[int(row['species_id'])] = 1.0  # main label
+    
+    # tp dataがない場合(fp data)    
+    if labels.sum() == 0:
+        labels = np.full(labels.shape, -1.0) # NORABEL
     
     # labels = add_pseudo_label(labels, recording_id, pseudo_df, beginning_time, ending_time)
     return y, labels

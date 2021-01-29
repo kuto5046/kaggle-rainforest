@@ -81,6 +81,7 @@ def get_metadata(config: dict):
 
     train_tp["data_type"] = "tp"
     train_fp["data_type"] = "fp"
+    train_fp = train_fp.sample(1000)
 
     UNLABEL = -1
     train_fp["species_id"] = UNLABEL
@@ -108,8 +109,9 @@ def get_loader(df: pd.DataFrame,
                phase: str):
 
     dataset_config = config["dataset"]
+    loader_config = config["loader"][phase]
 
-    if dataset_config["name"] == "SpectrogramDataset":
+    if phase == "train":
         dataset = datasets.SpectrogramDataset(
             df,
             phase,
@@ -123,17 +125,27 @@ def get_loader(df: pd.DataFrame,
             spectrogram_transforms=get_spectrogram_transforms(config, phase),
             melspectrogram_parameters=dataset_config["params"]['melspec'],
             pcen_parameters=dataset_config['params']['pcen'])
-    else:
-        raise NotImplementedError
 
-    if phase in ["train", "valid"]:
         labeled_idxs = df[df["data_type"]=="tp"].index
         unlabeled_idxs = df[df["data_type"]=="fp"].index
-        loader_config = config["loader"][phase]
         batch_sampler = TwoStreamBatchSampler(unlabeled_idxs, labeled_idxs, **loader_config)  # tp:fp=1:4
         loader = data.DataLoader(dataset, batch_sampler=batch_sampler, num_workers=10, worker_init_fn=worker_init_fn)
+
     else:
-        loader_config = config["loader"][phase]
+        dataset = datasets.SpectrogramDataset(
+            df,
+            phase,
+            datadir=datadir,
+            height=dataset_config["height"],
+            width=dataset_config["width"],
+            period=dataset_config['period'],
+            shift_time=dataset_config['shift_time'],
+            strong_label_prob=dataset_config['strong_label_prob'],
+            waveform_transforms=get_waveform_transforms(config, phase),
+            spectrogram_transforms=get_spectrogram_transforms(config, phase),
+            melspectrogram_parameters=dataset_config["params"]['melspec'],
+            pcen_parameters=dataset_config['params']['pcen'])
+
         loader = data.DataLoader(dataset, **loader_config, worker_init_fn=worker_init_fn) 
     return loader
 

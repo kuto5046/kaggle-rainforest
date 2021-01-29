@@ -85,11 +85,12 @@ model:
 
 loader:
   train:
-    batch_size: 20
-    secondary_batch_size: 16
+    batch_size: 16
+    secondary_batch_size: 8
   valid:
     batch_size: 20
-    secondary_batch_size: 16
+    shuffle: False
+    num_workers: 10
   test:
     batch_size: 20
     shuffle: False
@@ -97,6 +98,7 @@ loader:
 
 transforms:
   train:
+    - name: GauusianNoise
 
   valid:
 

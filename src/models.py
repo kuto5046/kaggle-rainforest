@@ -1,4 +1,5 @@
 import os
+import copy
 import random
 import torch
 import numpy as np
@@ -39,7 +40,7 @@ class MeanTeacherLearner(pl.LightningModule):
         super().__init__()
         self.config = config
         self.student_model = model
-        self.teacher_model = model
+        self.teacher_model = copy.deepcopy(model)
         for param in self.teacher_model.parameters():
             param.detach_()  # 勾配は計算しない
         
@@ -49,34 +50,32 @@ class MeanTeacherLearner(pl.LightningModule):
         self.f1 = F1(num_classes=24)
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
+        x1, y = batch
+        x2 = torch.clone(x1)
+
         p = random.random()
         do_mixup = True if p < self.config['mixup']['prob'] else False
 
         if self.config['mixup']['flag'] and do_mixup:
             x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
 
-        student_output = self.student_model(x)
-        teacher_output = self.teacher_model(x)
-
+        student_output = self.student_model(x1)
+        teacher_output = self.teacher_model(x2)
         student_logit = student_output[self.output_key]
         teacher_logit = teacher_output[self.output_key]
-        if 'framewise' in self.output_key:
-            student_logit = student_logit.max(dim=1)[0]
-            teacher_logit = teacher_logit.max(dim=1)[0]
+
+        teacher_logit = torch.tensor(teacher_logit.detach().data, requires_grad=False)
         
         # 通常のlossでlabelとのlossを計算(NOLABELのものへの対処は？)
         if self.config['mixup']['flag'] and do_mixup:
-            student_class_loss = mixup_criterion(self.class_criterion, student_output, y, y_shuffle, lam, phase='train')
-            # teacher_class_loss = mixup_criterion(self.criterion, teacher_output, y, y_shuffle, lam, phase='train')
+            class_loss = mixup_criterion(self.class_criterion, student_output, y, y_shuffle, lam, phase='train')
         else:
-            student_class_loss = self.class_criterion(student_output, y, phase="train")
-            # teacher_class_loss = self.criterion(student_output, y, phase='train')
+            class_loss = self.class_criterion(student_output, y, phase="train")  # TODO yの-1はどう扱う？
 
         consistency_weight = get_current_consistency_weight(self.current_epoch)
         consistency_loss = consistency_weight * self.consistency_criterion(student_logit, teacher_logit)
 
-        loss = student_class_loss + consistency_loss
+        loss = class_loss + consistency_loss
 
         lwlrap = LWLRAP(student_logit, y)
         f1_score = self.f1(student_logit, y)
@@ -109,7 +108,7 @@ class MeanTeacherLearner(pl.LightningModule):
                     optimizer_closure, on_tpu, using_native_amp, using_lbfgs):
 
         optimizer.step(closure=optimizer_closure)
-        update_ema_variables(self.student_model, self.teacher_model, 0.999, self.grobal_step)
+        update_ema_variables(self.student_model, self.teacher_model, 0.999, self.global_step)
 
 
     def configure_optimizers(self):
