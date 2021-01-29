@@ -20,7 +20,8 @@ from src.conformer import ConformerBlock
 import pytorch_lightning as pl
 from torchlibrosa.stft import Spectrogram, LogmelFilterBank
 from torchlibrosa.augmentation import SpecAugmentation
-from pytorch_lightning.metrics import F1
+from pytorch_lightning.metrics import F1, Accuracy
+
 
 def calc_acc(pred, y):
     pred = torch.sigmoid(pred).detach().cpu().numpy()
@@ -41,6 +42,7 @@ class Learner(pl.LightningModule):
         self.output_key = config["model"]["output_key"]
         self.criterion = C.get_criterion(self.config)
         self.f1 = F1(num_classes=24)
+        self.accuracy = Accuracy()
 
     
     def training_step(self, batch, batch_idx):
@@ -63,10 +65,11 @@ class Learner(pl.LightningModule):
         
         y = torch.where(y > 0., 1., 0.)  # 正例のみ残す
         # lwlrap = LWLRAP(pred, y)
+        pred = pred.sigmoid()
         f1_score = self.f1(pred, y)
-
+        acc = self.accuracy(pred, y)
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        # self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'Acc/train', acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
 
         return loss
@@ -85,9 +88,11 @@ class Learner(pl.LightningModule):
         pred = C.split2one(pred, y)
         y = torch.where(y > 0., 1., 0.)  # 正例のみ残す
         # lwlrap = LWLRAP(pred, y)
+        pred = pred.sigmoid()
         f1_score = self.f1(pred, y)
+        acc = self.accuracy(pred, y)
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        # self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'Acc/val', acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
 
