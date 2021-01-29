@@ -100,7 +100,7 @@ class BCEWithLogitsLoss(nn.Module):
         nega_loss = (nega_loss*nega_mask).sum()
         loss = posi_loss + nega_loss
         if phase == 'train':
-            return nega_loss
+            return loss
         else:
             return loss
 
