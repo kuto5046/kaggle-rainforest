@@ -88,13 +88,15 @@ class SpectrogramDataset(data.Dataset):
             if self.phase == 'valid':
                 query_string = f"recording_id == '{recording_id}'"
                 all_events = self.df.query(query_string)
-                labels = np.zeros(24, dtype=np.float32)
+                # labels = np.zeros(24, dtype=np.float32)
+                # labels = np.full((24,), 0.2, dtype=np.float32)
+                labels = np.ones(24, dtype=np.float32)
                 for idx, row in all_events.iterrows():
                     if row['data_type'] == 'tp':
                         labels[int(row['species_id'])] = 1.0
                     else:
                         labels[int(row['species_id'])] = -1.0  # TODO 仮に同じ種がかぶっていたらTPを優先
-            
+
                 # labels = add_pseudo_label(labels, recording_id, train_pseudo)  # pseudo label
                 return np.asarray(images), labels
             

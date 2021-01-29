@@ -97,8 +97,8 @@ class BCEWithLogitsLoss(nn.Module):
         posi_loss = posi_loss.sum()
         nega_loss = self.nega_loss(input, nega_y)
         nega_loss = (nega_loss*nega_mask).sum()
-        loss = posi_loss + nega_loss
-        return loss
+        # loss = posi_loss + nega_loss
+        return nega_loss
 
 
 # based https://github.com/ex4sperans/freesound-classification/blob/71b9920ce0ae376aa7f1a3a2943f0f92f4820813/networks/losses.py

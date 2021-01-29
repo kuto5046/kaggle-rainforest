@@ -62,11 +62,11 @@ class Learner(pl.LightningModule):
             loss = self.criterion(output, y, phase="train")
         
         y = torch.where(y > 0., 1., 0.)  # 正例のみ残す
-        lwlrap = LWLRAP(pred, y)
+        # lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred, y)
 
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        # self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
 
         return loss
@@ -84,10 +84,10 @@ class Learner(pl.LightningModule):
             pred, _ = pred.max(dim=1)
         pred = C.split2one(pred, y)
         y = torch.where(y > 0., 1., 0.)  # 正例のみ残す
-        lwlrap = LWLRAP(pred, y)
+        # lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred, y)
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        # self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
 

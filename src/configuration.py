@@ -79,11 +79,6 @@ def get_metadata(config: dict):
 
     train_tp["data_type"] = "tp"
     train_fp["data_type"] = "fp"
-    # train_tp_frame_ps["data_type"] = 'tp'
-    # train_fp['species_id'] = 0  # ダミーデータ あとで上書きする
-
-    train_fp = train_fp.sample(500)
-    # train = pd.concat([train_tp, train_fp[['recording_id', 'species_id', 'data_type', 't_min', 't_max']]])
     train = pd.concat([train_tp, train_fp])
     df = train[train['data_type'].isin(data_config['use_train_data'])].reset_index(drop=True)
 
