@@ -118,10 +118,12 @@ class LSEPStableLoss(nn.Module):
         input = inputs[self.output_key]
         if 'framewise' in self.output_key:
             input, _ = input.max(dim=1)
-        target = target[target.ne(-1)].float()
 
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
-        if phase == 'valid':
+        if phase == 'train':
+            input = input[target.ne(-1)]  # labeled dataのみ取り出す
+            target = target[target.ne(-1)].float()  # labeled dataのみ取り出す
+        elif phase == 'valid':
             input = C.split2one(input, target)
 
         n = input.size(0)
