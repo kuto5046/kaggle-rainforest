@@ -20,9 +20,9 @@ from src.conformer import ConformerBlock
 import pytorch_lightning as pl
 from torchlibrosa.stft import Spectrogram, LogmelFilterBank
 from torchlibrosa.augmentation import SpecAugmentation
-from pytorch_lightning.metrics import F1, Accuracy
+from pytorch_lightning.metrics import F1, Accuracy, Recall
 
-
+        
 """
 ############
  Audio tagging model
@@ -38,10 +38,12 @@ class Learner(pl.LightningModule):
         self.criterion = C.get_criterion(self.config)
         self.f1 = F1(num_classes=24)
         self.accuracy = Accuracy()
+        self.recall = Recall(num_classes=24)
 
     
     def training_step(self, batch, batch_idx):
         x, y = batch
+
         p = random.random()
         do_mixup = True if p < self.config['mixup']['prob'] else False
 
@@ -58,14 +60,16 @@ class Learner(pl.LightningModule):
         else:
             loss = self.criterion(output, y, phase="train")
         
-        y = torch.where(y > 0., 1., 0.)  # 正例のみ残す
+        pred = pred * nega_mask
         # lwlrap = LWLRAP(pred, y)
         pred = pred.sigmoid()
         f1_score = self.f1(pred, y)
         acc = self.accuracy(pred, y)
+        recall = self.recall(pred, y)
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'Acc/train', acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'recall/train', recall, on_step=False, on_epoch=True, prog_bar=False, logger=True)
 
         return loss
     
@@ -81,14 +85,15 @@ class Learner(pl.LightningModule):
         if 'framewise' in self.output_key:
             pred, _ = pred.max(dim=1)
         pred = C.split2one(pred, y)
-        y = torch.where(y > 0., 1., 0.)  # 正例のみ残す
         # lwlrap = LWLRAP(pred, y)
         pred = pred.sigmoid()
         f1_score = self.f1(pred, y)
         acc = self.accuracy(pred, y)
+        recall = self.recall(pred, y)
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'Acc/val', acc, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'recall/val', recall, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
 
 

@@ -85,26 +85,28 @@ class BCEWithLogitsLoss(nn.Module):
         input = inputs[self.output_key]
         target = target.float()
         posi_mask = (target == 1).float()
-        nega_mask = (target == -1).float()  # (20, 24)
+        nega_mask = (target == 0).float()  # (20, 24)
         
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
         if phase == 'valid':
             input = C.split2one(input, target)
 
-        posi_y = torch.where(target > 0., 1., 0.).to('cuda')  # 正例のみ残す
+        posi_y = torch.ones(input.shape).to('cuda')  # 正例のみ残す
         nega_y = torch.zeros(input.shape).to('cuda')  # dummy
 
         posi_loss = self.posi_loss(input, posi_y)
         assert posi_mask.sum() > 0
         posi_loss = (posi_loss*posi_mask).sum() / posi_mask.sum()
+    
         nega_loss = self.nega_loss(input, nega_y)
         assert nega_mask.sum() > 0
         nega_loss = (nega_loss*nega_mask).sum() / nega_mask.sum()  # 個数で割り平均を取る
+
         loss = posi_loss + nega_loss
         if phase == 'train':
             return loss
         else:
-            return nega_loss
+            return loss
 
 
 # based https://github.com/ex4sperans/freesound-classification/blob/71b9920ce0ae376aa7f1a3a2943f0f92f4820813/networks/losses.py

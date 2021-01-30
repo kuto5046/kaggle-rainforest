@@ -90,12 +90,9 @@ class SpectrogramDataset(data.Dataset):
                 all_events = self.df.query(query_string)
                 # labels = np.zeros(24, dtype=np.float32)
                 # labels = np.full((24,), 0.2, dtype=np.float32)
-                labels = np.ones(24, dtype=np.float32)
+                labels = np.zeros(24, dtype=np.float32)
                 for idx, row in all_events.iterrows():
-                    if row['data_type'] == 'tp':
-                        labels[int(row['species_id'])] = 1.0
-                    else:
-                        labels[int(row['species_id'])] = -1.0  # TODO 仮に同じ種がかぶっていたらTPを優先
+                    labels[int(row['species_id'])] = 1.0
 
                 # labels = add_pseudo_label(labels, recording_id, train_pseudo)  # pseudo label
                 return np.asarray(images), labels
@@ -327,12 +324,9 @@ def strong_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
     # 同じrecording_idのものを
     all_events = df.query(query_string)
 
-    labels = np.ones(24, dtype=np.float32)
+    labels = np.zeros(24, dtype=np.float32)
     for idx, row in all_events.iterrows():
-        if row['data_type'] == 'tp': 
-            labels[int(row['species_id'])] = 1.0
-        else:
-            labels[int(row['species_id'])] = -1.0
+        labels[int(row['species_id'])] = 1.0
     
     # labels = add_pseudo_label(labels, recording_id, pseudo_df, beginning_time, ending_time)
     return y, labels
