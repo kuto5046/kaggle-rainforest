@@ -340,9 +340,9 @@ def strong_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
         else:
             labels[int(row['species_id'])] = -1.0  # fp label
     
-    # tp dataがない場合(fp data)    
-    if labels.sum() == 0:
-        labels = np.full(labels.shape, -1.0) # NORABEL
+    # tp dataがない場合 1, -1で打ち消しちゃうので消しておく  
+    # if labels.sum() == 0:
+    #     labels = np.full(labels.shape, -1.0) # NORABEL
     
     # labels = add_pseudo_label(labels, recording_id, pseudo_df, beginning_time, ending_time)
     return y, labels
