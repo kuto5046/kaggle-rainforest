@@ -64,15 +64,16 @@ class MeanTeacherLearner(pl.LightningModule):
         teacher_logit = teacher_output[self.output_key]
 
         teacher_logit = torch.tensor(teacher_logit.detach().data, requires_grad=False)
-        
+        consistency_weight = get_current_consistency_weight(self.current_epoch)
+        consistency_loss = consistency_weight * self.consistency_criterion(student_logit, teacher_logit)        
         # 通常のlossでlabelとのlossを計算(NOLABELのものへの対処は？)
         if self.config['mixup']['flag'] and do_mixup:
             class_loss = mixup_criterion(self.class_criterion, student_output, y, y_shuffle, lam, phase='train')
         else:
-            class_loss = self.class_criterion(student_output, y, phase="train")  # TODO yの-1はどう扱う？
+            class_loss = self.class_criterion(student_output, y, phase="train", consistency_loss)  # TODO yの-1はどう扱う？
 
-        consistency_weight = get_current_consistency_weight(self.current_epoch)
-        consistency_loss = consistency_weight * self.consistency_criterion(student_logit, teacher_logit)
+        
+        
 
         loss = class_loss + consistency_loss
 
