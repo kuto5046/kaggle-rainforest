@@ -9,6 +9,10 @@ globals:
   pretrained_model_dir: None
   folds:
     - 0
+    - 1
+    - 2
+    - 3
+    - 4
   debug: False
   kaggle: False
 
@@ -19,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: mean-teacher case4
+      message: mean-teacher case4 5fold
 data:
   root: ./
   use_train_data:
