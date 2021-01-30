@@ -26,7 +26,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import MLFlowLogger
-from pytorch_lightning.metrics import F1, Accuracy
+from pytorch_lightning.metrics import F1, Accuracy, Recall
 
 os.environ['NUMEXPR_MAX_THREADS'] = '24'
 
@@ -36,46 +36,30 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
     preds = []
     scores = []
     output_key = config['model']['output_key']
+    device = 'cuda'
     with torch.no_grad():
         # xは複数のlist
         for x_list, y in tqdm(loaders['valid']):
             batch_size = x_list.shape[0]
             x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
-            x = x.to(config["globals"]["device"])
+            x = x.to(device)
             
             if "SED" in config["model"]["name"]:
                 output = model.model(x)
                 output = output[output_key]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
-            acc = Accuracy()
-            score = acc(pred.sigmoid(), y) 
+            y = y.to(device)
+            recall = Recall()
+            score = recall(pred.sigmoid(), y) 
             scores.append(score)
             pred = torch.argsort(pred, dim=-1, descending=True)
             preds.append(pred.detach().cpu().numpy())
 
         # log
-        lwlrap_score = np.mean(scores, axis=0)
-
-        # make oof
-        oof_df = val_df.copy()
-        pred_columns = [f'rank_{i}' for i in range(24)]
-        for col in pred_columns:
-            oof_df[col] = 0
-        oof_df.loc[:, 'rank_0':] = np.vstack(preds) # 全データを１つのarrayにつなげてfoldの予測とする
-        
-        # pecies_idに対応する予測結果のrankingを取り出す
-        rankings = []
-        top_ids = []
-        for _, raw in oof_df.iterrows():
-            species_id = raw['species_id']
-            rankings.append(int(list(raw['rank_0':][raw==species_id].index)[0][5:]))  # speicesの順番(rank番号を取得)
-            top_ids.append(np.argmin(raw['rank_0':].values))
-        oof_df['ranking'] = rankings
-        oof_df['top_id'] = top_ids
-        oof_df.to_csv(output_dir / f'oof_fold{fold}.csv', index=False)
+        valid_score = np.mean(scores, axis=0)  
     
-        return lwlrap_score
+        return valid_score
 
 
 def test_step(model, sub_df, test_loader, config, output_dir, fold):
@@ -155,8 +139,7 @@ def main():
 
         # callback
         checkpoint_callback = ModelCheckpoint(
-            monitor=f'loss/val',
-            mode='min',
+            save_last=True,
             dirpath=output_dir,
             verbose=False,
             filename=f'{model_name}-{fold}')
@@ -204,44 +187,14 @@ def main():
         model.eval().to(device)
         
         # valid
-        lwlrap_score = valid_step(model, val_df, loaders, config, output_dir, fold)
-        mlf_logger.log_metrics({f'LWLRAP/fold{fold}':lwlrap_score}, step=None)
-        all_lwlrap_score.append(lwlrap_score)
+        valid_score = valid_step(model, val_df, loaders, config, output_dir, fold)
+        all_lwlrap_score.append(valid_score)
 
         # test
-        preds = test_step(model, sub_df, test_loader, config, output_dir, fold)
-        all_preds.append(preds)  # foldの予測結果を格納
-        utils.send_slack_message_notification(f'[FINISH] fold{fold}-lwlrap:{lwlrap_score:.3f}')
-
-
-    # ループ抜ける
-    # final logger 
-    # valの結果で加重平均
-    mean_method = 'weight_mean'
-    if mean_method == 'mean':
-        val_lwlrap_score = np.mean(all_lwlrap_score, axis=0)
-        sub_preds = np.mean(all_preds, axis=0)  # foldで平均を取る
-    elif mean_method == 'weight_mean':
-        weights = []
-        val_lwlrap_score = 0
-        for i, score in enumerate(all_lwlrap_score):
-            weight = score / np.sum(all_lwlrap_score)
-            val_lwlrap_score += all_lwlrap_score[i] * weight
-            weights.append(weight)
-        # for submission
-        sub_preds = 0
-        for i, pred in enumerate(all_preds):
-            sub_preds += pred * weights[i]
-    else:
-        raise NotImplementedError
-
-    mlf_logger.log_metrics({f'LWLRAP/all':val_lwlrap_score}, step=None)
-    mlf_logger.log_metrics({f'LWLRAP/LB_Score': 0.0}, step=None)
-    mlf_logger.finalize()
-
-    sub_df.iloc[:, 1:] = sub_preds
-    sub_df.to_csv(output_dir / "submission.csv", index=False)
-        
+        # preds = test_step(model, sub_df, test_loader, config, output_dir, fold)
+        # all_preds.append(preds)  # foldの予測結果を格納
+        utils.send_slack_message_notification(f'[FINISH] fold{fold}-lwlrap:{valid_score:.3f}')
+     
 
 if __name__ == '__main__':
     with utils.timer('Total time'):
