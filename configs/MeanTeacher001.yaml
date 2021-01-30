@@ -19,7 +19,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: mean-teacher case2
+      message: mean-teacher case4
 data:
   root: ./
   use_train_data:
