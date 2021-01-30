@@ -327,7 +327,7 @@ def strong_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
     # 同じrecording_idのものを
     all_events = df.query(query_string)
 
-    labels = np.zeros(24, dtype=np.float32)
+    labels = np.ones(24, dtype=np.float32)
     for idx, row in all_events.iterrows():
         if row['data_type'] == 'tp': 
             labels[int(row['species_id'])] = 1.0

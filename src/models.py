@@ -23,11 +23,6 @@ from torchlibrosa.augmentation import SpecAugmentation
 from pytorch_lightning.metrics import F1, Accuracy
 
 
-def calc_acc(pred, y):
-    pred = torch.sigmoid(pred).detach().cpu().numpy()
-    y = y.detach().cpu().numpy()
-    return accuracy_score(y, pred)
-
 """
 ############
  Audio tagging model
