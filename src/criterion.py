@@ -121,8 +121,8 @@ class LSEPStableLoss(nn.Module):
 
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
         if phase == 'train':
-            input = input[target.ne(-1)]  # labeled dataのみ取り出す
-            target = target[target.ne(-1)].float()  # labeled dataのみ取り出す
+            input = input[target.sum(axis=1) > 0]  # labeled dataのみ取り出す
+            target = target[target.sum(axis=1) > 0].float()  # labeled dataのみ取り出す
         elif phase == 'valid':
             input = C.split2one(input, target)
 
@@ -133,7 +133,7 @@ class LSEPStableLoss(nn.Module):
         differences = differences.view(n, -1)
         where_lower = where_lower.view(n, -1)
 
-        max_difference, index = torch.max(differences, dim=1, keepdim=True)
+        max_difference = torch.max(differences, dim=1, keepdim=True)[0]
         differences = differences - max_difference
         exps = differences.exp() * where_lower
 

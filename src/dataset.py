@@ -71,13 +71,17 @@ class SpectrogramDataset(data.Dataset):
         if self.phase == 'train':
             p = random.random()
             if p < self.strong_label_prob:
-                y, labels = strong_clip_audio(self.df, y, sr, idx, effective_length, train_pseudo)
+                # augmentationはかけていないがある程度clipにはrandom要素があるのでそれをnoiseとして2つのinputを作成
+                y1, labels = strong_clip_audio(self.df, y, sr, idx, effective_length, train_pseudo)
+                y2, labels = strong_clip_audio(self.df, y, sr, idx, effective_length, train_pseudo)
             else:
                 y, labels = random_clip_audio(self.df, y, sr, idx, effective_length, train_pseudo)
-            image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
-            # image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
-            # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
-            return image, labels
+            image1 = wave2image_normal(y1, sr, self.width, self.height, self.melspectrogram_parameters)
+            image2 = wave2image_normal(y2, sr, self.width, self.height, self.melspectrogram_parameters)
+            if self.spectrogram_transforms:
+                image1 = self.spectrogram_transforms(image1)
+                image2 = self.spectrogram_transforms(image2)
+            return (image1, image2), labels
         else:  # valid or test
             # PERIODO単位に分割(現在は6等分)
             split_y = split_audio(y, total_time, self.period, self.shift_time, sr)
@@ -86,8 +90,6 @@ class SpectrogramDataset(data.Dataset):
             # 分割した音声を一つずつ画像化してリストで返す
             for y in split_y:
                 image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
-                # image = wave2image_channel(y, sr, self.width, self.height, self.melspectrogram_parameters, self.pcen_parameters)
-                # image = wave2image_custom_melfilter(y, sr, self.width, self.height, self.melspectrogram_parameters)
                 images.append(image)
 
             if self.phase == 'valid':

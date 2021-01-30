@@ -81,7 +81,7 @@ def get_metadata(config: dict):
 
     train_tp["data_type"] = "tp"
     train_fp["data_type"] = "fp"
-    train_fp = train_fp.sample(1000)
+    # train_fp = train_fp.sample(1000)
 
     UNLABEL = -1
     train_fp["species_id"] = UNLABEL

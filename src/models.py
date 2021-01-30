@@ -50,8 +50,7 @@ class MeanTeacherLearner(pl.LightningModule):
         self.f1 = F1(num_classes=24)
 
     def training_step(self, batch, batch_idx):
-        x1, y = batch
-        x2 = torch.clone(x1)
+        (x1, x2), y = batch
 
         p = random.random()
         do_mixup = True if p < self.config['mixup']['prob'] else False
@@ -77,8 +76,10 @@ class MeanTeacherLearner(pl.LightningModule):
 
         loss = class_loss + consistency_loss
 
+        student_logit = student_logit[y.sum(axis=1) > 0]
+        y = y[y.sum(axis=1) > 0]
         lwlrap = LWLRAP(student_logit, y)
-        f1_score = self.f1(student_logit, y)
+        f1_score = self.f1(student_logit.sigmoid(), y)
 
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -98,7 +99,7 @@ class MeanTeacherLearner(pl.LightningModule):
         pred = output['logit']
         pred = C.split2one(pred, y)
         lwlrap = LWLRAP(pred, y)
-        f1_score = self.f1(pred, y)
+        f1_score = self.f1(pred.sigmoid(), y)
         self.log(f'loss/val', class_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)

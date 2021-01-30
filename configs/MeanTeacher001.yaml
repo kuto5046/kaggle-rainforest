@@ -98,7 +98,6 @@ loader:
 
 transforms:
   train:
-    - name: GauusianNoise
 
   valid:
 
