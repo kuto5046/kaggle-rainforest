@@ -43,7 +43,7 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
             x = x.to(config["globals"]["device"])
             
             if "SED" in config["model"]["name"]:
-                output = model.model(x)
+                output = model.teacher_model(x)
                 output = output[output_key]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
