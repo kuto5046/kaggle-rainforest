@@ -72,8 +72,6 @@ class MeanTeacherLearner(pl.LightningModule):
         else:
             class_loss = self.class_criterion(student_output, y, phase="train", consistency_loss)  # TODO yの-1はどう扱う？
 
-        
-        
 
         loss = class_loss + consistency_loss
 
