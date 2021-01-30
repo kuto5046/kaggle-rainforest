@@ -26,6 +26,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import MLFlowLogger
+from pytorch_lightning.metrics import F1, Accuracy
 
 os.environ['NUMEXPR_MAX_THREADS'] = '24'
 
@@ -47,7 +48,8 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
                 output = output[output_key]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
-            score = LWLRAP(pred, y)
+            acc = Accuracy()
+            score = acc(pred.sigmoid(), y) 
             scores.append(score)
             pred = torch.argsort(pred, dim=-1, descending=True)
             preds.append(pred.detach().cpu().numpy())

@@ -77,14 +77,14 @@ class BCEWithLogitsLoss(nn.Module):
     """
     def __init__(self, output_key="logit"):
         super().__init__()
-        self.posi_loss = nn.BCEWithLogitsLoss(reduction='mean')
+        self.posi_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.output_key = output_key
 
     def forward(self, inputs, target, phase="train"):
         input = inputs[self.output_key]
         target = target.float()
-        
+        posi_mask = (target == 1).float()
         nega_mask = (target == -1).float()  # (20, 24)
         
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
@@ -95,9 +95,11 @@ class BCEWithLogitsLoss(nn.Module):
         nega_y = torch.zeros(input.shape).to('cuda')  # dummy
 
         posi_loss = self.posi_loss(input, posi_y)
-        posi_loss = posi_loss.sum()
+        assert posi_mask.sum() > 0
+        posi_loss = (posi_loss*posi_mask).sum() / posi_mask.sum()
         nega_loss = self.nega_loss(input, nega_y)
-        nega_loss = (nega_loss*nega_mask).sum()
+        assert nega_mask.sum() > 0
+        nega_loss = (nega_loss*nega_mask).sum() / nega_mask.sum()  # 個数で割り平均を取る
         loss = posi_loss + nega_loss
         if phase == 'train':
             return loss
