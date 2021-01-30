@@ -47,7 +47,10 @@ class FocalLoss(nn.Module):
         target = target.float()
         
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
-        if phase == 'valid':
+        if phase == 'train':
+            input = input[target.sum(axis=1) > 0]  # labeled dataのみ取り出す
+            target = target[target.sum(axis=1) > 0].float()  # labeled dataのみ取り出す
+        elif phase == 'valid':
             input = C.split2one(input, target)
 
         bce_loss = self.loss(input, target)
