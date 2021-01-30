@@ -171,6 +171,7 @@ def main():
         # callback
         checkpoint_callback = ModelCheckpoint(
             monitor=f'LWLRAP/val',
+            save_last=True,
             mode='max',
             dirpath=output_dir,
             verbose=False,

@@ -127,17 +127,19 @@ class LSEPStableLoss(nn.Module):
 
         nega_mask = (target == -1).float()
 
-        nega_y = torch.zeros(input.shape).to('cuda')
-        nega_loss = self.nega_loss(input, nega_y)
-        nega_loss = (nega_loss*nega_mask).sum() / nega_mask.sum()
-        # nega_Lossがnanの時は0で渡す
-        if torch.isnan(nega_loss).item():
-            print("nega_loss==nan")
-            nega_loss = torch.tensor(0).to('cuda')
-
         if phase == 'train':
+            nega_y = torch.zeros(input.shape).to('cuda')
+            nega_loss = self.nega_loss(input, nega_y)
+            nega_loss = (nega_loss*nega_mask).sum() / nega_mask.sum()
+            # nega_Lossがnanの時は0で渡す
+            if torch.isnan(nega_loss).item():
+                print("nega_loss==nan")
+                nega_loss = torch.tensor(0).to('cuda')
+
             input = input[target.sum(axis=1) > 0]  # labeled dataのみ取り出す
             target = target[target.sum(axis=1) > 0].float()  # labeled dataのみ取り出す
+        else:
+            nega_loss = torch.tensor(0).to('cuda')
 
         n = input.size(0)
         differences = input.unsqueeze(1) - input.unsqueeze(2)
