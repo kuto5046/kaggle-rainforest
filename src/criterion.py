@@ -117,7 +117,8 @@ def sigmoid_rampup(current, rampup_length):
     else:
         current = np.clip(current, 0.0, rampup_length)
         phase = 1.0 - current / rampup_length
-        return float(np.exp(-5.0 * phase * phase))
+        # return float(np.exp(-5.0 * phase * phase))
+        return float(1.0 - np.exp(-5.0 * phase * phase))
     
 
 # based https://github.com/ex4sperans/freesound-classification/blob/71b9920ce0ae376aa7f1a3a2943f0f92f4820813/networks/losses.py

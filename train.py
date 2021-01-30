@@ -139,7 +139,6 @@ def main():
 
         # callback
         checkpoint_callback = ModelCheckpoint(
-            save_last=True,
             dirpath=output_dir,
             verbose=False,
             filename=f'{model_name}-{fold}')
