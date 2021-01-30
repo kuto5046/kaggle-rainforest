@@ -104,7 +104,7 @@ class BCEWithLogitsLoss(nn.Module):
         if phase == 'train':
             return loss
         else:
-            return loss
+            return nega_loss
 
 
 # based https://github.com/ex4sperans/freesound-classification/blob/71b9920ce0ae376aa7f1a3a2943f0f92f4820813/networks/losses.py
