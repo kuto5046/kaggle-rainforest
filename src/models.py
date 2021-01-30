@@ -58,7 +58,7 @@ class Learner(pl.LightningModule):
         if self.config['mixup']['flag'] and do_mixup:
             loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
-            loss = self.criterion(output, y, phase="train")
+            loss = self.criterion(output, y, "train", self.current_epoch)
         
         # lwlrap = LWLRAP(pred, y)
         pred = pred.sigmoid()
@@ -79,7 +79,7 @@ class Learner(pl.LightningModule):
         x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
     
         output = self.model(x)
-        loss = self.criterion(output, y, phase='valid')
+        loss = self.criterion(output, y, 'valid', self.current_epoch)
         pred = output[self.output_key]
         if 'framewise' in self.output_key:
             pred, _ = pred.max(dim=1)

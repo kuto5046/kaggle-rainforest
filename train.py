@@ -127,19 +127,6 @@ def main():
     test_loader = C.get_loader(sub_df, test_datadir, config, phase="test")
     splitter = C.get_split(config)
 
-    # mlflow logger
-    config["mlflow"]["tags"]["timestamp"] = timestamp
-    config["mlflow"]["tags"]["model_name"] = config["model"]["name"]
-    config["mlflow"]["tags"]["loss_name"] = config["loss"]["name"]
-    config["mlflow"]["tags"]["hash_value"] = hash_value
-    mlf_logger = MLFlowLogger(
-    experiment_name=config["mlflow"]["experiment_name"],
-    tags=config["mlflow"]["tags"])
-
-    # mlflowへconfigを渡す
-    config_params = config.copy()
-    del config_params['data'], config_params['globals'], config_params['mlflow']
-    mlf_logger.log_hyperparams(config_params)
 
     all_preds = []  # 全体の結果を格納
     all_lwlrap_score = []  # val scoreを記録する用

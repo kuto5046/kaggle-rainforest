@@ -81,7 +81,7 @@ class BCEWithLogitsLoss(nn.Module):
         self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.output_key = output_key
 
-    def forward(self, inputs, target, phase="train"):
+    def forward(self, inputs, target, phase="train", epoch=15):
         input = inputs[self.output_key]
         target = target.float()
         posi_mask = (target == 1).float()
@@ -102,12 +102,23 @@ class BCEWithLogitsLoss(nn.Module):
         assert nega_mask.sum() > 0
         nega_loss = (nega_loss*nega_mask).sum() / nega_mask.sum()  # 個数で割り平均を取る
 
+        nega_loss = sigmoid_rampup(epoch, 15) * nega_loss
         loss = posi_loss + nega_loss
         if phase == 'train':
             return loss
         else:
             return loss
 
+
+def sigmoid_rampup(current, rampup_length):
+    """Exponential rampup from https://arxiv.org/abs/1610.02242"""
+    if rampup_length == 0:
+        return 1.0
+    else:
+        current = np.clip(current, 0.0, rampup_length)
+        phase = 1.0 - current / rampup_length
+        return float(np.exp(-5.0 * phase * phase))
+    
 
 # based https://github.com/ex4sperans/freesound-classification/blob/71b9920ce0ae376aa7f1a3a2943f0f92f4820813/networks/losses.py
 class LSEPLoss(nn.Module):
