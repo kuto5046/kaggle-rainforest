@@ -60,7 +60,6 @@ class Learner(pl.LightningModule):
         else:
             loss = self.criterion(output, y, phase="train")
         
-        pred = pred * nega_mask
         # lwlrap = LWLRAP(pred, y)
         pred = pred.sigmoid()
         f1_score = self.f1(pred, y)
