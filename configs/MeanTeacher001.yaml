@@ -4,9 +4,9 @@ globals:
   max_epochs: 30
   output_dir: output
   timestamp: None
+  only_pred: False
   pretrained: False
   pretrained_model_dir: None
-  only_pred: False
   folds:
     - 0
   debug: False
@@ -19,7 +19,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: mean-teacher
+      message: mean-teacher case2
 data:
   root: ./
   use_train_data:
@@ -54,7 +54,7 @@ dataset:
       eps: 0.000001
 
 loss:
-  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss BCEWithLogitsLoss FocalLoss
+  name: FocalLoss  # LSEPStableLoss LSEPLoss BCEWithLogitsLoss FocalLoss
   params:
     output_key: logit
 

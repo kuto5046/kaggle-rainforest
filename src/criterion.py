@@ -36,12 +36,11 @@ class ImprovedPANNsLoss(nn.Module):
 
 # based https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/213075
 class FocalLoss(nn.Module):
-    def __init__(self, output_key="logit", gamma=2.0, alpha=1.0):
+    def __init__(self, output_key="logit", gamma=2.0):
         super().__init__()
         self.loss = nn.BCEWithLogitsLoss(reduction='none')
         self.output_key = output_key
         self.gamma = gamma
-        self.alpha = alpha
 
     def forward(self, inputs, target, phase='train'):
         input = inputs[self.output_key]
@@ -53,7 +52,7 @@ class FocalLoss(nn.Module):
 
         bce_loss = self.loss(input, target)
         probas = torch.sigmoid(input)
-        loss = torch.where(target >= 0.5, self.alpha * (1. - probas)**self.gamma * bce_loss, probas**self.gamma * bce_loss)
+        loss = torch.where(target >= 0.5, (1. - probas)**self.gamma * bce_loss, probas**self.gamma * bce_loss)
         loss = loss.mean()
         return loss
 

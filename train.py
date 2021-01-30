@@ -56,23 +56,27 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
         lwlrap_score = np.mean(scores, axis=0)
 
         # make oof
-        oof_df = val_df.copy()
-        pred_columns = [f'rank_{i}' for i in range(24)]
-        for col in pred_columns:
-            oof_df[col] = 0
-        oof_df.loc[:, 'rank_0':] = np.vstack(preds) # 全データを１つのarrayにつなげてfoldの予測とする
-        
-        # pecies_idに対応する予測結果のrankingを取り出す
-        rankings = []
-        top_ids = []
-        for _, raw in oof_df.iterrows():
-            species_id = raw['species_id']
-            rankings.append(int(list(raw['rank_0':][raw==species_id].index)[0][5:]))  # speicesの順番(rank番号を取得)
-            top_ids.append(np.argmin(raw['rank_0':].values))
-        oof_df['ranking'] = rankings
-        oof_df['top_id'] = top_ids
-        oof_df.to_csv(output_dir / f'oof_fold{fold}.csv', index=False)
-    
+        try:
+            oof_df = val_df.copy()
+            pred_columns = [f'rank_{i}' for i in range(24)]
+            for col in pred_columns:
+                oof_df[col] = 0
+            oof_df.loc[:, 'rank_0':] = np.vstack(preds) # 全データを１つのarrayにつなげてfoldの予測とする
+            
+            # pecies_idに対応する予測結果のrankingを取り出す
+            rankings = []
+            top_ids = []
+            for _, raw in oof_df.iterrows():
+                species_id = raw['species_id']
+                rankings.append(int(list(raw['rank_0':][raw==species_id].index)[0][5:]))  # speicesの順番(rank番号を取得)
+                top_ids.append(np.argmin(raw['rank_0':].values))
+            oof_df['ranking'] = rankings
+            oof_df['top_id'] = top_ids
+            oof_df.to_csv(output_dir / f'oof_fold{fold}.csv', index=False)
+        except:
+            print('Error when making oof dataframe')
+            pass
+
         return lwlrap_score
 
 
@@ -87,7 +91,7 @@ def test_step(model, sub_df, test_loader, config, output_dir, fold):
             x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
             x = x.to(config["globals"]["device"])
             if "SED" in config["model"]["name"]:
-                output = model.model(x)
+                output = model.teacher_model(x)
                 output = output["logit"]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
