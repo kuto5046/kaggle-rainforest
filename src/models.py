@@ -70,7 +70,7 @@ class MeanTeacherLearner(pl.LightningModule):
         if self.config['mixup']['flag'] and do_mixup:
             class_loss = mixup_criterion(self.class_criterion, student_output, y, y_shuffle, lam, phase='train')
         else:
-            class_loss = self.class_criterion(student_output, y, phase="train", consistency_loss)  # TODO yの-1はどう扱う？
+            class_loss = self.class_criterion(student_output, y, phase="train", nega_weight=consistency_weight)  # TODO yの-1はどう扱う？
 
 
         loss = class_loss + consistency_loss
