@@ -50,8 +50,9 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
             y = y.to(device)
+            pred = pred.sigmoid().to(device)
             recall = Recall()
-            score = recall(pred.sigmoid(), y) 
+            score = recall(pred, y) 
             scores.append(score)
             pred = torch.argsort(pred, dim=-1, descending=True)
             preds.append(pred.detach().cpu().numpy())
