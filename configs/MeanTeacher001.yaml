@@ -54,7 +54,7 @@ dataset:
       eps: 0.000001
 
 loss:
-  name: FocalLoss  # LSEPStableLoss LSEPLoss BCEWithLogitsLoss FocalLoss
+  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss BCEWithLogitsLoss FocalLoss
   params:
     output_key: logit
 

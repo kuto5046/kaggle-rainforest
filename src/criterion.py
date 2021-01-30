@@ -45,7 +45,7 @@ class FocalLoss(nn.Module):
     def forward(self, inputs, target, phase='train'):
         input = inputs[self.output_key]
         target = target.float()
-        
+
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
         if phase == 'train':
             input = input[target.sum(axis=1) > 0]  # labeled dataのみ取り出す
@@ -111,40 +111,45 @@ class LSEPLoss(nn.Module):
 
 # based https://github.com/ex4sperans/freesound-classification/blob/71b9920ce0ae376aa7f1a3a2943f0f92f4820813/networks/losses.py
 class LSEPStableLoss(nn.Module):
-    def __init__(self, output_key="logit", average=True):
+    def __init__(self, output_key="logit"):
         super(LSEPStableLoss, self).__init__()
-        self.average = average
         self.output_key = output_key
+        self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
 
     def forward(self, inputs, target, phase="train"):
-        input = inputs[self.output_key]
+        input = inputs[self.output_key]        
         if 'framewise' in self.output_key:
             input, _ = input.max(dim=1)
 
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
+        if phase == 'valid':
+            input = C.split2one(input, target)
+
+        nega_mask = (target == -1).float()
+
+        nega_y = torch.zeros(input.shape).to('cuda')
+        nega_loss = self.nega_loss(input, nega_y)
+        nega_loss = (nega_loss*nega_mask).sum() / nega_mask.sum()
+        # nega_Lossがnanの時は0で渡す
+        if torch.isnan(nega_loss).item():
+            nega_loss = torch.tensor(0).to('cuda')
+
         if phase == 'train':
             input = input[target.sum(axis=1) > 0]  # labeled dataのみ取り出す
             target = target[target.sum(axis=1) > 0].float()  # labeled dataのみ取り出す
-        elif phase == 'valid':
-            input = C.split2one(input, target)
 
         n = input.size(0)
         differences = input.unsqueeze(1) - input.unsqueeze(2)
         where_lower = (target.unsqueeze(1) < target.unsqueeze(2)).float()
-
         differences = differences.view(n, -1)
         where_lower = where_lower.view(n, -1)
-
         max_difference = torch.max(differences, dim=1, keepdim=True)[0]
         differences = differences - max_difference
         exps = differences.exp() * where_lower
+        lsep_loss = max_difference + torch.log(torch.exp(-max_difference) + exps.sum(-1))
 
-        lsep = max_difference + torch.log(torch.exp(-max_difference) + exps.sum(-1))
-
-        if self.average:
-            return lsep.mean()
-        else:
-            return lsep
+        loss = lsep_loss.mean() + nega_loss
+        return loss
 
 # Copyright (c) 2018, Curious AI Ltd. All rights reserved.
 #

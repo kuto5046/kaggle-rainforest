@@ -96,13 +96,18 @@ class MeanTeacherLearner(pl.LightningModule):
     
         output = self.student_model(x)
         class_loss = self.class_criterion(output, y, phase='valid')
+        
         pred = output['logit']
         pred = C.split2one(pred, y)
+        pred = pred[y.sum(axis=1) > 0]
+        y = y[y.sum(axis=1) > 0]
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred.sigmoid(), y)
+
         self.log(f'loss/val', class_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+
         return class_loss
 
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx,
