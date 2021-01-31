@@ -9,6 +9,10 @@ globals:
   only_pred: False
   folds:
     - 0 
+    - 1
+    - 2
+    - 3
+    - 4
   debug: False
   kaggle: False
 
@@ -19,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: negative model case2
+      message: negative best model
 data:
   root: ./
   use_train_data:
