@@ -46,7 +46,7 @@ class MeanTeacherLearner(pl.LightningModule):
         
         self.output_key = config['model']['output_key']
         self.class_criterion = C.get_criterion(self.config)
-        self.consistency_criterion = criterion.sigmoid_mse_loss
+        self.consistency_criterion = criterion.softmax_mse_loss
         self.f1 = F1(num_classes=24)
 
     def training_step(self, batch, batch_idx):
