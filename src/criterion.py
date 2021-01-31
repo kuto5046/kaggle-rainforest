@@ -150,7 +150,7 @@ class LSEPStableLoss(nn.Module):
         differences = differences - max_difference
         exps = differences.exp() * where_lower
         lsep_loss = max_difference + torch.log(torch.exp(-max_difference) + exps.sum(-1))
-        loss = lsep_loss.mean() + (nega_weight*nega_loss)
+        loss = lsep_loss.mean() + (weight*nega_loss)
         return loss
 
 # Copyright (c) 2018, Curious AI Ltd. All rights reserved.
