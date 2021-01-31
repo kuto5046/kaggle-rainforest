@@ -51,7 +51,6 @@ class MeanTeacherLearner(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         (x1, x2), y = batch
-        x2 = x2.set_grad_enabled(False)  # 勾配計算には使用しない
         batch_size = y.shape[0]
 
         p = random.random()
