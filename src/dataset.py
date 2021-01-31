@@ -15,6 +15,84 @@ valid/testではtime flagは使わない
 60s分にaudioの長さを揃える
 10s単位に分割してリスト化してimage変換
 """
+class NpzDataset(data.Dataset):
+    def __init__(self,
+                 df: pd.DataFrame,
+                 phase: str,
+                 datadir: Path,
+                 period: int,
+                 shift_time: int,
+                 strong_label_prob: int, 
+                 spectrogram_transforms=None):
+        self.df = df
+        self.phase = phase
+        self.datadir = datadir
+        self.period = period
+        self.shift_time = shift_time
+        self.strong_label_prob = strong_label_prob
+        self.spectrogram_transforms = spectrogram_transforms
+        
+        # pseudo labeling
+        # self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_tp_frame_ps2.csv').reset_index(drop=True)
+        # self.train_fp_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_fp_pseudo.csv').reset_index(drop=True)
+        # self.train_pseudo = pd.concat([self.train_tp_pseudo, self.train_fp_pseudo])
+        # label_columns = [f"{col}" for col in range(24)]
+        # self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
+        self.px_per_s = 51.2 
+        self.train_pseudo = None
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx: int):
+        
+        # train_pseudo = self.train_pseudo.sample(frac=0.5)  # 毎回50%sampling
+        train_pseudo = self.train_pseudo
+        
+        sample = self.df.loc[idx, :]
+        recording_id = sample["recording_id"]
+    
+        image = np.load(self.datadir / f"{recording_id}.npy")  
+        image = mono_to_color(image)
+        image = np.moveaxis(image, 2, 0)
+        image = (image / 255.0).astype(np.float32)
+        
+        if self.phase == 'train':
+            p = random.random()
+            if p < self.strong_label_prob:
+                # augmentationはかけていないがある程度clipにはrandom要素があるのでそれをnoiseとして2つのinputを作成
+                image1, labels = strong_clip_image(self.df, image, idx, self.period, self.px_per_s, train_pseudo)
+                image2, labels = strong_clip_image(self.df, image, idx, self.period, self.px_per_s, train_pseudo)
+            # else:
+            #     y, labels = random_clip_audio(self.df, y, sr, idx, effective_length, train_pseudo)
+            # image1 = wave2image_normal(y1, sr, self.width, self.height, self.melspectrogram_parameters)
+            # image2 = wave2image_normal(y2, sr, self.width, self.height, self.melspectrogram_parameters)
+            if self.spectrogram_transforms:
+                image1 = self.spectrogram_transforms(image1)
+                image2 = self.spectrogram_transforms(image2)
+            return (image1, image2), labels
+        else:  # valid or test
+            # PERIODO単位に分割(現在は6等分)
+            images = split_image(image, self.period, self.shift_time, self.px_per_s)
+ 
+            if self.phase == 'valid':
+                query_string = f"recording_id == '{recording_id}'"
+                all_events = self.df.query(query_string)
+                labels = np.zeros(24, dtype=np.float32)
+                for idx, row in all_events.iterrows():
+                    if row['data_type'] == 'tp':
+                        labels[int(row['species_id'])] = 1.0
+                    else:
+                        labels[int(row['species_id'])] = -1.0
+                # labels = add_pseudo_label(labels, recording_id, train_pseudo)  # pseudo label
+                return np.asarray(images), labels
+            elif self.phase == 'test':
+                labels = -1  # testなので-1を返す
+                return np.asarray(images), labels
+            else:
+                raise NotImplementedError
+
+
 class SpectrogramDataset(data.Dataset):
     def __init__(self,
                  df: pd.DataFrame,
@@ -251,6 +329,21 @@ def split_audio(y, total_time, period, shift_time, sr):
     
     return split_y
 
+
+def split_image(y, period, shift_time, px_per_s):
+    # PERIODO単位に分割(現在は6等分)
+    num_data = int(60 / shift_time)
+    shift_length = px_per_s*shift_time
+    effective_length = px_per_s*period
+    split_y = []
+    for i in range(num_data):
+        start = int(shift_length * i)
+        finish = int(start + effective_length)
+        split_y.append(y[:, :, start:finish])  # width方向に切り取り
+    
+    return split_y
+
+
 """
 ############
 clip method
@@ -347,6 +440,59 @@ def strong_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
     # labels = add_pseudo_label(labels, recording_id, pseudo_df, beginning_time, ending_time)
     return y, labels
 
+def strong_clip_image(df, y, idx, period, px_per_s, pseudo_df):
+
+    t_min = df.t_min.values[idx] * px_per_s  # 時間単位からpixel単位に変換
+    t_max = df.t_max.values[idx] * px_per_s  # 時間単位からpixel単位に変換
+
+    # Positioning sound slice
+    t_center = np.round((t_min + t_max) / 2)
+    
+    # 開始点の仮決定 
+    beginning = t_center - period / 2
+    # overしたらaudioの最初からとする
+    if beginning < 0:
+        beginning = 0
+
+    # 開始点と終了点の決定
+    beginning = np.random.randint(beginning, t_center)
+    pixel_range = period*px_per_s
+    ending = beginning + pixel_range
+
+    # overしたらaudioの最後までとする
+    if ending > y.shape[2]:
+        ending = y.shape[2]
+    beginning = ending - pixel_range
+
+    y = y[:,:, int(beginning):int(ending)].astype(np.float32)  # width方向に画像を切り取る
+    
+    # flame→time変換
+    beginning_time = beginning / px_per_s
+    ending_time = ending / px_per_s
+
+    # dfには同じrecording_idだけどclipしたt内に別のラベルがあるものもある
+    # そこでそれには正しいidを付けたい
+    recording_id = df.loc[idx, "recording_id"]
+
+    query_string = f"recording_id == '{recording_id}' & "
+    query_string += f"t_min < {ending_time} & t_max > {beginning_time}"
+
+    # 同じrecording_idのものを
+    all_events = df.query(query_string)
+
+    labels = np.zeros(24, dtype=np.float32)
+    for idx, row in all_events.iterrows(): 
+        if row['data_type'] == 'tp':  # もしかしたらfpも混ざっているかもしれないので
+            labels[int(row['species_id'])] = 1.0  # tp label
+        else:
+            labels[int(row['species_id'])] = -1.0  # fp label
+    
+    # tp dataがない場合 1, -1で打ち消しちゃうので消しておく  
+    # if labels.sum() == 0:
+    #     labels = np.full(labels.shape, -1.0) # NORABEL
+    
+    # labels = add_pseudo_label(labels, recording_id, pseudo_df, beginning_time, ending_time)
+    return y, labels
 
 def add_pseudo_label(labels, recording_id, pseudo_df, beginning_time=None, ending_time=None):
     

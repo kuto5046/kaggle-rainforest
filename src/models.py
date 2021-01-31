@@ -46,7 +46,7 @@ class MeanTeacherLearner(pl.LightningModule):
         
         self.output_key = config['model']['output_key']
         self.class_criterion = C.get_criterion(self.config)
-        self.consistency_criterion = criterion.softmax_mse_loss
+        self.consistency_criterion = criterion.sigmoid_mse_loss
         self.f1 = F1(num_classes=24)
 
     def training_step(self, batch, batch_idx):
@@ -67,7 +67,7 @@ class MeanTeacherLearner(pl.LightningModule):
 
         teacher_logit = torch.tensor(teacher_logit.detach().data, requires_grad=False)  # 勾配計算しない
         consistency_weight = get_current_consistency_weight(self.current_epoch)
-        consistency_loss = consistency_weight * self.consistency_criterion(student_logit, teacher_logit) / batch_size   
+        consistency_loss = consistency_weight * self.consistency_criterion(student_logit, teacher_logit)   
         # 通常のlossでlabelとのlossを計算(NOLABELのものへの対処は？)
         if self.config['mixup']['flag'] and do_mixup:
             class_loss = mixup_criterion(self.class_criterion, student_output, y, y_shuffle1, lam1, phase='train', weight=consistency_weight)

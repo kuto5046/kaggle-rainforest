@@ -108,40 +108,59 @@ def get_loader(df: pd.DataFrame,
     loader_config = config["loader"][phase]
 
     if phase == "train":
-        dataset = datasets.SpectrogramDataset(
-            df,
-            phase,
-            datadir=datadir,
-            height=dataset_config["height"],
-            width=dataset_config["width"],
-            period=dataset_config['period'],
-            shift_time=dataset_config['shift_time'],
-            strong_label_prob=dataset_config['strong_label_prob'],
-            waveform_transforms=get_waveform_transforms(config, phase),
-            spectrogram_transforms=get_spectrogram_transforms(config, phase),
-            melspectrogram_parameters=dataset_config["params"]['melspec'],
-            pcen_parameters=dataset_config['params']['pcen'])
+        if dataset_config['name'] == 'SpectrogramDataset':
+            dataset = datasets.SpectrogramDataset(
+                df,
+                phase,
+                datadir=datadir,
+                height=dataset_config["height"],
+                width=dataset_config["width"],
+                period=dataset_config['period'],
+                shift_time=dataset_config['shift_time'],
+                strong_label_prob=dataset_config['strong_label_prob'],
+                waveform_transforms=get_waveform_transforms(config, phase),
+                spectrogram_transforms=get_spectrogram_transforms(config, phase),
+                melspectrogram_parameters=dataset_config["params"]['melspec'],
+                pcen_parameters=dataset_config['params']['pcen'])
+        elif dataset_config['name'] == 'NpzDataset':
+            dataset = datasets.NpzDataset(
+                 df,
+                 phase,
+                 datadir=datadir,
+                 period=dataset_config['period'],
+                 shift_time=dataset_config['shift_time'],
+                 strong_label_prob=dataset_config['strong_label_prob'], 
+                 spectrogram_transforms=get_spectrogram_transforms(config, phase))
 
         labeled_idxs = df[df["data_type"]=="tp"].index
         unlabeled_idxs = df[df["data_type"]=="fp"].index
         batch_sampler = TwoStreamBatchSampler(unlabeled_idxs, labeled_idxs, **loader_config)  # tp:fp=1:4
-        loader = data.DataLoader(dataset, batch_sampler=batch_sampler, num_workers=10, worker_init_fn=worker_init_fn)
+        loader = data.DataLoader(dataset, batch_sampler=batch_sampler, num_workers=10, pin_memory=True, worker_init_fn=worker_init_fn)
 
     else:
-        dataset = datasets.SpectrogramDataset(
-            df,
-            phase,
-            datadir=datadir,
-            height=dataset_config["height"],
-            width=dataset_config["width"],
-            period=dataset_config['period'],
-            shift_time=dataset_config['shift_time'],
-            strong_label_prob=dataset_config['strong_label_prob'],
-            waveform_transforms=get_waveform_transforms(config, phase),
-            spectrogram_transforms=get_spectrogram_transforms(config, phase),
-            melspectrogram_parameters=dataset_config["params"]['melspec'],
-            pcen_parameters=dataset_config['params']['pcen'])
-
+        if dataset_config['name'] == "SpectrogramDataset":
+            dataset = datasets.SpectrogramDataset(
+                df,
+                phase,
+                datadir=datadir,
+                height=dataset_config["height"],
+                width=dataset_config["width"],
+                period=dataset_config['period'],
+                shift_time=dataset_config['shift_time'],
+                strong_label_prob=dataset_config['strong_label_prob'],
+                waveform_transforms=get_waveform_transforms(config, phase),
+                spectrogram_transforms=get_spectrogram_transforms(config, phase),
+                melspectrogram_parameters=dataset_config["params"]['melspec'],
+                pcen_parameters=dataset_config['params']['pcen'])
+        elif dataset_config['name'] == 'NpzDataset':
+            dataset = datasets.NpzDataset(
+                 df,
+                 phase,
+                 datadir=datadir,
+                 period=dataset_config['period'],
+                 shift_time=dataset_config['shift_time'],
+                 strong_label_prob=dataset_config['strong_label_prob'], 
+                 spectrogram_transforms=get_spectrogram_transforms(config, phase))
         loader = data.DataLoader(dataset, **loader_config, worker_init_fn=worker_init_fn) 
     return loader
 

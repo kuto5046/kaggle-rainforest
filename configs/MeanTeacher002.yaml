@@ -1,0 +1,96 @@
+globals:
+  seed: 42
+  device: cuda
+  max_epochs: 50
+  output_dir: output
+  timestamp: None
+  only_pred: False
+  pretrained: False
+  pretrained_model_dir: None
+  folds:
+    - 0
+  debug: False
+  kaggle: False
+
+mlflow:
+    experiment_name: rainforest
+    tags:
+      timestamp: None
+      model_name: None
+      loss_name: None
+      hash_value: None
+      message: mean-teacher add noise mixup
+data:
+  root: ./
+  use_train_data:
+    - tp
+    - fp
+  train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
+  train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
+  train_audio_path: melspec/train
+  test_audio_path: melspec/test
+  sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
+
+
+dataset:
+  name: NpzDataset
+  period: 10
+  shift_time: 10
+  strong_label_prob: 1.0
+
+loss:
+  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss BCEWithLogitsLoss FocalLoss
+  params:
+    output_key: logit
+
+optimizer:
+  name: Adam
+  params:
+    lr: 0.001
+
+scheduler:
+  name: CosineAnnealingLR
+  params:
+    T_max: 10
+
+split:
+  name: StratifiedKFold  # MultilabelStratifiedKFold  StratifiedKFold
+  params:
+    n_splits: 5
+    random_state: 42
+    shuffle: True
+
+model:
+  name: EfficientNetSED
+  output_key: logit
+  params:
+    base_model_name: efficientnet-b2
+    pretrained: True
+    num_classes: 24
+
+loader:
+  train:
+    batch_size: 64
+    secondary_batch_size: 16
+  valid:
+    batch_size: 32
+    shuffle: False
+    num_workers: 10
+    pin_memory: True
+  test:
+    batch_size: 32
+    shuffle: False
+    num_workers: 10
+    pin_memory: True
+transforms:
+  train:
+    - name: GauusianNoise
+
+  valid:
+
+  test:
+
+mixup:
+  flag: True
+  alpha: 0.2
+  prob: 0.5

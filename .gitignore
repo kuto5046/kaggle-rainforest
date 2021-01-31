@@ -6,7 +6,9 @@ settings.json
 /.vscode/
 debug.ipynb
 /.kaggle/
+*.npz
 *.npy
+*.zip
 /backup/
 
 # Byte-compiled / optimized / DLL files
