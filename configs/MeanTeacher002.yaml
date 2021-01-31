@@ -71,7 +71,7 @@ model:
 loader:
   train:
     batch_size: 64
-    secondary_batch_size: 16
+    secondary_batch_size: 32
   valid:
     batch_size: 32
     shuffle: False
