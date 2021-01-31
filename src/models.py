@@ -27,6 +27,21 @@ def calc_acc(pred, y):
     y = y.detach().cpu().numpy()
     return accuracy_score(y, pred)
 
+
+# 最初は影響を小さくしておく
+def get_current_weight(epoch):
+    # Consistency ramp-up from https://arxiv.org/abs/1610.02242
+    return 1.0 * sigmoid_rampup(epoch, 30)
+
+def sigmoid_rampup(current, rampup_length):
+    """Exponential rampup from https://arxiv.org/abs/1610.02242"""
+    if rampup_length == 0:
+        return 1.0
+    else:
+        current = np.clip(current, 0.0, rampup_length)
+        phase = 1.0 - current / rampup_length
+        return float(np.exp(-5.0 * phase * phase))
+
 """
 ############
  Audio tagging model
@@ -57,19 +72,26 @@ class Learner(pl.LightningModule):
             pred, _ = pred.max(dim=1)
     
         if self.config['mixup']['flag'] and do_mixup:
-            loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
+            main_loss, nega_loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
-            loss = self.criterion(output, y, phase="train")
+            main_loss, nega_loss = self.criterion(output, y, phase="train")
         
+        nega_weight = get_current_weight(self.current_epoch)
+        weighted_nega_loss = nega_loss * nega_weight
+        total_loss = main_loss + weighted_nega_loss
+    
         y = torch.where(y > 0., 1., 0.)  # 正例のみ残す
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred, y)
 
-        self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'total_loss/train', total_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'main_loss/train', main_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'nega_loss/train', nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'weighted_nega_loss/train', weighted_nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
 
-        return loss
+        return total_loss
     
     # batchのxはlist型
     def validation_step(self, batch, batch_idx):
@@ -78,18 +100,27 @@ class Learner(pl.LightningModule):
         x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
     
         output = self.model(x)
-        loss = self.criterion(output, y, phase='valid')
+        main_loss, nega_loss = self.criterion(output, y, phase='valid')
         pred = output[self.output_key]
         if 'framewise' in self.output_key:
             pred, _ = pred.max(dim=1)
         pred = C.split2one(pred, y)
+
+        nega_weight = get_current_weight(self.current_epoch)
+        weighted_nega_loss = nega_loss * nega_weight
+        total_loss = main_loss + weighted_nega_loss
+
         y = torch.where(y > 0., 1., 0.)  # 正例のみ残す
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred, y)
-        self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+
+        self.log(f'total_loss/train', total_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'main_loss/train', main_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'nega_loss/train', nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'weighted_nega_loss/train', weighted_nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        return loss
+        return total_loss
 
 
     def configure_optimizers(self):

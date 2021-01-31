@@ -9,6 +9,10 @@ globals:
   only_pred: False
   folds:
     - 0 
+    - 1
+    - 2
+    - 3
+    - 4
   debug: False
   kaggle: False
 
@@ -19,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: tp/fp stage1
+      message: ramup nega_loss sampling 1500
 data:
   root: ./
   use_train_data:
@@ -54,7 +58,7 @@ dataset:
       eps: 0.000001
 
 loss:
-  name: BCEWithLogitsLoss  # LSEPStableLoss LSEPLoss BCEWithLogitsLoss FocalLoss
+  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss BCEWithLogitsLoss FocalLoss
   params:
     output_key: logit
 
@@ -85,7 +89,7 @@ model:
 
 loader:
   train:
-    batch_size: 20
+    batch_size: 32
     shuffle: True
     num_workers: 10
   valid:

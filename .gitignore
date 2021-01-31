@@ -7,6 +7,9 @@ settings.json
 debug.ipynb
 /.kaggle/
 *.npy
+*.zip
+
+
 /backup/
 # Byte-compiled / optimized / DLL files
 __pycache__/

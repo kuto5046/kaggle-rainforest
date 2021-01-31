@@ -47,6 +47,7 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
                 output = output[output_key]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
+            y = torch.where(y > 0., 1., 0.)  # 正例のみ残す
             score = LWLRAP(pred, y)
             scores.append(score)
             pred = torch.argsort(pred, dim=-1, descending=True)
@@ -120,7 +121,7 @@ def main():
     device = C.get_device(global_config["device"])
 
     # data
-    df, datadir = C.get_metadata(config)
+    tp_df, fp_df, datadir = C.get_metadata(config)
     sub_df, test_datadir = C.get_test_metadata(config)
     test_loader = C.get_loader(sub_df, test_datadir, config, phase="test")
     splitter = C.get_split(config)
@@ -141,7 +142,7 @@ def main():
 
     all_preds = []  # 全体の結果を格納
     all_lwlrap_score = []  # val scoreを記録する用
-    for fold, (trn_idx, val_idx) in enumerate(splitter.split(df, y=df['species_id'])):
+    for fold, (trn_idx, val_idx) in enumerate(splitter.split(tp_df, y=tp_df['species_id'])):
         # 指定したfoldのみループを回す
         if fold not in global_config['folds']:
             continue
@@ -157,8 +158,10 @@ def main():
         logger.info('=' * 20)
 
         # dataloader
-        trn_df = df.loc[trn_idx, :].reset_index(drop=True)
-        val_df = df.loc[val_idx, :].reset_index(drop=True)
+        trn_df = tp_df.loc[trn_idx, :].reset_index(drop=True)
+        val_df = tp_df.loc[val_idx, :].reset_index(drop=True)
+        if "fp" in onfig['data']['use_train_data']:
+            trn_df = pd.concat([trn_df, fp_df.sample(1500)]).reset_index(drop=True)  # fpをsampling
         loaders = {
             phase: C.get_loader(df_, datadir, config, phase)
             for df_, phase in zip([trn_df, val_df], ["train", "valid"])
@@ -196,7 +199,8 @@ def main():
                 max_epochs=global_config["max_epochs"],
                 gpus=[0],
                 fast_dev_run=global_config["debug"],
-                deterministic=True)
+                deterministic=True,
+                precision=16)
             
             if not global_config['only_pred']:
                 trainer.fit(model, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])

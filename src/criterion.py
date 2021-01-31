@@ -134,6 +134,7 @@ class LSEPStableLoss(nn.Module):
         super(LSEPStableLoss, self).__init__()
         self.average = average
         self.output_key = output_key
+        self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
     
     def forward(self, inputs, target, phase="train"):
         input = inputs[self.output_key]
@@ -143,6 +144,17 @@ class LSEPStableLoss(nn.Module):
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
         if phase == 'valid':
             input = C.split2one(input, target)
+
+        # nega loss
+        nega_mask = (target == -1).float()
+
+        # FPデータがない場合はnega_loss=0
+        if nega_mask.sum() == 0:
+            nega_loss = torch.tensor(0).to('cuda')
+        else:
+            nega_y = torch.zeros(input.shape).to('cuda')  # dummy
+            nega_loss = self.nega_loss(input, nega_y)
+            nega_loss = (nega_loss*nega_mask).sum() / nega_mask.sum()
 
         n = input.size(0)
         differences = input.unsqueeze(1) - input.unsqueeze(2)
@@ -158,8 +170,9 @@ class LSEPStableLoss(nn.Module):
         lsep = max_difference + torch.log(torch.exp(-max_difference) + exps.sum(-1))
 
         if self.average:
-            return lsep.mean()
+            return lsep.mean(), nega_loss
         else:
-            return lsep
+            return lsep, nega_loss
+
 
 
