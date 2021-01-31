@@ -38,7 +38,7 @@ class NpzDataset(data.Dataset):
         # self.train_pseudo = pd.concat([self.train_tp_pseudo, self.train_fp_pseudo])
         # label_columns = [f"{col}" for col in range(24)]
         # self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
-        self.px_per_s = 51.2 
+        self.px_per_s = 51.2  # 3072 / 60(px/s)
         self.train_pseudo = None
 
     def __len__(self):
@@ -55,7 +55,7 @@ class NpzDataset(data.Dataset):
         image = np.load(self.datadir / f"{recording_id}.npy")  
         image = mono_to_color(image)
         image = np.moveaxis(image, 2, 0)
-        image = (image - image.min())/(image.max()-image.min())  # norm 0~1
+        image = (image - image.min())/(image.max()-image.min()).astype(float32)  # norm 0~1
         
         if self.phase == 'train':
             p = random.random()
