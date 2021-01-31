@@ -40,7 +40,7 @@ def sigmoid_rampup(current, rampup_length):
     else:
         current = np.clip(current, 0.0, rampup_length)
         phase = 1.0 - current / rampup_length
-        return float(np.exp(-5.0 * phase * phase))
+        return 1 - float(np.exp(-5.0 * phase * phase))
 
 """
 ############
