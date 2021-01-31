@@ -70,10 +70,9 @@ class MeanTeacherLearner(pl.LightningModule):
         consistency_loss = consistency_weight * self.consistency_criterion(student_logit, teacher_logit) / batch_size   
         # 通常のlossでlabelとのlossを計算(NOLABELのものへの対処は？)
         if self.config['mixup']['flag'] and do_mixup:
-            class_loss = mixup_criterion(self.class_criterion, student_output, y, y_shuffle1, lam1, phase='train')
+            class_loss = mixup_criterion(self.class_criterion, student_output, y, y_shuffle1, lam1, phase='train', weight=consistency_weight)
         else:
-            class_loss = self.class_criterion(student_output, y, phase="train", nega_weight=consistency_weight)  # TODO yの-1はどう扱う？
-
+            class_loss = self.class_criterion(student_output, y, phase="train", weight=consistency_weight)  # TODO yの-1はどう扱う？
 
         loss = class_loss + consistency_loss
 
@@ -82,6 +81,8 @@ class MeanTeacherLearner(pl.LightningModule):
         lwlrap = LWLRAP(student_logit, y)
         f1_score = self.f1(student_logit.sigmoid(), y)
 
+        self.log(f'class_loss/train', class_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'consistency_loss/train', consistency_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -918,8 +919,8 @@ def mixup_data(x, y, alpha=1.0, use_cuda=True):
     return mixed_x, y_a, y_b, lam
 
 
-def mixup_criterion(criterion, pred, y_a, y_b, lam, phase='train'):
-    return lam * criterion(pred, y_a, phase) + (1 - lam) * criterion(pred, y_b, phase)
+def mixup_criterion(criterion, pred, y_a, y_b, lam, phase='train', weight=1.0):
+    return lam * criterion(pred, y_a, phase, weight) + (1 - lam) * criterion(pred, y_b, phase, weight)
 
 
 def get_model(config: dict):

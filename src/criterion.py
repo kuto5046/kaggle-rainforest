@@ -116,9 +116,8 @@ class LSEPStableLoss(nn.Module):
         self.output_key = output_key
         self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
 
-    def forward(self, inputs, target, phase="train", nega_weight=1.0):
+    def forward(self, inputs, target, phase="train", weight=1.0):
         input = inputs[self.output_key]
-        batch_size = target.shape[0]        
         if 'framewise' in self.output_key:
             input, _ = input.max(dim=1)
 
@@ -151,8 +150,7 @@ class LSEPStableLoss(nn.Module):
         differences = differences - max_difference
         exps = differences.exp() * where_lower
         lsep_loss = max_difference + torch.log(torch.exp(-max_difference) + exps.sum(-1))
-        lsep_loss = lsep_loss.sum() / batch_size
-        loss = lsep_loss + (nega_weight*nega_loss)
+        loss = lsep_loss.mean() + (nega_weight*nega_loss)
         return loss
 
 # Copyright (c) 2018, Curious AI Ltd. All rights reserved.
