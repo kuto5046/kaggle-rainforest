@@ -160,7 +160,7 @@ def main():
         # dataloader
         trn_df = tp_df.loc[trn_idx, :].reset_index(drop=True)
         val_df = tp_df.loc[val_idx, :].reset_index(drop=True)
-        if "fp" in onfig['data']['use_train_data']:
+        if "fp" in config['data']['use_train_data']:
             trn_df = pd.concat([trn_df, fp_df.sample(1500)]).reset_index(drop=True)  # fpをsampling
         loaders = {
             phase: C.get_loader(df_, datadir, config, phase)
