@@ -9,10 +9,6 @@ globals:
   pretrained_model_dir: None
   folds:
     - 0
-    - 1
-    - 2
-    - 3
-    - 4
   debug: False
   kaggle: False
 
@@ -23,7 +19,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: mean-teacher case4 5fold
+      message: mean-teacher fix bug
 data:
   root: ./
   use_train_data:
@@ -102,6 +98,7 @@ loader:
 
 transforms:
   train:
+    # - name: GauusianNoise
 
   valid:
 

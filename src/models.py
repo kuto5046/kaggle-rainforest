@@ -51,24 +51,27 @@ class MeanTeacherLearner(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         (x1, x2), y = batch
+        x2 = x2.set_grad_enabled(False)  # 勾配計算には使用しない
+        batch_size = y.shape[0]
 
         p = random.random()
         do_mixup = True if p < self.config['mixup']['prob'] else False
 
         if self.config['mixup']['flag'] and do_mixup:
-            x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
+            x1, y, y_shuffle1, lam1 = mixup_data(x1, y, alpha=self.config['mixup']['alpha'])
+            x2, y, y_shuffle2, lam2 = mixup_data(x2, y, alpha=self.config['mixup']['alpha'])
 
         student_output = self.student_model(x1)
         teacher_output = self.teacher_model(x2)
         student_logit = student_output[self.output_key]
         teacher_logit = teacher_output[self.output_key]
 
-        teacher_logit = torch.tensor(teacher_logit.detach().data, requires_grad=False)
+        teacher_logit = torch.tensor(teacher_logit.detach().data, requires_grad=False)  # 勾配計算しない
         consistency_weight = get_current_consistency_weight(self.current_epoch)
-        consistency_loss = consistency_weight * self.consistency_criterion(student_logit, teacher_logit)        
+        consistency_loss = consistency_weight * self.consistency_criterion(student_logit, teacher_logit) / batch_size   
         # 通常のlossでlabelとのlossを計算(NOLABELのものへの対処は？)
         if self.config['mixup']['flag'] and do_mixup:
-            class_loss = mixup_criterion(self.class_criterion, student_output, y, y_shuffle, lam, phase='train')
+            class_loss = mixup_criterion(self.class_criterion, student_output, y, y_shuffle1, lam1, phase='train')
         else:
             class_loss = self.class_criterion(student_output, y, phase="train", nega_weight=consistency_weight)  # TODO yの-1はどう扱う？
 
