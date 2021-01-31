@@ -55,7 +55,7 @@ class NpzDataset(data.Dataset):
         image = np.load(self.datadir / f"{recording_id}.npy")  
         image = mono_to_color(image)
         image = np.moveaxis(image, 2, 0)
-        image = (image / 255.0).astype(np.float32)
+        image = (image - image.min())/(image.max()-image.min())  # norm 0~1
         
         if self.phase == 'train':
             p = random.random()
