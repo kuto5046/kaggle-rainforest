@@ -43,13 +43,11 @@ class SpectrogramDataset(data.Dataset):
         self.pcen_parameters = pcen_parameters
         
         # pseudo labeling
-        # self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60_v2.csv').reset_index(drop=True)
-        # self.train_fp_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_fp_pseudo.csv').reset_index(drop=True)
-        # self.train_pseudo = pd.concat([self.train_tp_pseudo, self.train_fp_pseudo])
-        # label_columns = [f"{col}" for col in range(24)]
-        # self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
+        self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60.csv').reset_index(drop=True)
+        label_columns = [f"{col}" for col in range(24)]
+        self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
         
-        self.train_pseudo = None
+        # self.train_pseudo = None
 
     def __len__(self):
         return len(self.df)
@@ -100,7 +98,7 @@ class SpectrogramDataset(data.Dataset):
                     else:
                         labels[int(row['species_id'])] = -1.0
 
-                # labels = add_pseudo_label(labels, recording_id, train_pseudo)  # pseudo label
+                labels = add_pseudo_label(labels, recording_id, train_pseudo)  # pseudo label
                 return np.asarray(images), labels
 
             elif self.phase == 'test':
@@ -345,7 +343,7 @@ def strong_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
         else:
             labels[int(row['species_id'])] = -1.0  # fp label
 
-    # labels = add_pseudo_label(labels, recording_id, pseudo_df, beginning_time, ending_time)
+    labels = add_pseudo_label(labels, recording_id, pseudo_df, beginning_time, ending_time)
     return y, labels
 
 
