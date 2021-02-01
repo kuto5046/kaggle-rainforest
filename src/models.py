@@ -1,6 +1,7 @@
 import os
 import random
 import torch
+
 import numpy as np
 from torch import nn
 import torch.nn.functional as F
@@ -59,12 +60,18 @@ class Learner(pl.LightningModule):
         if self.config['mixup']['flag'] and do_mixup:
             loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
-            loss = self.criterion(output, y, phase="train")
+            posi_loss, nega_loss = self.criterion(output, y, phase="train")
+            loss = posi_loss + nega_loss
 
+        posi_mask = (y == 1).float()  # TPのみ
+        pred = pred * posi_mask
+        y = y * posi_mask
         lwlrap = LWLRAP(pred, y)
-        f1_score = self.f1(pred, y)
+        f1_score = self.f1(pred.sigmoid(), y)
 
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'posi_loss/train', posi_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'nega_loss/train', nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
 
@@ -77,14 +84,22 @@ class Learner(pl.LightningModule):
         x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
     
         output = self.model(x)
-        loss = self.criterion(output, y, phase='valid')
+        posi_loss, nega_loss = self.criterion(output, y, phase='valid')
+        loss = posi_loss + nega_loss
         pred = output[self.output_key]
         if 'framewise' in self.output_key:
             pred, _ = pred.max(dim=1)
+
         pred = C.split2one(pred, y)
+
+        posi_mask = (y == 1).float()  # TPのみ
+        pred = pred * posi_mask
+        y = y * posi_mask
         lwlrap = LWLRAP(pred, y)
-        f1_score = self.f1(pred, y)
+        f1_score = self.f1(pred.sigmoid(), y)
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'posi_loss/val', posi_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'nega_loss/val', nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss

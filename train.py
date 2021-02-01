@@ -41,12 +41,16 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
             batch_size = x_list.shape[0]
             x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
             x = x.to(config["globals"]["device"])
-            
+            y = y.to(config["globals"]["device"])
             if "SED" in config["model"]["name"]:
                 output = model.model(x)
                 output = output[output_key]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
+
+            posi_mask = (y == 1).float().to(config["globals"]["device"])  # TPのみ
+            pred = pred * posi_mask
+            y = y * posi_mask
             score = LWLRAP(pred, y)
             scores.append(score)
             pred = torch.argsort(pred, dim=-1, descending=True)

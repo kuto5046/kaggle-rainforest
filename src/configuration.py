@@ -1,10 +1,12 @@
 import pandas as pd
 import numpy as np
+import itertools
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as data
 import sklearn.model_selection as sms
+from torch.utils.data.sampler import Sampler, RandomSampler
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 from src.sam import SAM
 import src.dataset as datasets
@@ -104,7 +106,8 @@ def get_loader(df: pd.DataFrame,
                phase: str):
 
     dataset_config = config["dataset"]
-
+    
+    
     if dataset_config["name"] == "SpectrogramDataset":
         dataset = datasets.SpectrogramDataset(
             df,
@@ -122,9 +125,19 @@ def get_loader(df: pd.DataFrame,
     else:
         raise NotImplementedError
 
-    loader_config = config["loader"][phase]
-    loader = data.DataLoader(dataset, **loader_config, worker_init_fn=worker_init_fn)
+    if phase == 'train':
+        sampler_config = config['loader'][phase]['sampler']
+        loader_config = config["loader"][phase]['params']
+        labeled_idxs = df[df["data_type"]=="tp"].index
+        unlabeled_idxs = df[df["data_type"]=="fp"].index
+        batch_sampler = TwoStreamBatchSampler(unlabeled_idxs, labeled_idxs, **sampler_config)
+        loader = data.DataLoader(dataset, batch_sampler=batch_sampler, **loader_config, worker_init_fn=worker_init_fn)
+    else:
+        loader_config = config["loader"][phase]
+        loader = data.DataLoader(dataset, **loader_config, worker_init_fn=worker_init_fn) 
+
     return loader
+
 
 def worker_init_fn(worker_id):                                                          
     np.random.seed(np.random.get_state()[1][0] + worker_id)
@@ -139,3 +152,51 @@ def split2one(input, target):
     input_ = input.view(target.shape[0], -1, target.shape[1])  # y.shape[1]==num_classes
     input_ = torch.max(input_, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
     return input_
+
+
+class TwoStreamBatchSampler(RandomSampler):
+    """Iterate two sets of indices
+    An 'epoch' is one iteration through the primary indices.
+    During the epoch, the secondary indices are iterated through
+    as many times as needed.
+    """
+    def __init__(self, primary_indices, secondary_indices, batch_size, secondary_batch_size):  # secondalry == labeled
+        self.primary_indices = primary_indices
+        self.secondary_indices = secondary_indices
+        self.secondary_batch_size = secondary_batch_size
+        self.primary_batch_size = batch_size - secondary_batch_size
+
+        assert len(self.primary_indices) >= self.primary_batch_size > 0
+        assert len(self.secondary_indices) >= self.secondary_batch_size > 0
+
+    def __iter__(self):
+        primary_iter = iterate_once(self.primary_indices)
+        secondary_iter = iterate_eternally(self.secondary_indices)
+        return (
+            primary_batch + secondary_batch
+            for (primary_batch, secondary_batch)
+            in  zip(grouper(primary_iter, self.primary_batch_size),
+                    grouper(secondary_iter, self.secondary_batch_size))
+        )
+
+    def __len__(self):
+        return len(self.primary_indices) // self.primary_batch_size
+
+
+
+def iterate_once(iterable):
+    return np.random.permutation(iterable)
+
+
+def iterate_eternally(indices):
+    def infinite_shuffles():
+        while True:
+            yield np.random.permutation(indices)
+    return itertools.chain.from_iterable(infinite_shuffles())
+
+
+def grouper(iterable, n):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3) --> ABC DEF"
+    args = [iter(iterable)] * n
+    return zip(*args)

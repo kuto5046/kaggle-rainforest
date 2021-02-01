@@ -43,13 +43,13 @@ class SpectrogramDataset(data.Dataset):
         self.pcen_parameters = pcen_parameters
         
         # pseudo labeling
-        self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60_v2.csv').reset_index(drop=True)
+        # self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_ps60_v2.csv').reset_index(drop=True)
         # self.train_fp_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_fp_pseudo.csv').reset_index(drop=True)
         # self.train_pseudo = pd.concat([self.train_tp_pseudo, self.train_fp_pseudo])
-        label_columns = [f"{col}" for col in range(24)]
-        self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
+        # label_columns = [f"{col}" for col in range(24)]
+        # self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
         
-        # self.train_pseudo = None
+        self.train_pseudo = None
 
     def __len__(self):
         return len(self.df)
@@ -92,12 +92,17 @@ class SpectrogramDataset(data.Dataset):
 
             if self.phase == 'valid':
                 query_string = f"recording_id == '{recording_id}'"
-                all_tp_events = self.df.query(query_string)
-                labels = np.zeros(len(self.df['species_id'].unique()), dtype=np.float32)
-                for species_id in all_tp_events["species_id"].unique():
-                    labels[int(species_id)] = 1.0
+                all_events = self.df.query(query_string)
+                labels = np.zeros(24, dtype=np.float32)
+                for idx, row in all_events.iterrows():
+                    if row['data_type'] == 'tp':
+                        labels[int(row['species_id'])] = 1.0
+                    else:
+                        labels[int(row['species_id'])] = -1.0
+
                 labels = add_pseudo_label(labels, recording_id, train_pseudo)  # pseudo label
                 return np.asarray(images), labels
+
             elif self.phase == 'test':
                 labels = -1  # testなので-1を返す
                 return np.asarray(images), labels
@@ -322,24 +327,24 @@ def strong_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
     # dfには同じrecording_idだけどclipしたt内に別のラベルがあるものもある
     # そこでそれには正しいidを付けたい
     recording_id = df.loc[idx, "recording_id"]
-    try:  # tp data
-        main_species_id = df.loc[idx, "species_id"]
-    except:  # fp data
-        main_species_id = None
+    # try:  # tp data
+    #     main_species_id = df.loc[idx, "species_id"]
+    # except:  # fp data
+    #     main_species_id = None
 
     query_string = f"recording_id == '{recording_id}' & "
     query_string += f"t_min < {ending_time} & t_max > {beginning_time}"
 
     # 同じrecording_idのものを
-    all_tp_events = df.query(query_string)
+    all_events = df.query(query_string)
 
-    labels = np.zeros(len(df['species_id'].unique()), dtype=np.float32)
-    for species_id in all_tp_events["species_id"].unique():
-        if species_id == main_species_id:
-            labels[int(species_id)] = 1.0  # main label
+    labels = np.zeros(24, dtype=np.float32)
+    for idx, row in all_events.iterrows(): 
+        if row['data_type'] == 'tp':  # もしかしたらfpも混ざっているかもしれないので
+            labels[int(row['species_id'])] = 1.0  # tp label
         else:
-            labels[int(species_id)] = 1.0  # secondaly label
-    
+            labels[int(row['species_id'])] = -1.0  # fp label
+
     labels = add_pseudo_label(labels, recording_id, pseudo_df, beginning_time, ending_time)
     return y, labels
 
