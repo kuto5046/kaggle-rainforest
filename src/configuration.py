@@ -125,7 +125,7 @@ def get_loader(df: pd.DataFrame,
     else:
         raise NotImplementedError
 
-    if phase == 'train':
+    if phase in ['train', 'valid']:
         sampler_config = config['loader'][phase]['sampler']
         loader_config = config["loader"][phase]['params']
         labeled_idxs = df[df["data_type"]=="tp"].index
