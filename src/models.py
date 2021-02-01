@@ -78,20 +78,20 @@ class Learner(pl.LightningModule):
         
         nega_weight = get_current_weight(self.current_epoch)
         weighted_nega_loss = nega_loss * nega_weight
-        total_loss = main_loss + weighted_nega_loss
+        loss = main_loss + weighted_nega_loss
     
         y = torch.where(y > 0., 1., 0.)  # 正例のみ残す
         lwlrap = LWLRAP(pred, y)
-        f1_score = self.f1(pred, y)
+        f1_score = self.f1(pred.sigmoid(), y)
 
-        self.log(f'total_loss/train', total_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'main_loss/train', main_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'nega_loss/train', nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'weighted_nega_loss/train', weighted_nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
 
-        return total_loss
+        return loss
     
     # batchのxはlist型
     def validation_step(self, batch, batch_idx):
@@ -108,19 +108,19 @@ class Learner(pl.LightningModule):
 
         nega_weight = get_current_weight(self.current_epoch)
         weighted_nega_loss = nega_loss * nega_weight
-        total_loss = main_loss + weighted_nega_loss
+        loss = main_loss + weighted_nega_loss
 
         y = torch.where(y > 0., 1., 0.)  # 正例のみ残す
         lwlrap = LWLRAP(pred, y)
-        f1_score = self.f1(pred, y)
+        f1_score = self.f1(pred.sigmoid(), y)
 
-        self.log(f'total_loss/train', total_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'main_loss/train', main_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'nega_loss/train', nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'weighted_nega_loss/train', weighted_nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'main_loss/val', main_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'nega_loss/val', nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'weighted_nega_loss/val', weighted_nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        return total_loss
+        return loss
 
 
     def configure_optimizers(self):

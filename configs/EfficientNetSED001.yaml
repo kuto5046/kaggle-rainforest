@@ -9,10 +9,6 @@ globals:
   only_pred: False
   folds:
     - 0 
-    - 1
-    - 2
-    - 3
-    - 4
   debug: False
   kaggle: False
 
@@ -23,12 +19,12 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: ramup nega_loss sampling 1500
+      message: TP test
 data:
   root: ./
   use_train_data:
     - tp
-    - fp
+    # - fp
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
   train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
   train_audio_path: input/rfcx-species-audio-detection/train
@@ -89,7 +85,7 @@ model:
 
 loader:
   train:
-    batch_size: 32
+    batch_size: 8
     shuffle: True
     num_workers: 10
   valid:
