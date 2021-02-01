@@ -66,6 +66,8 @@ class Learner(pl.LightningModule):
         posi_mask = (y == 1).float()  # TPのみ
         pred = pred * posi_mask
         y = y * posi_mask
+        pred = pred[y.sum(axos=1) > 0]
+        y = y[y.sum(axis=1) > 0]
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred.sigmoid(), y)
 
@@ -95,6 +97,8 @@ class Learner(pl.LightningModule):
         posi_mask = (y == 1).float()  # TPのみ
         pred = pred * posi_mask
         y = y * posi_mask
+        pred = pred[y.sum(axos=1) > 0]
+        y = y[y.sum(axis=1) > 0]
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred.sigmoid(), y)
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
