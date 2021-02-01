@@ -1,7 +1,7 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 3 
+  max_epochs: 5 
   output_dir: output
   timestamp: None
   pretrained: True
@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: akk tp/fp 1:1 twicesampler
+      message: stage2 tp/fp 1:1 twicesampler change primary
 data:
   root: ./
   use_train_data:

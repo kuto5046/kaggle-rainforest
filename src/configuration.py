@@ -130,7 +130,7 @@ def get_loader(df: pd.DataFrame,
         loader_config = config["loader"][phase]['params']
         labeled_idxs = df[df["data_type"]=="tp"].index
         unlabeled_idxs = df[df["data_type"]=="fp"].index
-        batch_sampler = TwoStreamBatchSampler(unlabeled_idxs, labeled_idxs, **sampler_config)
+        batch_sampler = TwoStreamBatchSampler(labeled_idxs, unlabeled_idxs, **sampler_config)
         loader = data.DataLoader(dataset, batch_sampler=batch_sampler, **loader_config, worker_init_fn=worker_init_fn)
     else:
         loader_config = config["loader"][phase]
