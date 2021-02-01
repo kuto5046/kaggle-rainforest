@@ -196,7 +196,8 @@ def main():
                 max_epochs=global_config["max_epochs"],
                 gpus=[0],
                 fast_dev_run=global_config["debug"],
-                deterministic=True)
+                deterministic=True,
+                precision=16)
             
             if not global_config['only_pred']:
                 trainer.fit(model, train_dataloader=loaders['train'], val_dataloaders=loaders['valid'])
