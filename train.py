@@ -51,7 +51,7 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
             posi_mask = (y == 1).float().to(config["globals"]["device"])  # TPのみ
             pred = pred * posi_mask
             y = y * posi_mask
-            pred = pred[y.sum(axos=1) > 0]
+            pred = pred[y.sum(axis=1) > 0]
             y = y[y.sum(axis=1) > 0]
             score = LWLRAP(pred, y)
             scores.append(score)
