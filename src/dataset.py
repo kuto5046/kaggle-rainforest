@@ -277,13 +277,15 @@ def random_clip_audio(df, y, sr, idx, effective_length, pseudo_df):
     query_string = f"recording_id == '{recording_id}'"
 
     # 同じrecording_idのものを
-    all_tp_events = df.query(query_string)
+    all_events = df.query(query_string)
 
     labels = np.zeros(len(df['species_id'].unique()), dtype=np.float32)
-    for species_id in all_tp_events["species_id"].unique():
-        labels[int(species_id)] = 1.0
-    labels = add_pseudo_label(labels, recording_id, pseudo_df)
-     
+    for idx, row in all_events.iterrows(): 
+        if row['data_type'] == 'tp':  # もしかしたらfpも混ざっているかもしれないので
+            labels[int(row['species_id'])] = 1.0  # tp label
+        else:
+            labels[int(row['species_id'])] = -1.0  # fp label
+
     return y, labels
 
 
