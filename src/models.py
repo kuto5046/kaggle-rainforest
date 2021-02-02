@@ -61,11 +61,10 @@ class Learner(pl.LightningModule):
             posi_loss, nega_loss = self.criterion(output, y, phase="train")
             loss = posi_loss + nega_loss
 
-        posi_mask = (y == 1).float()  # TPのみ
-        pred = pred * posi_mask
-        y = y * posi_mask
-        pred = pred[y.sum(axis=1) > 0]
-        y = y[y.sum(axis=1) > 0]
+        posi_mask = (y >= 0).float()  
+        y = y * posi_mask  # 負例を除く(-1 -> 0)
+        y = y[y.sum(axis=1) > 0]  # 負例のみのデータを取り除く
+        pred = pred[y.sum(axis=1) > 0]  # 負例のみのデータを取り除く
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred.sigmoid(), y)
         recall_score = self.recall(pred.sigmoid(), y)
@@ -96,11 +95,10 @@ class Learner(pl.LightningModule):
 
         pred = C.split2one(pred, y)
 
-        posi_mask = (y == 1).float()  # TPのみ
-        pred = pred * posi_mask
-        y = y * posi_mask
-        pred = pred[y.sum(axis=1) > 0]
-        y = y[y.sum(axis=1) > 0]
+        posi_mask = (y >= 0).float()  
+        y = y * posi_mask  # 負例を除く(-1 -> 0)
+        y = y[y.sum(axis=1) > 0]  # 負例のみのデータを取り除く
+        pred = pred[y.sum(axis=1) > 0]  # 負例のみのデータを取り除く
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred.sigmoid(), y)
         recall_score = self.recall(pred.sigmoid(), y)

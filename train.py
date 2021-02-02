@@ -48,11 +48,11 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
 
-            posi_mask = (y == 1).float().to(config["globals"]["device"])  # TPのみ
-            pred = pred * posi_mask
+            posi_mask = (y >= 0).float().to(config["globals"]["device"])  # TPのみ
             y = y * posi_mask
             pred = pred[y.sum(axis=1) > 0]
             y = y[y.sum(axis=1) > 0]
+
             score = LWLRAP(pred, y)
             scores.append(score)
             pred = torch.argsort(pred, dim=-1, descending=True)
