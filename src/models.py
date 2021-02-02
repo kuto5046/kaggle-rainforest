@@ -77,7 +77,7 @@ class Learner(pl.LightningModule):
         self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'Recall/train', recall_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        # self.log(f'Precision/train', precision_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'Precision/train', precision_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
 
         return loss
     
@@ -112,7 +112,7 @@ class Learner(pl.LightningModule):
         self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'Recall/val', recall_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        # self.log(f'Precision/val', precision_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'Precision/val', precision_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
 
 
