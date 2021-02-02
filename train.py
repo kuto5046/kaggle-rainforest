@@ -266,6 +266,9 @@ def main():
         for recall, prec in zip(all_recall_score, all_precision_score):
             val_recall_score += recall
             val_precision_score += precision
+        
+        val_recall_score = val_recall_score / len(val_recall_score)
+        val_precision_score = val_precision_score / len(val_precision_score)
     else:
         raise NotImplementedError
 
