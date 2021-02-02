@@ -44,25 +44,24 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
         for x_list, y in tqdm(loaders['valid']):
             batch_size = x_list.shape[0]
             x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
-            x = x.to(config["globals"]["device"])
-            y = y.to(config["globals"]["device"])
+            x = x.to("cuda")
             if "SED" in config["model"]["name"]:
                 output = model.model(x)
                 output = output[output_key]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
-
-            posi_mask = (y >= 0).float().to(config["globals"]["device"])  # TPのみ
+            pred = pred.cpu()
+            posi_mask = (y >= 0).float()  # TPのみ
             y = y * posi_mask
             pred = pred[y.sum(axis=1) > 0]
             y = y[y.sum(axis=1) > 0]
 
-            lwlrap = LWLRAP(pred, y)
-            recall = recall(pred.sigmoid(), y)
-            precision = precision(pred.sigmoid(), y)
-            lwlrap_scores.append(lwlrap)
-            recall_scores.append(recall)
-            precision_scores.append(precision)
+            lwlrap_score = LWLRAP(pred, y)
+            recall_score = recall(pred.sigmoid(), y)
+            precision_score = precision(pred.sigmoid(), y)
+            lwlrap_scores.append(lwlrap_score)
+            recall_scores.append(recall_score)
+            precision_scores.append(precision_score)
             pred = torch.argsort(pred, dim=-1, descending=True)
             preds.append(pred.detach().cpu().numpy())
 
@@ -232,11 +231,11 @@ def main():
         model.eval().to(device)
         
         # valid
-        lwlrap, recall, precision = valid_step(model, val_df, loaders, config, output_dir, fold)
-        mlf_logger.log_metrics({f'LWLRAP/fold{fold}':lwlrap}, step=None)
-        all_lwlrap_score.append(lwlrap)
-        all_recall_score.append(recall)
-        all_precision_score.append(precision)
+        lwlrap_score, recall_score, precision_score = valid_step(model, val_df, loaders, config, output_dir, fold)
+        mlf_logger.log_metrics({f'LWLRAP/fold{fold}':lwlrap_score}, step=None)
+        all_lwlrap_score.append(lwlrap_score)
+        all_recall_score.append(recall_score)
+        all_precision_score.append(precision_score)
         # test
         preds = test_step(model, sub_df, test_loader, config, output_dir, fold)
         all_preds.append(preds)  # foldの予測結果を格納
