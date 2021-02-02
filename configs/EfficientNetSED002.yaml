@@ -93,7 +93,7 @@ loader:
   train:
     sampler:
       batch_size: 16
-      secondary_batch_size: 12  # FP batch
+      secondary_batch_size: 8  # FP batch
     params:
       num_workers: 10
       pin_memory: True
@@ -101,7 +101,7 @@ loader:
   valid:
     sampler:
       batch_size: 16
-      secondary_batch_size: 12   # FP batch
+      secondary_batch_size: 8   # FP batch
     params:
       num_workers: 10
       pin_memory: True
