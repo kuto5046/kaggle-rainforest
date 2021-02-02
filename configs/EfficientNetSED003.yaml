@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage3 60s pseudo label_prob=0.5
+      message: stage3 60s pseudo thr5 label_prob=0.5
 data:
   root: ./
   use_train_data:
