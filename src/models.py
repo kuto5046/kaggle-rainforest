@@ -21,12 +21,8 @@ from src.conformer import ConformerBlock
 import pytorch_lightning as pl
 from torchlibrosa.stft import Spectrogram, LogmelFilterBank
 from torchlibrosa.augmentation import SpecAugmentation
-from pytorch_lightning.metrics import F1, Recall, Precision
+from pytorch_lightning.metrics.classification import F1, Recall, Precision
 
-def calc_acc(pred, y):
-    pred = torch.sigmoid(pred).detach().cpu().numpy()
-    y = y.detach().cpu().numpy()
-    return accuracy_score(y, pred)
 
 """
 ############
@@ -43,7 +39,7 @@ class Learner(pl.LightningModule):
         self.criterion = C.get_criterion(self.config)
         self.f1 = F1(num_classes=24, multilabel=True)
         self.recall = Recall(num_classes=24, multilabel=True)
-        self.precision = Precision(num_classes=24, multilabel=True)
+        self.prec = Precision(num_classes=24, multilabel=True)
 
     
     def training_step(self, batch, batch_idx):
@@ -73,7 +69,7 @@ class Learner(pl.LightningModule):
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred.sigmoid(), y)
         recall_score = self.recall(pred.sigmoid(), y)
-        precision_score = self.precision(pred.sigmoid(), y)
+        precision_score = self.prec(pred.sigmoid(), y)
 
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'posi_loss/train', posi_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -81,7 +77,7 @@ class Learner(pl.LightningModule):
         self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'Recall/train', recall_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'Precision/train', precision_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        # self.log(f'Precision/train', precision_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
 
         return loss
     
@@ -108,7 +104,7 @@ class Learner(pl.LightningModule):
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred.sigmoid(), y)
         recall_score = self.recall(pred.sigmoid(), y)
-        precision_score = self.precision(pred.sigmoid(), y)
+        precision_score = self.prec(pred.sigmoid(), y)
         
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'posi_loss/val', posi_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -116,7 +112,7 @@ class Learner(pl.LightningModule):
         self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'Recall/val', recall_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
-        self.log(f'Precision/val', precision_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        # self.log(f'Precision/val', precision_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
 
 
