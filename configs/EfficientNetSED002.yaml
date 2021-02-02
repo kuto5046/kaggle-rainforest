@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage2 tp:fp=1:1 5epoch(test)
+      message: stage2 tp:fp=1:3 5epoch
 data:
   root: ./
   use_train_data:
@@ -93,7 +93,7 @@ loader:
   train:
     sampler:
       batch_size: 16
-      secondary_batch_size: 8  # FP batch
+      secondary_batch_size: 12  # FP batch
     params:
       num_workers: 10
       pin_memory: True
@@ -101,7 +101,7 @@ loader:
   valid:
     sampler:
       batch_size: 16
-      secondary_batch_size: 1   # FP batch
+      secondary_batch_size: 12   # FP batch
     params:
       num_workers: 10
       pin_memory: True
