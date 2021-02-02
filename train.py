@@ -26,14 +26,18 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import MLFlowLogger
-
+from pytorch_lightning.metrics.classification import F1, Recall, Precision
 os.environ['NUMEXPR_MAX_THREADS'] = '24'
 
 
 def valid_step(model, val_df, loaders, config, output_dir, fold):
     # ckptのモデルでoof出力
     preds = []
-    scores = []
+    lwlrap_scores = []
+    recall_scores = []
+    precision_scores = []
+    recall = Recall(num_classes=24, multilabel=True)
+    precision = Precision(num_classes=24, multilabel=True)
     output_key = config['model']['output_key']
     with torch.no_grad():
         # xは複数のlist
@@ -53,14 +57,19 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
             pred = pred[y.sum(axis=1) > 0]
             y = y[y.sum(axis=1) > 0]
 
-            score = LWLRAP(pred, y)
-            scores.append(score)
+            lwlrap = LWLRAP(pred, y)
+            recall = recall(pred.sigmoid(), y)
+            precision = precision(pred.sigmoid(), y)
+            lwlrap_scores.append(lwlrap)
+            recall_scores.append(recall)
+            precision_scores.append(precision)
             pred = torch.argsort(pred, dim=-1, descending=True)
             preds.append(pred.detach().cpu().numpy())
 
         # log
-        lwlrap_score = np.mean(scores, axis=0)
-
+        lwlrap_score = np.mean(lwlrap_scores, axis=0)
+        recall_score = np.mean(recall_scores, axis=0)
+        precision_score = np.mean(precision_scores, axis=0)
         # make oof
         # oof_df = val_df.copy()
         # pred_columns = [f'rank_{i}' for i in range(24)]
@@ -79,7 +88,7 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
         # oof_df['top_id'] = top_ids
         # oof_df.to_csv(output_dir / f'oof_fold{fold}.csv', index=False)
     
-        return lwlrap_score
+        return lwlrap_score, recall_score, precision_score
 
 
 def test_step(model, sub_df, test_loader, config, output_dir, fold):
@@ -147,6 +156,8 @@ def main():
 
     all_preds = []  # 全体の結果を格納
     all_lwlrap_score = []  # val scoreを記録する用
+    all_recall_score = []  # val scoreを記録する用
+    all_precision_score = []  # val scoreを記録する用
     for fold, (trn_idx, val_idx) in enumerate(splitter.split(df, y=df['species_id'])):
         # 指定したfoldのみループを回す
         if fold not in global_config['folds']:
@@ -221,10 +232,11 @@ def main():
         model.eval().to(device)
         
         # valid
-        lwlrap_score = valid_step(model, val_df, loaders, config, output_dir, fold)
-        mlf_logger.log_metrics({f'LWLRAP/fold{fold}':lwlrap_score}, step=None)
-        all_lwlrap_score.append(lwlrap_score)
-
+        lwlrap, recall, precision = valid_step(model, val_df, loaders, config, output_dir, fold)
+        mlf_logger.log_metrics({f'LWLRAP/fold{fold}':lwlrap}, step=None)
+        all_lwlrap_score.append(lwlrap)
+        all_recall_score.append(recall)
+        all_precision_score.append(precision)
         # test
         preds = test_step(model, sub_df, test_loader, config, output_dir, fold)
         all_preds.append(preds)  # foldの予測結果を格納
@@ -249,10 +261,18 @@ def main():
         sub_preds = 0
         for i, pred in enumerate(all_preds):
             sub_preds += pred * weights[i]
+        
+        val_recall_score = 0
+        val_precision_score = 0
+        for recall, prec in zip(all_recall_score, all_precision_score):
+            val_recall_score += recall
+            val_precision_score += precision
     else:
         raise NotImplementedError
 
     mlf_logger.log_metrics({f'LWLRAP/all':val_lwlrap_score}, step=None)
+    mlf_logger.log_metrics({f'Recall/all':val_recall_score}, step=None)
+    mlf_logger.log_metrics({f'Precision/all':val_precision_score}, step=None)
     mlf_logger.log_metrics({f'LWLRAP/LB_Score': 0.0}, step=None)
     mlf_logger.finalize()
 
