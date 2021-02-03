@@ -5,7 +5,7 @@ globals:
   output_dir: output
   timestamp: None
   pretrained: True
-  pretrained_model_dir: ./backup/0201_181828/  # ./output/0123_181828/
+  pretrained_model_dir: ./backup/0123_181828/  # ./output/0123_181828/
   only_pred: False
   folds:
     - 0
