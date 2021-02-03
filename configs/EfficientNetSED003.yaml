@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage3 pseudo thr3
+      message: stage3 toda's pseudo
 data:
   root: ./
   use_train_data:
@@ -42,7 +42,7 @@ dataset:
   width: 400
   period: 10
   shift_time: 10
-  strong_label_prob: 1.0
+  strong_label_prob: 0.5
   params:
     melspec:
       n_fft: 2048
