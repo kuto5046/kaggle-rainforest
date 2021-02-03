@@ -5,7 +5,7 @@ globals:
   output_dir: output
   timestamp: None
   pretrained: True
-  pretrained_model_dir: ./output/0123_181828/
+  pretrained_model_dir: ./output/0201_213254/  # ./output/0123_181828/
   only_pred: False
   folds:
     - 0
@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage3 10s pseudo thr5 by stage1 model
+      message: stage3 60s pseudo thr5 by stage2 model
 data:
   root: ./
   use_train_data:
