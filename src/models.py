@@ -124,9 +124,14 @@ class Learner(pl.LightningModule):
 class SAMLearner(Learner):
     def __init__(self, model, config):
         super().__init__(model, config)
+
         self.config = config
+        self.model = model
+        self.output_key = config["model"]["output_key"]
         self.criterion = C.get_criterion(self.config)
-        self.f1 = F1(num_classes=24)
+        self.f1 = F1(num_classes=24, multilabel=True)
+        self.recall = Recall(num_classes=24, multilabel=True)
+        self.prec = Precision(num_classes=24, multilabel=True)
 
     # DEFAULT
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx,
@@ -866,7 +871,7 @@ def get_model(config: dict):
         learner = Learner(model, config)
     elif model_name == "EfficientNetSED":
         model = EfficientNetSED(config)
-        learner = Learner(model, config)
+        learner = SAMLearner(model, config)
     elif model_name == "ConformerSED":
         model = ConformerSED(config)
         learner = Learner(model, config)
