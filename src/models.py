@@ -871,7 +871,7 @@ def get_model(config: dict):
         learner = Learner(model, config)
     elif model_name == "EfficientNetSED":
         model = EfficientNetSED(config)
-        learner = SAMLearner(model, config)
+        learner = Learner(model, config)
     elif model_name == "ConformerSED":
         model = ConformerSED(config)
         learner = Learner(model, config)
