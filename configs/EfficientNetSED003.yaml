@@ -1,7 +1,7 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 5 
+  max_epochs: 10
   output_dir: output
   timestamp: None
   pretrained: True
@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage3 toda's 8s pseudo weighted nega_loss
+      message: stage3 best model 10 epoch
 data:
   root: ./
   use_train_data:
