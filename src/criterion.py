@@ -65,8 +65,9 @@ class FocalLoss(nn.Module):
         focal_pw = (1. - probas)**self.gamma
         posi_loss = (posi_loss * posi_mask * focal_pw).sum()
         nega_loss = (nega_loss * nega_mask).sum()  # ラベルのついているクラスのみlossを残す
-        pos_w = 0 if posi_mask.sum() == 0 else 1/posi_mask.sum()
-        return posi_loss*pos_w, nega_loss
+        # pos_w = 0 if posi_mask.sum() == 0 else 1/posi_mask.sum()
+        nega_w = 0 if nega_mask.sum() == 0 else 1/nega_mask.sum()
+        return posi_loss, nega_loss*nega_w
 
 # sigmoidを内包しているのでlogitを入力とする
 class BCEWithLogitsLoss(nn.Module):
