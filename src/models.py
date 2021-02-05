@@ -58,8 +58,8 @@ class Learner(pl.LightningModule):
         if self.config['mixup']['flag'] and do_mixup:
             loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
-            posi_loss, nega_loss = self.criterion(output, y, phase="train")
-            loss = posi_loss + nega_loss
+            normal_loss, posi_loss, nega_loss = self.criterion(output, y, phase="train")
+            loss = normal_loss + posi_loss + nega_loss
 
         posi_mask = (y >= 0).float()  
         y = y * posi_mask  # 負例を除く(-1 -> 0)

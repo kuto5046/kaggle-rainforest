@@ -40,6 +40,7 @@ class FocalLoss(nn.Module):
         super().__init__()
         self.posi_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
+        self.normal_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.output_key = output_key
         self.gamma = gamma
         self.alpha = alpha
@@ -48,30 +49,31 @@ class FocalLoss(nn.Module):
         input = inputs[self.output_key]
         target = target.float()
     
-        # posi_mask = (target == 1).float()
-
-        posi_mask = (target >= 0).float()  
+        posi_mask = (target == 1).float()
+        normal_mask = (target >= 0).float()  
         nega_mask = (target == -1).float()  # (20, 24)
         
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
         if phase == 'valid':
             input = C.split2one(input, target)
         
-        posi_y = torch.where(target > 0., 1., 0.).to('cuda')  # -1を0にする
-        # posi_y = torch.ones(input.shape).to('cuda')
+        normal_y = torch.where(target > 0., 1., 0.).to('cuda')  # -1を0にする
+        posi_y = torch.ones(input.shape).to('cuda')
         nega_y = torch.zeros(input.shape).to('cuda')  # dummy
 
+        normal_loss = self.normal_loss(input, normal_y)
         posi_loss = self.posi_loss(input, posi_y)
         nega_loss = self.nega_loss(input, nega_y)  # 全て負例と見做してloss計算
+
         probas = input.sigmoid()
-        # focal_pw = (1. - probas)**self.gamma
-        # posi_loss = (posi_loss * posi_mask * focal_pw).sum()
-        posi_loss = torch.where(target >= 0.5, (1. - probas)**self.gamma * posi_loss, probas**self.gamma * posi_loss).sum()
-        nega_loss = (nega_loss * nega_mask).sum() * 0 # ラベルのついているクラスのみlossを残す
+        normal_loss = torch.where(target >= 0.5, (1. - probas)**self.gamma * normal_loss, probas**self.gamma * normal_loss).sum()
+        posi_loss = (posi_loss * posi_mask * (1. - probas)**self.gamma).sum()
+        nega_loss = (nega_loss * nega_mask).sum() # ラベルのついているクラスのみlossを残す
 
         # pos_w = 0 if posi_mask.sum() == 0 else 1/posi_mask.sum()
         # nega_w = 0 if nega_mask.sum() == 0 else 1/nega_mask.sum()
-        return posi_loss, nega_loss
+        normal_weight = 0.5
+        return normal_loss*normal_weight, posi_loss, nega_loss
 
 # sigmoidを内包しているのでlogitを入力とする
 class BCEWithLogitsLoss(nn.Module):
