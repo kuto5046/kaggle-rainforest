@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage3 best model 10 epoch
+      message: stage3 change posi_loss 10 epoch 
 data:
   root: ./
   use_train_data:
