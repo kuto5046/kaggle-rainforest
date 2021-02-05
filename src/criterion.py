@@ -66,7 +66,7 @@ class FocalLoss(nn.Module):
         probas = input.sigmoid()
         # focal_pw = (1. - probas)**self.gamma
         # posi_loss = (posi_loss * posi_mask * focal_pw).sum()
-        posi_loss = torch.where(target >= 0.5, (1. - probas)**self.gamma * posi_loss, probas**self.gamma * posi_loss)
+        posi_loss = torch.where(target >= 0.5, (1. - probas)**self.gamma * posi_loss, probas**self.gamma * posi_loss).sum()
         nega_loss = (nega_loss * nega_mask).sum() * 0 # ラベルのついているクラスのみlossを残す
 
         # pos_w = 0 if posi_mask.sum() == 0 else 1/posi_mask.sum()
