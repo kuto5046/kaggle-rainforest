@@ -51,12 +51,12 @@ class Learner(pl.LightningModule):
         #     x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
 
         output = self.model(x, y, do_mixup)
-        y, y_shuffle, lam = output['y1'], output['y2'], output['lam']  # for mixup
         pred = output[self.output_key]
         if 'framewise' in self.output_key:
             pred, _ = pred.max(dim=1)
     
         if do_mixup:
+            y, y_shuffle, lam = output['y1'], output['y2'], output['lam']  # for mixup
             posi_loss, nega_loss, zero_loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
             posi_loss, nega_loss, zero_loss = self.criterion(output, y, phase="train")
@@ -88,7 +88,7 @@ class Learner(pl.LightningModule):
         x_list, y = batch
         x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
     
-        output = self.model(x)
+        output = self.model(x, None, do_mixup=False)
         posi_loss, nega_loss, zero_loss = self.criterion(output, y, phase='valid')
         loss = posi_loss + nega_loss + zero_loss
         pred = output[self.output_key]
@@ -520,27 +520,17 @@ class EfficientNetSED(nn.Module):
         framewise_logit = interpolate(segmentwise_logit, self.interpolate_ratio)
         framewise_logit = pad_framewise_output(framewise_logit, frames_num)
 
-        if do_mixup:
-            output_dict = {
-                "clipwise_output": clipwise_output,
-                "framewise_output": framewise_output,
-                "segmentwise_output": segmentwise_output,
-                "logit": logit,
-                "framewise_logit": framewise_logit,
-                "segmentwise_logit": segmentwise_logit,
-                "y1": y1,
-                "y2": y2,
-                "lam": lam
-            }
-        else:
-            output_dict = {
-                "clipwise_output": clipwise_output,
-                "framewise_output": framewise_output,
-                "segmentwise_output": segmentwise_output,
-                "logit": logit,
-                "framewise_logit": framewise_logit,
-                "segmentwise_logit": segmentwise_logit,
-            } 
+        output_dict = {
+            "clipwise_output": clipwise_output,
+            "framewise_output": framewise_output,
+            "segmentwise_output": segmentwise_output,
+            "logit": logit,
+            "framewise_logit": framewise_logit,
+            "segmentwise_logit": segmentwise_logit,
+            "y1": y1 if do_mixup else None,
+            "y2": y2 if do_mixup else None,
+            "lam": lam if do_mixup else None
+        }
 
         return output_dict
 
@@ -853,9 +843,17 @@ def mixup_data(x, y, alpha=1.0, use_cuda=True):
     return mixed_x, y_a, y_b, lam
 
 
-def mixup_criterion(criterion, pred, y_a, y_b, lam, phase='train'):
-    return lam * criterion(pred, y_a, phase) + (1 - lam) * criterion(pred, y_b, phase)
+# def mixup_criterion(criterion, pred, y_a, y_b, lam, phase='train'):
+    # return lam * criterion(pred, y_a, phase) + (1 - lam) * criterion(pred, y_b, phase)
 
+def mixup_criterion(criterion, pred, y_a, y_b, lam, phase='train'):
+    loss1, loss2, loss3 = criterion(pred, y_a, phase)
+    loss4, loss5, loss6 = criterion(pred, y_b, phase)
+
+    posi_loss = lam*loss1 + (1-lam)*loss4
+    nega_loss = lam*loss2 + (1-lam)*loss5
+    zero_loss = lam*loss3 + (1-lam)*loss6
+    return posi_loss, nega_loss, zero_loss
 
 def get_model(config: dict):
     model_name = config["model"]["name"]
