@@ -58,8 +58,8 @@ class Learner(pl.LightningModule):
         if self.config['mixup']['flag'] and do_mixup:
             loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
-            normal_loss, posi_loss, nega_loss = self.criterion(output, y, phase="train")
-            loss = normal_loss + posi_loss + nega_loss
+            posi_loss, nega_loss, zero_loss = self.criterion(output, y, phase="train")
+            loss = posi_loss + nega_loss + zero_loss
 
         posi_mask = (y >= 0).float()  
         y = y * posi_mask  # 負例を除く(-1 -> 0)
@@ -73,6 +73,7 @@ class Learner(pl.LightningModule):
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'posi_loss/train', posi_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'nega_loss/train', nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'zero_loss/train', zero_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'Recall/train', recall_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -87,8 +88,8 @@ class Learner(pl.LightningModule):
         x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
     
         output = self.model(x)
-        normal_loss, posi_loss, nega_loss = self.criterion(output, y, phase='valid')
-        loss = normal_loss, posi_loss + nega_loss
+        posi_loss, nega_loss, zero_loss = self.criterion(output, y, phase='valid')
+        loss = posi_loss + nega_loss + zero_loss
         pred = output[self.output_key]
         if 'framewise' in self.output_key:
             pred, _ = pred.max(dim=1)
@@ -107,6 +108,7 @@ class Learner(pl.LightningModule):
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'posi_loss/val', posi_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'nega_loss/val', nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'zero_loss/val', zero_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'Recall/val', recall_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)

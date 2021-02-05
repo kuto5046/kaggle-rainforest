@@ -50,30 +50,30 @@ class FocalLoss(nn.Module):
         target = target.float()
     
         posi_mask = (target == 1).float()
-        normal_mask = (target >= 0).float()  
         nega_mask = (target == -1).float()  # (20, 24)
+        zero_mask = (target == 0).float()  # 明確にラベルがついていないちょっとあやふやな箇所
         
         # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
         if phase == 'valid':
             input = C.split2one(input, target)
         
-        normal_y = torch.where(target > 0., 1., 0.).to('cuda')  # -1を0にする
         posi_y = torch.ones(input.shape).to('cuda')
         nega_y = torch.zeros(input.shape).to('cuda')  # dummy
+        zero_y = torch.zeros(input.shape).to('cuda')  # dummy
 
-        normal_loss = self.normal_loss(input, normal_y)
         posi_loss = self.posi_loss(input, posi_y)
         nega_loss = self.nega_loss(input, nega_y)  # 全て負例と見做してloss計算
+        zero_loss = self.posi_loss(input, zero_y)
 
         probas = input.sigmoid()
-        normal_loss = torch.where(target >= 0.5, (1. - probas)**self.gamma * normal_loss, probas**self.gamma * normal_loss).sum()
-        posi_loss = (posi_loss * posi_mask * (1. - probas)**self.gamma).sum()
-        nega_loss = (nega_loss * nega_mask).sum() # ラベルのついているクラスのみlossを残す
-
+        focal_pw = (1. - probas)**self.gamma
+        posi_loss = (posi_loss * posi_mask * focal_pw).sum()
+        nega_loss = (nega_loss * nega_mask).sum() * 0 # ラベルのついているクラスのみlossを残す
+        zero_loss = (zero_loss * zero_mask).sum() * 0
         # pos_w = 0 if posi_mask.sum() == 0 else 1/posi_mask.sum()
         # nega_w = 0 if nega_mask.sum() == 0 else 1/nega_mask.sum()
-        normal_weight = 0.5
-        return normal_loss*normal_weight, posi_loss, nega_loss
+        zero_weight = 0.5
+        return posi_loss, nega_loss, zero_loss*zero_weight
 
 # sigmoidを内包しているのでlogitを入力とする
 class BCEWithLogitsLoss(nn.Module):
