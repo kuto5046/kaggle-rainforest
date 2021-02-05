@@ -46,7 +46,7 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
             x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
             x = x.to("cuda")
             if "SED" in config["model"]["name"]:
-                output = model.model(x)
+                output = model.model(x, None, do_mixup=False)
                 output = output[output_key]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
@@ -101,7 +101,7 @@ def test_step(model, sub_df, test_loader, config, output_dir, fold):
             x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
             x = x.to(config["globals"]["device"])
             if "SED" in config["model"]["name"]:
-                output = model.model(x)
+                output = model.model(x, None, do_mixup=False)
                 output = output["logit"]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
