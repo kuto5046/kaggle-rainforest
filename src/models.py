@@ -87,8 +87,8 @@ class Learner(pl.LightningModule):
         x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
     
         output = self.model(x)
-        posi_loss, nega_loss = self.criterion(output, y, phase='valid')
-        loss = posi_loss + nega_loss
+        normal_loss, posi_loss, nega_loss = self.criterion(output, y, phase='valid')
+        loss = normal_loss, posi_loss + nega_loss
         pred = output[self.output_key]
         if 'framewise' in self.output_key:
             pred, _ = pred.max(dim=1)
