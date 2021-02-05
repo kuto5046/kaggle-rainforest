@@ -45,21 +45,22 @@ class Learner(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         p = random.random()
-        do_mixup = True if p < self.config['mixup']['prob'] else False
+        do_mixup = True if (p < self.config['mixup']['prob']) and (self.config['mixup']['flag']) else False
 
-        if self.config['mixup']['flag'] and do_mixup:
-            x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
+        # if self.config['mixup']['flag'] and do_mixup:
+        #     x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
 
-        output = self.model(x)
+        output = self.model(x, y, do_mixup)
+        y, y_shuffle, lam = output['y1'], output['y2'], output['lam']  # for mixup
         pred = output[self.output_key]
         if 'framewise' in self.output_key:
             pred, _ = pred.max(dim=1)
     
-        if self.config['mixup']['flag'] and do_mixup:
-            loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
+        if do_mixup:
+            posi_loss, nega_loss, zero_loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
             posi_loss, nega_loss, zero_loss = self.criterion(output, y, phase="train")
-            loss = posi_loss + nega_loss + zero_loss
+        loss = posi_loss + nega_loss + zero_loss
 
         posi_mask = (y >= 0).float()  
         y = y * posi_mask  # 負例を除く(-1 -> 0)
@@ -484,11 +485,14 @@ class EfficientNetSED(nn.Module):
         init_layer(self.fc1)
 
 
-    def forward(self, input):
+    def forward(self, input, y, do_mixup):
         frames_num = input.size(3)
 
         # (batch_size, channels, freq, frames) ex->(120, 1408, 7, 12)
         x = self.base_model.extract_features(input)
+
+        if do_mixup:
+            x, y1, y2, lam = mixup_data(x, y)
 
         # (batch_size, channels, frames) ex->(120, 1408, 12)
         x = torch.mean(x, dim=2)
@@ -516,14 +520,27 @@ class EfficientNetSED(nn.Module):
         framewise_logit = interpolate(segmentwise_logit, self.interpolate_ratio)
         framewise_logit = pad_framewise_output(framewise_logit, frames_num)
 
-        output_dict = {
-            "clipwise_output": clipwise_output,
-            "framewise_output": framewise_output,
-            "segmentwise_output": segmentwise_output,
-            "logit": logit,
-            "framewise_logit": framewise_logit,
-            "segmentwise_logit": segmentwise_logit  
-        }
+        if do_mixup:
+            output_dict = {
+                "clipwise_output": clipwise_output,
+                "framewise_output": framewise_output,
+                "segmentwise_output": segmentwise_output,
+                "logit": logit,
+                "framewise_logit": framewise_logit,
+                "segmentwise_logit": segmentwise_logit,
+                "y1": y1,
+                "y2": y2,
+                "lam": lam
+            }
+        else:
+            output_dict = {
+                "clipwise_output": clipwise_output,
+                "framewise_output": framewise_output,
+                "segmentwise_output": segmentwise_output,
+                "logit": logit,
+                "framewise_logit": framewise_logit,
+                "segmentwise_logit": segmentwise_logit,
+            } 
 
         return output_dict
 
