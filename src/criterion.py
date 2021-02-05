@@ -72,7 +72,7 @@ class FocalLoss(nn.Module):
         zero_loss = (zero_loss * zero_mask).sum()
         # pos_w = 0 if posi_mask.sum() == 0 else 1/posi_mask.sum()
         # nega_w = 0 if nega_mask.sum() == 0 else 1/nega_mask.sum()
-        zero_weight = 0.5
+        zero_weight = 0.2
         return posi_loss, nega_loss, zero_loss*zero_weight
 
 # sigmoidを内包しているのでlogitを入力とする
