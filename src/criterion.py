@@ -75,7 +75,8 @@ class FocalLoss(nn.Module):
         zero_loss = (zero_loss * zero_mask).sum()
         # pos_w = 0 if posi_mask.sum() == 0 else 1/posi_mask.sum()
         # nega_w = 0 if nega_mask.sum() == 0 else 1/nega_mask.sum()
-        return posi_loss, nega_loss, zero_loss*self.zero_weight
+        zero_w = 0 if zero_mask.sum() == 0 else 1/zero_mask.sum()
+        return posi_loss, nega_loss, zero_loss*zero_w
 
 # sigmoidを内包しているのでlogitを入力とする
 class BCEWithLogitsLoss(nn.Module):
