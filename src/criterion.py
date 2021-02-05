@@ -63,13 +63,13 @@ class FocalLoss(nn.Module):
 
         posi_loss = self.posi_loss(input, posi_y)
         nega_loss = self.nega_loss(input, nega_y)  # 全て負例と見做してloss計算
-        zero_loss = self.posi_loss(input, zero_y)
+        zero_loss = self.zero_loss(input, zero_y)
 
         probas = input.sigmoid()
         focal_pw = (1. - probas)**self.gamma
         posi_loss = (posi_loss * posi_mask * focal_pw).sum()
-        nega_loss = (nega_loss * nega_mask).sum() * 0 # ラベルのついているクラスのみlossを残す
-        zero_loss = (zero_loss * zero_mask).sum() * 0
+        nega_loss = (nega_loss * nega_mask).sum()  # ラベルのついているクラスのみlossを残す
+        zero_loss = (zero_loss * zero_mask).sum()
         # pos_w = 0 if posi_mask.sum() == 0 else 1/posi_mask.sum()
         # nega_w = 0 if nega_mask.sum() == 0 else 1/nega_mask.sum()
         zero_weight = 0.5
