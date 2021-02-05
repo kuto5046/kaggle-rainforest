@@ -36,7 +36,7 @@ class ImprovedPANNsLoss(nn.Module):
 
 # based https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/213075
 class FocalLoss(nn.Module):
-    def __init__(self, output_key="logit", gamma=2.0, alpha=1.0):
+    def __init__(self, output_key="logit", gamma=2.0, alpha=1.0, zero_weight=0.2, zero_smoothing_label=0.2):
         super().__init__()
         self.posi_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
@@ -44,6 +44,8 @@ class FocalLoss(nn.Module):
         self.output_key = output_key
         self.gamma = gamma
         self.alpha = alpha
+        self.zero_weight = zero_weight
+        self.zero_smoothing_label = zero_smoothing_label
 
     def forward(self, inputs, target, phase='train'):
         input = inputs[self.output_key]
@@ -59,7 +61,8 @@ class FocalLoss(nn.Module):
         
         posi_y = torch.ones(input.shape).to('cuda')
         nega_y = torch.zeros(input.shape).to('cuda')  # dummy
-        zero_y = torch.zeros(input.shape).to('cuda')  # dummy
+        zero_y = torch.full(input.shape, self.zero_smoothing_label, dtype="float32")   # zero labelにsmoothingをかける
+        # zero_y = torch.zeros(input.shape).to('cuda')  # dummy
 
         posi_loss = self.posi_loss(input, posi_y)
         nega_loss = self.nega_loss(input, nega_y)  # 全て負例と見做してloss計算
@@ -72,8 +75,7 @@ class FocalLoss(nn.Module):
         zero_loss = (zero_loss * zero_mask).sum()
         # pos_w = 0 if posi_mask.sum() == 0 else 1/posi_mask.sum()
         # nega_w = 0 if nega_mask.sum() == 0 else 1/nega_mask.sum()
-        zero_weight = 0.0
-        return posi_loss, nega_loss, zero_loss*zero_weight
+        return posi_loss, nega_loss, zero_loss*self.zero_weight
 
 # sigmoidを内包しているのでlogitを入力とする
 class BCEWithLogitsLoss(nn.Module):
