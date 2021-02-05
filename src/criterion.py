@@ -40,7 +40,7 @@ class FocalLoss(nn.Module):
         super().__init__()
         self.posi_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
-        self.normal_loss = nn.BCEWithLogitsLoss(reduction='none')
+        self.zero_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.output_key = output_key
         self.gamma = gamma
         self.alpha = alpha
