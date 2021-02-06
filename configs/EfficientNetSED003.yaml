@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage3 lastlayer mixup
+      message: stage3 posi_weight 1.5
 data:
   root: ./
   use_train_data:
@@ -123,6 +123,6 @@ transforms:
   test:
 
 mixup:
-  flag: True
+  flag: False
   alpha: 0.2
   prob: 1.0
