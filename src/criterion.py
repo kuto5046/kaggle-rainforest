@@ -44,7 +44,7 @@ class FocalLoss(nn.Module):
         self.output_key = output_key
         self.gamma = gamma
         self.alpha = alpha
-        self.posi_weight = 1.5
+        self.posi_weight = 2.0
         self.zero_weight = zero_weight
         self.zero_smoothing_label = zero_smoothing_label
 

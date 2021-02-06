@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage3 3 loss normal smoothing=0.5
+      message: stage3 3 loss normal smoothing=0.45 posi_weight=2
 data:
   root: ./
   use_train_data:
