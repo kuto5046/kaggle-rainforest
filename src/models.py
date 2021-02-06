@@ -851,9 +851,11 @@ def mixup_criterion(criterion, pred, y_a, y_b, lam, phase='train'):
     loss4, loss5, loss6 = criterion(pred, y_b, phase)
 
     posi_loss = lam*loss1 + (1-lam)*loss4
-    nega_loss = lam*loss2 + (1-lam)*loss5
+    nega_loss = loss2
     zero_loss = lam*loss3 + (1-lam)*loss6
     return posi_loss, nega_loss, zero_loss
+
+
 
 def get_model(config: dict):
     model_name = config["model"]["name"]
