@@ -64,7 +64,7 @@ loss:
     gamma: 2.0
     alpha: 1.0
     zero_weight: 1.0
-    zero_smoothing_label: 0.2
+    zero_smoothing_label: 0.4
 
 optimizer:
   name: Adam
