@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage3 best model tp:fp=1:3 batch16
+      message: stage3 best model grad accum
 data:
   root: ./
   use_train_data:
@@ -97,7 +97,7 @@ loader:
   train:
     sampler:
       batch_size: 16
-      secondary_batch_size: 12
+      secondary_batch_size: 8
     params:
       num_workers: 10
       pin_memory: True

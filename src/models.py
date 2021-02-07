@@ -115,6 +115,15 @@ class Learner(pl.LightningModule):
         self.log(f'Recall/val', recall_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'Precision/val', precision_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
+    
+
+    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx,
+                    optimizer_closure, on_tpu, using_native_amp, using_lbfgs):
+
+        # 2回に1回勾配計算(バッチサイズ2倍とニアリーイコール)
+        N_ACCUMULATE = 2
+        if batch_idx % N_ACCUMULATE == 0:
+            optimizer.step(optimizer_closure)
 
 
     def configure_optimizers(self):
