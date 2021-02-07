@@ -123,7 +123,7 @@ class Learner(pl.LightningModule):
         # 2回に1回勾配計算(バッチサイズ2倍とニアリーイコール)
         N_ACCUMULATE = 2
         if batch_idx % N_ACCUMULATE == 0:
-            optimizer.step(optimizer_closure)
+            optimizer.step(closure=optimizer_closure)
 
 
     def configure_optimizers(self):
