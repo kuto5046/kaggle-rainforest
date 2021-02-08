@@ -119,7 +119,7 @@ def main():
     warnings.filterwarnings('ignore')
 
     # config
-    config_filename = 'ResNeStSED003.yaml'
+    config_filename = 'EfficientNetSED003.yaml'
     config = utils.load_config(f"configs/{config_filename}")
     global_config = config['globals']
     hash_value = utils.get_hash(config)  # get git hash value(short ver.)
