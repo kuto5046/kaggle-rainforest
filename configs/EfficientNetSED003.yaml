@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: zero weight=0.5
+      message: smoothing=0.2
 data:
   root: ./
   use_train_data:
@@ -63,9 +63,10 @@ loss:
     output_key: logit
     gamma: 2.0
     alpha: 1.0
-    posi_weight: 1.0
-    zero_weight: 0.5
-    zero_smoothing_label: 0.45
+    posi_weight: 2.0
+    nega_weight: 1.0
+    zero_weight: 1.0
+    zero_smoothing_label: 0.2
 
 optimizer:
   name: Adam
