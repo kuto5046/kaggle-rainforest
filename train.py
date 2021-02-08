@@ -105,7 +105,7 @@ def test_step(model, sub_df, test_loader, config, output_dir, fold):
                 output = output["logit"]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
-            pred = pred.detach().cpu().numpy()
+            pred = pred.sigmoid().detach().cpu().numpy()
             preds.append(pred)
         
         preds = np.vstack(preds)  # 全データを１つのarrayにつなげてfoldの予測とする
@@ -119,7 +119,7 @@ def main():
     warnings.filterwarnings('ignore')
 
     # config
-    config_filename = 'EfficientNetSED003.yaml'
+    config_filename = 'ResNeStSED003.yaml'
     config = utils.load_config(f"configs/{config_filename}")
     global_config = config['globals']
     hash_value = utils.get_hash(config)  # get git hash value(short ver.)

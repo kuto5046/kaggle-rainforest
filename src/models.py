@@ -117,13 +117,13 @@ class Learner(pl.LightningModule):
         return loss
     
 
-    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx,
-                    optimizer_closure, on_tpu, using_native_amp, using_lbfgs):
+    # def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx,
+    #                 optimizer_closure, on_tpu, using_native_amp, using_lbfgs):
 
-        # 2回に1回勾配計算(バッチサイズ2倍とニアリーイコール)
-        N_ACCUMULATE = 2
-        if batch_idx % N_ACCUMULATE == 0:
-            optimizer.step(closure=optimizer_closure)
+    #     # 2回に1回勾配計算(バッチサイズ2倍とニアリーイコール)
+    #     N_ACCUMULATE = 2
+    #     if batch_idx % N_ACCUMULATE == 0:
+    #         optimizer.step(closure=optimizer_closure)
 
 
     def configure_optimizers(self):
@@ -430,11 +430,14 @@ class ResNeStSED(nn.Module):
     def init_weight(self):
         init_layer(self.fc1)
 
-    def forward(self, input):
+    def forward(self, input, y, do_mixup):
         frames_num = input.size(3)
 
         # (batch_size, channels, freq, frames)
         x = self.encoder(input)
+
+        if do_mixup:
+            x, y1, y2, lam = mixup_data(x, y)
 
         # (batch_size, channels, frames)
         x = torch.mean(x, dim=2)
@@ -466,7 +469,10 @@ class ResNeStSED(nn.Module):
             "segmentwise_output": segmentwise_output,
             "logit": logit,
             "framewise_logit": framewise_logit,
-            "clipwise_output": clipwise_output
+            "clipwise_output": clipwise_output,
+            "y1": y1 if do_mixup else None,
+            "y2": y2 if do_mixup else None,
+            "lam": lam if do_mixup else None
         }
 
         return output_dict
