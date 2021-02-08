@@ -4,6 +4,8 @@ globals:
   max_epochs: 30
   output_dir: output
   timestamp: None
+  pretrained: False
+  pretrained_model_dir: None
   only_pred: False
   folds:
     - 0
@@ -21,14 +23,14 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: ResNeSt SED model
+      message: ResNest stage1
 data:
   root: ./
   use_train_data:
     - tp
-   #  - fp 
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
   train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
+  train_tp_frame_ps_df_path: input/rfcx-species-audio-detection/train_tp_frame_ps.csv
   train_audio_path: input/rfcx-species-audio-detection/train
   test_audio_path: input/rfcx-species-audio-detection/test
   sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
@@ -56,7 +58,7 @@ dataset:
       eps: 0.000001
 
 loss:
-  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss  CustomBCELoss
+  name: LSEPStableLoss  # LSEPStableLoss LSEPLoss BCEWithLogitsLoss FocalLoss
   params:
     output_key: logit
 
@@ -71,12 +73,12 @@ scheduler:
     T_max: 10
 
 split:
-  name: StratifiedKFold
+  name: StratifiedKFold  # MultilabelStratifiedKFold  StratifiedKFold
   params:
     n_splits: 5
     random_state: 42
     shuffle: True
-
+  
 model:
   name: ResNeStSED
   output_key: logit
@@ -91,11 +93,11 @@ loader:
     shuffle: True
     num_workers: 10
   valid:
-    batch_size: 10
+    batch_size: 20
     shuffle: False
     num_workers: 10
   test:
-    batch_size: 10
+    batch_size: 20
     shuffle: False
     num_workers: 10
 
