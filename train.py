@@ -90,6 +90,7 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
         return lwlrap_score, recall_score, precision_score
 
 
+
 def test_step(model, sub_df, test_loader, config, output_dir, fold):
     # 推論結果出力
     
@@ -177,9 +178,9 @@ def main():
         train_fname = np.array(tp_fnames)[trn_idx]
         valid_fname = np.array(tp_fnames)[val_idx]
         trn_tp_df = tp_df[tp_df["recording_id"].isin(train_fname)] 
-        val_df = tp_df[tp_df["recording_id"].isin(valid_fname)]
+        val_df = tp_df[tp_df["recording_id"].isin(valid_fname)].reset_index(drop=True)
         trn_fp_df = fp_df[~fp_df["recording_id"].isin(valid_fname)]
-        trn_df = pd.concat([trn_tp_df, trn_fp_df])
+        trn_df = pd.concat([trn_tp_df, trn_fp_df]).reset_index(drop=True)
         print("trainがvalに含まれているか: {}".format(set(trn_df["recording_id"].unique()).issubset(val_df["recording_id"].unique())))
         # trn_df = df.loc[trn_idx, :].reset_index(drop=True)
         # val_df = df.loc[val_idx, :].reset_index(drop=True)
