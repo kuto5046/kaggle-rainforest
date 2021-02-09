@@ -160,8 +160,8 @@ def main():
         # dataloader
         train_fname = np.array(tp_fnames)[trn_idx]
         valid_fname = np.array(tp_fnames)[val_idx]
-        trn_df = df[df["recording_id"].isin(train_fname)] 
-        val_df = df[df["recording_id"].isin(valid_fname)]
+        trn_df = df[df["recording_id"].isin(train_fname)].reset_index(drop=True)
+        val_df = df[df["recording_id"].isin(valid_fname)].reset_index(drop=True)
         print("trainがvalに含まれているか: {}".format(set(trn_df["recording_id"].unique()).issubset(val_df["recording_id"].unique())))
         loaders = {
             phase: C.get_loader(df_, datadir, config, phase)
