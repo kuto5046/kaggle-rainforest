@@ -3,9 +3,9 @@ globals:
   device: cuda
   max_epochs: 5
   output_dir: output
-  timestamp: None
+  timestamp: None # "0201_213254"
   pretrained: True
-  pretrained_model_dir: ./output/0123_181828/
+  pretrained_model_dir: ./backup/0123_181828/
   only_pred: False
   folds:
     - 0
@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage2 tp:fp=1:3 5epoch
+      message: stage2
 data:
   root: ./
   use_train_data:
@@ -40,8 +40,8 @@ dataset:
   name: SpectrogramDataset
   height: 224
   width: 400
-  period: 10
-  shift_time: 10
+  period: 8
+  shift_time: 7.4
   strong_label_prob: 1.0
   params:
     melspec:
@@ -73,7 +73,7 @@ scheduler:
     T_max: 10
 
 split:
-  name: StratifiedKFold  # MultilabelStratifiedKFold  StratifiedKFold
+  name: MultilabelStratifiedKFold  # MultilabelStratifiedKFold  StratifiedKFold
   params:
     n_splits: 5
     random_state: 42
@@ -99,14 +99,12 @@ loader:
       pin_memory: True
 
   valid:
-    sampler:
-      batch_size: 16
-      secondary_batch_size: 8   # FP batch
-    params:
-      num_workers: 10
-      pin_memory: True
+    batch_size: 1
+    shuffle: False
+    num_workers: 10
+    pin_memory: True
   test:
-    batch_size: 20
+    batch_size: 1
     shuffle: False
     num_workers: 10
     pin_memory: True

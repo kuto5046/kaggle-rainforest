@@ -90,6 +90,37 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
         return lwlrap_score, recall_score, precision_score
 
 
+def make_oof(model, val_df, datadir, config, fold):
+    df = val_df[val_df["data_type"] == "tp"]
+    loader = C.get_loader(df, datadir, config, phase="test")
+    output_key = config['model']['output_key']
+    all_oof_df = pd.DataFrame()
+    os.makedirs("./oof", exist_ok=True)
+    with torch.no_grad():
+        # xは複数のlist
+        for x_list, recording_id in tqdm(loader):
+            oof_df = pd.DataFrame()
+            oof_df["patch"] = [0,1,2,3,4,5,6,7]
+            oof_df["recording_id"] = recording_id[0]
+            columns = [f"s{i}" for i in range(24)]
+            for col in columns:
+                oof_df[col] = 0
+
+            batch_size = x_list.shape[0]
+            x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
+            x = x.to("cuda")
+ 
+            output = model.model(x)
+            output = output[output_key]
+            output = output.view(batch_size, -1, 24).cpu().sigmoid()[0]  # 24=num_classes
+
+            oof_df.loc[:, 's0':] = output
+            all_oof_df = pd.concat([all_oof_df, oof_df])
+    all_oof_df.to_csv(f"./oof/fold{fold}_oof.csv", index=False)
+
+
+
+
 def test_step(model, sub_df, test_loader, config, output_dir, fold):
     # 推論結果出力
     
@@ -134,7 +165,7 @@ def main():
     device = C.get_device(global_config["device"])
 
     # data
-    tp_df, fp_df, datadir, tp_fnames, tp_labels = C.get_metadata(config)
+    df, datadir = C.get_metadata(config)
     sub_df, test_datadir = C.get_test_metadata(config)
     test_loader = C.get_loader(sub_df, test_datadir, config, phase="test")
     splitter = C.get_split(config)
@@ -157,8 +188,7 @@ def main():
     all_lwlrap_score = []  # val scoreを記録する用
     all_recall_score = []  # val scoreを記録する用
     all_precision_score = []  # val scoreを記録する用
-    # for fold, (trn_idx, val_idx) in enumerate(splitter.split(df, y=df['species_id'])):
-    for fold, (trn_idx, val_idx) in enumerate(splitter.split(tp_fnames, y=tp_labels)):
+    for fold, (trn_idx, val_idx) in enumerate(splitter.split(df, y=df['species_id'])):
         # 指定したfoldのみループを回す
         if fold not in global_config['folds']:
             continue
@@ -174,15 +204,8 @@ def main():
         logger.info('=' * 20)
 
         # dataloader
-        train_fname = np.array(tp_fnames)[trn_idx]
-        valid_fname = np.array(tp_fnames)[val_idx]
-        trn_tp_df = tp_df[tp_df["recording_id"].isin(train_fname)] 
-        val_df = tp_df[tp_df["recording_id"].isin(valid_fname)]
-        trn_fp_df = fp_df[~fp_df["recording_id"].isin(valid_fname)]
-        trn_df = pd.concat([trn_tp_df, trn_fp_df])
-        print("trainがvalに含まれているか: {}".format(set(trn_df["recording_id"].unique()).issubset(val_df["recording_id"].unique())))
-        # trn_df = df.loc[trn_idx, :].reset_index(drop=True)
-        # val_df = df.loc[val_idx, :].reset_index(drop=True)
+        trn_df = df.loc[trn_idx, :].reset_index(drop=True)
+        val_df = df.loc[val_idx, :].reset_index(drop=True)
         loaders = {
             phase: C.get_loader(df_, datadir, config, phase)
             for df_, phase in zip([trn_df, val_df], ["train", "valid"])
@@ -231,63 +254,65 @@ def main():
         ##############
         """
         # load model
+        pretrained_dir = Path(f"./backup/{timestamp}")
         try:
-            ckpt = torch.load(output_dir / f'{model_name}-{fold}-v0.ckpt')
+            ckpt = torch.load(pretrained_dir / f'{model_name}-{fold}-v0.ckpt')
         except:
-            ckpt = torch.load(output_dir / f'{model_name}-{fold}.ckpt')
+            ckpt = torch.load(pretrained_dir / f'{model_name}-{fold}.ckpt')
         model.load_state_dict(ckpt['state_dict'])
         model.eval().to(device)
         
         # valid
-        lwlrap_score, recall_score, precision_score = valid_step(model, val_df, loaders, config, output_dir, fold)
-        mlf_logger.log_metrics({f'LWLRAP/fold{fold}':lwlrap_score}, step=None)
-        all_lwlrap_score.append(lwlrap_score)
-        all_recall_score.append(recall_score)
-        all_precision_score.append(precision_score)
+        # lwlrap_score, recall_score, precision_score = valid_step(model, val_df, loaders, config, output_dir, fold)
+        # mlf_logger.log_metrics({f'LWLRAP/fold{fold}':lwlrap_score}, step=None)
+        # all_lwlrap_score.append(lwlrap_score)
+        # all_recall_score.append(recall_score)
+        # all_precision_score.append(precision_score)
+        make_oof(model, val_df, datadir, config, fold)
         # test
-        preds = test_step(model, sub_df, test_loader, config, output_dir, fold)
-        all_preds.append(preds)  # foldの予測結果を格納
-        utils.send_slack_message_notification(f'[FINISH] fold{fold}-lwlrap:{lwlrap_score:.3f}')
+        # preds = test_step(model, sub_df, test_loader, config, output_dir, fold)
+        # all_preds.append(preds)  # foldの予測結果を格納
+        # utils.send_slack_message_notification(f'[FINISH] fold{fold}-lwlrap:{lwlrap_score:.3f}')
 
 
     # ループ抜ける
     # final logger 
     # valの結果で加重平均
-    mean_method = 'weight_mean'
-    if mean_method == 'mean':
-        val_lwlrap_score = np.mean(all_lwlrap_score, axis=0)
-        sub_preds = np.mean(all_preds, axis=0)  # foldで平均を取る
-    elif mean_method == 'weight_mean':
-        weights = []
-        val_lwlrap_score = 0
-        for i, score in enumerate(all_lwlrap_score):
-            weight = score / np.sum(all_lwlrap_score)
-            val_lwlrap_score += all_lwlrap_score[i] * weight
-            weights.append(weight)
-        # for submission
-        sub_preds = 0
-        for i, pred in enumerate(all_preds):
-            sub_preds += pred * weights[i]
+    # mean_method = 'weight_mean'
+    # if mean_method == 'mean':
+    #     val_lwlrap_score = np.mean(all_lwlrap_score, axis=0)
+    #     sub_preds = np.mean(all_preds, axis=0)  # foldで平均を取る
+    # elif mean_method == 'weight_mean':
+    #     weights = []
+    #     val_lwlrap_score = 0
+    #     for i, score in enumerate(all_lwlrap_score):
+    #         weight = score / np.sum(all_lwlrap_score)
+    #         val_lwlrap_score += all_lwlrap_score[i] * weight
+    #         weights.append(weight)
+    #     # for submission
+    #     sub_preds = 0
+    #     for i, pred in enumerate(all_preds):
+    #         sub_preds += pred * weights[i]
         
-        val_recall_score = 0
-        val_precision_score = 0
-        for rec, prec in zip(all_recall_score, all_precision_score):
-            val_recall_score += rec
-            val_precision_score += prec
+    #     val_recall_score = 0
+    #     val_precision_score = 0
+    #     for rec, prec in zip(all_recall_score, all_precision_score):
+    #         val_recall_score += rec
+    #         val_precision_score += prec
         
-        val_recall_score = val_recall_score / len(val_recall_score)
-        val_precision_score = val_precision_score / len(val_precision_score)
-    else:
-        raise NotImplementedError
+    #     val_recall_score = val_recall_score / len(val_recall_score)
+    #     val_precision_score = val_precision_score / len(val_precision_score)
+    # else:
+    #     raise NotImplementedError
 
-    mlf_logger.log_metrics({f'LWLRAP/all':val_lwlrap_score}, step=None)
-    mlf_logger.log_metrics({f'Recall/all':val_recall_score}, step=None)
-    mlf_logger.log_metrics({f'Precision/all':val_precision_score}, step=None)
-    mlf_logger.log_metrics({f'LWLRAP/LB_Score': 0.0}, step=None)
-    mlf_logger.finalize()
+    # mlf_logger.log_metrics({f'LWLRAP/all':val_lwlrap_score}, step=None)
+    # mlf_logger.log_metrics({f'Recall/all':val_recall_score}, step=None)
+    # mlf_logger.log_metrics({f'Precision/all':val_precision_score}, step=None)
+    # mlf_logger.log_metrics({f'LWLRAP/LB_Score': 0.0}, step=None)
+    # mlf_logger.finalize()
 
-    sub_df.iloc[:, 1:] = sub_preds
-    sub_df.to_csv(output_dir / "submission.csv", index=False)
+    # sub_df.iloc[:, 1:] = sub_preds
+    # sub_df.to_csv(output_dir / "submission.csv", index=False)
         
 
 if __name__ == '__main__':
