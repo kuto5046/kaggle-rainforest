@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: baseline
+      message: stage1 fixed cv
 data:
   root: ./
   use_train_data:
@@ -40,8 +40,8 @@ dataset:
   name: SpectrogramDataset
   height: 224
   width: 400
-  period: 10
-  shift_time: 10
+  period: 8
+  shift_time: 7.4
   strong_label_prob: 1.0
   params:
     melspec:
@@ -73,7 +73,7 @@ scheduler:
     T_max: 10
 
 split:
-  name: StratifiedKFold  # MultilabelStratifiedKFold  StratifiedKFold
+  name: MultilabelStratifiedKFold  # MultilabelStratifiedKFold  StratifiedKFold
   params:
     n_splits: 5
     random_state: 42

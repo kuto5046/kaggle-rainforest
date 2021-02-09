@@ -120,7 +120,7 @@ def main():
     device = C.get_device(global_config["device"])
 
     # data
-    df, datadir = C.get_metadata(config)
+    df, datadir, tp_fnames, tp_labels = C.get_metadata(config)
     sub_df, test_datadir = C.get_test_metadata(config)
     test_loader = C.get_loader(sub_df, test_datadir, config, phase="test")
     splitter = C.get_split(config)
@@ -141,7 +141,8 @@ def main():
 
     all_preds = []  # 全体の結果を格納
     all_lwlrap_score = []  # val scoreを記録する用
-    for fold, (trn_idx, val_idx) in enumerate(splitter.split(df, y=df['species_id'])):
+    # for fold, (trn_idx, val_idx) in enumerate(splitter.split(df, y=df['species_id'])):
+    for fold, (trn_idx, val_idx) in enumerate(splitter.split(tp_fnames, y=tp_labels)):
         # 指定したfoldのみループを回す
         if fold not in global_config['folds']:
             continue
@@ -157,8 +158,11 @@ def main():
         logger.info('=' * 20)
 
         # dataloader
-        trn_df = df.loc[trn_idx, :].reset_index(drop=True)
-        val_df = df.loc[val_idx, :].reset_index(drop=True)
+        train_fname = np.array(tp_fnames)[trn_idx]
+        valid_fname = np.array(tp_fnames)[val_idx]
+        trn_df = df[df["recording_id"].isin(train_fname)] 
+        val_df = df[df["recording_id"].isin(valid_fname)]
+        print("trainがvalに含まれているか: {}".format(set(trn_df["recording_id"].unique()).issubset(val_df["recording_id"].unique())))
         loaders = {
             phase: C.get_loader(df_, datadir, config, phase)
             for df_, phase in zip([trn_df, val_df], ["train", "valid"])

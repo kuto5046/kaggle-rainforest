@@ -82,11 +82,18 @@ def get_metadata(config: dict):
     # train_tp_frame_ps["data_type"] = 'tp'
     # train_fp['species_id'] = 0  # ダミーデータ あとで上書きする
 
+    tp_fnames, tp_labels = [], []  # for multilabel kfold
+    for recording_id, df in train_tp.groupby("recording_id"):
+        v = sum([np.eye(24)[i] for i in df["species_id"].tolist()])
+        v = (v  == 1).astype(int).tolist()
+        tp_fnames.append(recording_id)
+        tp_labels.append(v)
+
     # train = pd.concat([train_tp, train_fp[['recording_id', 'species_id', 'data_type', 't_min', 't_max']]])
     train = pd.concat([train_tp, train_fp])
     df = train[train['data_type'].isin(data_config['use_train_data'])].reset_index(drop=True)
 
-    return df, train_audio_path
+    return df, train_audio_path, tp_fnames, tp_labels
 
 
 

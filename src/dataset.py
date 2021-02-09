@@ -243,7 +243,7 @@ def split_audio(y, total_time, period, shift_time, sr):
     for i in range(num_data):
         start = shift_length * i
         finish = start + effective_length
-        split_y.append(y[start:finish])
+        split_y.append(y[int(start):int(finish)])
     
     return split_y
 
