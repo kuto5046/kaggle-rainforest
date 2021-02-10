@@ -88,16 +88,18 @@ def make_test(model, test_loader, datadir, config, fold):
 
 
 
-def make_fp(model, fp_df, only_fp_fnames, datadir, config, fold):
-    fp_df = fp_df[fp_df["recording_id"].isin(only_fp_fnames)]
-    df = fp_df[~fp_df["recording_id"].duplicated()].reset_index(drop=True)
+def make_fp(model, df, only_fp_fnames, datadir, config, fold):
+    df = df[df["recording_id"].isin(only_fp_fnames)]
+    df = df[~df["recording_id"].duplicated()].reset_index(drop=True)
     loader = C.get_loader(df, datadir, config, phase="test")
     output_key = config['model']['output_key']
     all_fp_df = pd.DataFrame()
     os.makedirs("./oof", exist_ok=True)
     with torch.no_grad():
         # xは複数のlist
+        fnames_list = [] 
         for x_list, recording_id in tqdm(loader):
+            fnames_list.append(recording_id)
             fp_df = pd.DataFrame()
             fp_df["patch"] = [0,1,2,3,4,5,6,7]
             fp_df["recording_id"] = recording_id[0]
