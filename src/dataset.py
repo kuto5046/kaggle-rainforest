@@ -46,7 +46,7 @@ class SpectrogramDataset(data.Dataset):
         
 
     def __len__(self):
-        return len(self.df['recording_id'].unique())  # valid/testはrecording_idごと
+        return len(self.df['recording_id'].unique())
 
     def __getitem__(self, idx: int):
         
