@@ -276,8 +276,8 @@ def main():
             val_recall_score += rec
             val_precision_score += prec
         
-        val_recall_score = val_recall_score / len(val_recall_score)
-        val_precision_score = val_precision_score / len(val_precision_score)
+        val_recall_score = val_recall_score / len(all_recall_score)
+        val_precision_score = val_precision_score / len(all_precision_score)
     else:
         raise NotImplementedError
 
