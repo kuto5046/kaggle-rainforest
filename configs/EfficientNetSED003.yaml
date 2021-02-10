@@ -5,7 +5,7 @@ globals:
   output_dir: output
   timestamp: None
   pretrained: True
-  pretrained_model_dir: ./backup/0123_181828/  # ./output/0123_181828/
+  pretrained_model_dir: ./backup/0210_082535/  # ./output/0123_181828/
   only_pred: False
   folds:
     - 0
@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: smoothing=0.2
+      message: stage3 fixed cv
 data:
   root: ./
   use_train_data:
@@ -31,6 +31,7 @@ data:
     - fp
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
   train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
+  train_new_df_path: input/rfcx-species-audio-detection/train_labels_v0.csv
   train_audio_path: input/rfcx-species-audio-detection/train
   test_audio_path: input/rfcx-species-audio-detection/test
   sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
@@ -40,8 +41,9 @@ dataset:
   name: SpectrogramDataset
   height: 224
   width: 400
-  period: 10
-  shift_time: 10
+  period: 8
+  shift_time: 7.4
+  test_shift_time: 4
   strong_label_prob: 1.0
   params:
     melspec:
@@ -79,7 +81,7 @@ scheduler:
     T_max: 10
 
 split:
-  name: StratifiedKFold  # MultilabelStratifiedKFold  StratifiedKFold
+  name: MultilabelStratifiedKFold  # MultilabelStratifiedKFold  StratifiedKFold
   params:
     n_splits: 5
     random_state: 42
@@ -98,21 +100,20 @@ loader:
 
   train:
     sampler:
-      batch_size: 16
-      secondary_batch_size: 8
+      batch_size: 3
+      secondary_batch_size: 1
     params:
       num_workers: 10
       pin_memory: True
-
   valid:
     sampler:
-      batch_size: 16
-      secondary_batch_size: 8
+      batch_size: 3
+      secondary_batch_size: 1
     params:
       num_workers: 10
       pin_memory: True
   test:
-    batch_size: 20
+    batch_size: 1
     shuffle: False
     num_workers: 10
     pin_memory: True

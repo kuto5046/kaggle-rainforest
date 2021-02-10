@@ -43,19 +43,20 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
         # xは複数のlist
         for x_list, y in tqdm(loaders['valid']):
             batch_size = x_list.shape[0]
-            x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
+            x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])
             x = x.to("cuda")
-            if "SED" in config["model"]["name"]:
-                output = model.model(x, None, do_mixup=False)
-                output = output[output_key]
-            output = output.view(batch_size, -1, 24)  # 24=num_classes
-            pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
-            pred = pred.cpu()
-            posi_mask = (y >= 0).float()  # TPのみ
-            y = y * posi_mask
-            pred = pred[y.sum(axis=1) > 0]
-            y = y[y.sum(axis=1) > 0]
 
+            output = model.model(x, None, do_mixup=False)
+            pred = output[output_key]
+            
+            # 同じファイルで集約
+            pred = pred.view(batch_size, -1, 24)  # (batch, 8, 24)
+
+            posi_mask = (y > 0).float()
+            y = (y * posi_mask).sum(axis=1)  # y3 (batch, 24)
+            y = (y > 0).float()
+            pred = pred.max(axis=1)[0]  # (batch, 24)
+            pred = pred.to('cpu')
             lwlrap_score = LWLRAP(pred, y)
             recall_score = recall(pred.sigmoid(), y)
             precision_score = precision(pred.sigmoid(), y)
@@ -69,23 +70,6 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
         lwlrap_score = np.mean(lwlrap_scores, axis=0)
         recall_score = np.mean(recall_scores, axis=0)
         precision_score = np.mean(precision_scores, axis=0)
-        # make oof
-        # oof_df = val_df.copy()
-        # pred_columns = [f'rank_{i}' for i in range(24)]
-        # for col in pred_columns:
-        #     oof_df[col] = 0
-        # oof_df.loc[:, 'rank_0':] = np.vstack(preds) # 全データを１つのarrayにつなげてfoldの予測とする
-        
-        # # pecies_idに対応する予測結果のrankingを取り出す
-        # rankings = []
-        # top_ids = []
-        # for _, raw in oof_df.iterrows():
-        #     species_id = raw['species_id']
-        #     rankings.append(int(list(raw['rank_0':][raw==species_id].index)[0][5:]))  # speicesの順番(rank番号を取得)
-        #     top_ids.append(np.argmin(raw['rank_0':].values))
-        # oof_df['ranking'] = rankings
-        # oof_df['top_id'] = top_ids
-        # oof_df.to_csv(output_dir / f'oof_fold{fold}.csv', index=False)
     
         return lwlrap_score, recall_score, precision_score
 
@@ -100,9 +84,9 @@ def test_step(model, sub_df, test_loader, config, output_dir, fold):
             batch_size = x_list.shape[0]
             x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
             x = x.to(config["globals"]["device"])
-            if "SED" in config["model"]["name"]:
-                output = model.model(x, None, do_mixup=False)
-                output = output["logit"]
+
+            output = model.model(x, None, do_mixup=False)
+            output = output["logit"]
             output = output.view(batch_size, -1, 24)  # 24=num_classes
             pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
             pred = pred.sigmoid().detach().cpu().numpy()
@@ -112,7 +96,7 @@ def test_step(model, sub_df, test_loader, config, output_dir, fold):
         fold_df = sub_df.copy()
         fold_df.iloc[:, 1:] = preds
         fold_df.to_csv(output_dir / f'fold{fold}.csv', index=False)
-    return preds 
+    return preds
 
 
 def main():
@@ -134,10 +118,11 @@ def main():
     device = C.get_device(global_config["device"])
 
     # data
-    df, datadir = C.get_metadata(config)
+    df, datadir, tp_fnames, tp_labels, fp_fnames, fp_labels = C.get_metadata(config)
     sub_df, test_datadir = C.get_test_metadata(config)
     test_loader = C.get_loader(sub_df, test_datadir, config, phase="test")
-    splitter = C.get_split(config)
+    splitter1 = C.get_split(config)
+    splitter2 = C.get_split(config)
 
     # mlflow logger
     config["mlflow"]["tags"]["timestamp"] = timestamp
@@ -157,7 +142,12 @@ def main():
     all_lwlrap_score = []  # val scoreを記録する用
     all_recall_score = []  # val scoreを記録する用
     all_precision_score = []  # val scoreを記録する用
-    for fold, (trn_idx, val_idx) in enumerate(splitter.split(df, y=df['species_id'])):
+
+    # Make CV
+    tp_cv = [(np.array(tp_fnames)[train_index], np.array(tp_fnames)[valid_index]) for train_index, valid_index in splitter1.split(tp_fnames, tp_labels)]
+    fp_cv = [(np.array(fp_fnames)[train_index], np.array(fp_fnames)[valid_index]) for train_index, valid_index in splitter2.split(fp_fnames, fp_labels)]
+
+    for fold in range(5):
         # 指定したfoldのみループを回す
         if fold not in global_config['folds']:
             continue
@@ -173,8 +163,13 @@ def main():
         logger.info('=' * 20)
 
         # dataloader
-        trn_df = df.loc[trn_idx, :].reset_index(drop=True)
-        val_df = df.loc[val_idx, :].reset_index(drop=True)
+        tp_train, tp_valid = tp_cv[fold]  # tp data(stage1に合わせてleakしないように)
+        fp_train, fp_valid = fp_cv[fold]  # fp data(positive labelで均等に分割)
+        train_fname = np.hstack([tp_train, fp_train])
+        valid_fname = np.hstack([tp_valid, fp_valid])
+
+        trn_df = df[df['recording_id'].isin(train_fname)].reset_index(drop=True)
+        val_df = df[df['recording_id'].isin(valid_fname)].reset_index(drop=True)
         loaders = {
             phase: C.get_loader(df_, datadir, config, phase)
             for df_, phase in zip([trn_df, val_df], ["train", "valid"])

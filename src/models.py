@@ -43,29 +43,32 @@ class Learner(pl.LightningModule):
 
     
     def training_step(self, batch, batch_idx):
-        x, y = batch
+        x_list, y_list = batch
+        batch_size = x_list.shape[0]
+        x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # (batch*8,3,244,400)
+        y = y_list.view(-1, y_list.shape[2])  # (batch*8, 24)
+
         p = random.random()
         do_mixup = True if (p < self.config['mixup']['prob']) and (self.config['mixup']['flag']) else False
 
-        # if self.config['mixup']['flag'] and do_mixup:
-        #     x, y, y_shuffle, lam = mixup_data(x, y, alpha=self.config['mixup']['alpha'])
-
         output = self.model(x, y, do_mixup)
-        pred = output[self.output_key]
-        if 'framewise' in self.output_key:
-            pred, _ = pred.max(dim=1)
-    
         if do_mixup:
             y, y_shuffle, lam = output['y1'], output['y2'], output['lam']  # for mixup
-            posi_loss, nega_loss, zero_loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
+            posi_loss, nega_loss, easy_nega_loss, zero_loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
-            posi_loss, nega_loss, zero_loss = self.criterion(output, y, phase="train")
-        loss = posi_loss + nega_loss + zero_loss
+            posi_loss, nega_loss, easy_nega_loss, zero_loss = self.criterion(output, y, phase="train")
+        loss = posi_loss + nega_loss + easy_nega_loss + zero_loss
+   
+        pred = output[self.output_key]
+        
+        # 同じファイルで集約
+        pred = pred.view(batch_size, -1, 24)  # (batch, 8, 24)
+        y = y.view(batch_size, -1, 24)  # y2 (batch, 8, 24)
+        posi_mask = (y > 0).float()
+        y = (y * posi_mask).sum(axis=1)  # y3 (batch, 24)
+        y = (y > 0).float()
+        pred = pred.max(axis=1)[0]  # (batch, 24)
 
-        posi_mask = (y >= 0).float()  
-        y = y * posi_mask  # 負例を除く(-1 -> 0)
-        pred = pred[y.sum(axis=1) > 0]  # 負例のみのデータを取り除く
-        y = y[y.sum(axis=1) > 0]  # 負例のみのデータを取り除く
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred.sigmoid(), y)
         recall_score = self.recall(pred.sigmoid(), y)
@@ -74,6 +77,7 @@ class Learner(pl.LightningModule):
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'posi_loss/train', posi_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'nega_loss/train', nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'easy_nega_loss/train', easy_nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'zero_loss/train', zero_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -85,22 +89,27 @@ class Learner(pl.LightningModule):
     # batchのxはlist型
     def validation_step(self, batch, batch_idx):
         # xが複数の場合
-        x_list, y = batch
-        x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
+        x_list, y_list = batch
+        batch_size = x_list.shape[0]
+        x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # (batch*8,3,244,400)
+        y = y_list.view(-1, y_list.shape[2])  # (batch*8, 24)
     
         output = self.model(x, None, do_mixup=False)
-        posi_loss, nega_loss, zero_loss = self.criterion(output, y, phase='valid')
-        loss = posi_loss + nega_loss + zero_loss
+        posi_loss, nega_loss, easy_nega_loss, zero_loss = self.criterion(output, y, phase='valid')
+        loss = posi_loss + nega_loss + easy_nega_loss + zero_loss
+
         pred = output[self.output_key]
-        if 'framewise' in self.output_key:
-            pred, _ = pred.max(dim=1)
+        
+        # 同じファイルで集約
+        pred = pred.view(batch_size, -1, 24)  # (batch, 8, 24)
+        y = y.view(batch_size, -1, 24)  # y2 (batch, 8, 24)
 
-        pred = C.split2one(pred, y)
+        posi_mask = (y > 0).float()
+        y = (y * posi_mask).sum(axis=1)  # y3 (batch, 24)
+        y = (y > 0).float()
+        pred = pred.max(axis=1)[0]  # (batch, 24)
 
-        posi_mask = (y >= 0).float()  
-        y = y * posi_mask  # 負例を除く(-1 -> 0)
-        pred = pred[y.sum(axis=1) > 0]  # 負例のみのデータを取り除く
-        y = y[y.sum(axis=1) > 0]  # 負例のみのデータを取り除く
+        # この時点で(batch, 24)にしたい
         lwlrap = LWLRAP(pred, y)
         f1_score = self.f1(pred.sigmoid(), y)
         recall_score = self.recall(pred.sigmoid(), y)
@@ -109,11 +118,13 @@ class Learner(pl.LightningModule):
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'posi_loss/val', posi_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'nega_loss/val', nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'easy_nega_loss/val', easy_nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'zero_loss/val', zero_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'Recall/val', recall_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'Precision/val', precision_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+
         return loss
     
 
@@ -862,13 +873,14 @@ def mixup_data(x, y, alpha=1.0, use_cuda=True):
     # return lam * criterion(pred, y_a, phase) + (1 - lam) * criterion(pred, y_b, phase)
 
 def mixup_criterion(criterion, pred, y_a, y_b, lam, phase='train'):
-    loss1, loss2, loss3 = criterion(pred, y_a, phase)
-    loss4, loss5, loss6 = criterion(pred, y_b, phase)
+    posi_loss1, nega_loss1, easy_nega_loss1, zero_loss1 = criterion(pred, y_a, phase)
+    posi_loss2, nega_loss2, easy_nega_loss2, zero_loss2 = criterion(pred, y_b, phase)
 
-    posi_loss = lam*loss1 + (1-lam)*loss4
-    nega_loss = loss2
-    zero_loss = lam*loss3 + (1-lam)*loss6
-    return posi_loss, nega_loss, zero_loss
+    posi_loss = lam*posi_loss1 + (1-lam)*posi_loss2
+    nega_loss = nega_loss1
+    easy_nega_loss = easy_nega_loss1
+    zero_loss = lam*zero_loss1 + (1-lam)*zero_loss2
+    return posi_loss, nega_loss, easy_nega_loss, zero_loss
 
 
 

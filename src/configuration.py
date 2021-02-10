@@ -75,21 +75,28 @@ def get_split(config: dict):
 def get_metadata(config: dict):
     data_config = config["data"]
     train_audio_path = Path(data_config["root"]) / Path(data_config["train_audio_path"])
+    # train_fp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_fp_df_path"])).reset_index(drop=True)
     train_tp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_tp_df_path"])).reset_index(drop=True)
-    train_fp = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_fp_df_path"])).reset_index(drop=True)
-    # train_tp_frame_ps = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_tp_frame_ps_df_path"])).reset_index(drop=True)
+    train_new = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_new_df_path"])).reset_index(drop=True)
 
-    train_tp["data_type"] = "tp"
-    train_fp["data_type"] = "fp"
-    # train_tp_frame_ps["data_type"] = 'tp'
-    # train_fp['species_id'] = 0  # ダミーデータ あとで上書きする
+    # multilabel cv用
+    # 1st stage data
+    tp_fnames, tp_labels = [], []
+    for recording_id, df in train_tp.groupby("recording_id"):
+        v = sum([np.eye(24)[i] for i in df["species_id"].tolist()])
+        v = (v  == 1).astype(int).tolist()
+        tp_fnames.append(recording_id)
+        tp_labels.append(v)
 
-    # train = pd.concat([train_tp, train_fp[['recording_id', 'species_id', 'data_type', 't_min', 't_max']]])
-    train = pd.concat([train_tp, train_fp])
-    df = train[train['data_type'].isin(data_config['use_train_data'])].reset_index(drop=True)
+    # FP data
+    fp_only_fnames = list(set(train_new['recording_id'].values) - set(tp_fnames))
+    fp_positive_labels = [((train_new.loc[train_new['recording_id']==fnames, "s0":] == 1).sum() > 0).astype(int).values for fnames in fp_only_fnames]
+    
+    train_new['data_type'] = 'unknown'
+    train_new.loc[train_new["recording_id"].isin(tp_fnames), 'data_type'] = "tp"
+    train_new.loc[train_new["recording_id"].isin(fp_only_fnames), 'data_type'] = "fp"
 
-    return df, train_audio_path
-
+    return train_new, train_audio_path, tp_fnames, tp_labels, fp_only_fnames, fp_positive_labels
 
 
 def get_test_metadata(config: dict):
@@ -117,6 +124,7 @@ def get_loader(df: pd.DataFrame,
             width=dataset_config["width"],
             period=dataset_config['period'],
             shift_time=dataset_config['shift_time'],
+            test_shift_time=dataset_config['test_shift_time'],
             strong_label_prob=dataset_config['strong_label_prob'],
             waveform_transforms=get_waveform_transforms(config, phase),
             spectrogram_transforms=get_spectrogram_transforms(config, phase),
