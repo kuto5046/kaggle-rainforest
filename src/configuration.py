@@ -95,7 +95,14 @@ def get_metadata(config: dict):
         tp_fnames.append(recording_id)
         tp_labels.append(v)
 
-    return train_tp, train_fp, train_audio_path, tp_fnames, tp_labels
+    fp_fnames, fp_labels = [], []
+    for recording_id, df in train_fp.groupby("recording_id"):
+        v = sum([np.eye(24)[i] for i in df["species_id"].tolist()])
+        v = (v  == 1).astype(int).tolist()
+        fp_fnames.append(recording_id)
+        fp_labels.append(v)
+
+    return train_tp, train_fp, train_audio_path, tp_fnames, tp_labels, fp_fnames
 
 
 

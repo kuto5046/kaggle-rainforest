@@ -30,7 +30,8 @@ from pytorch_lightning.metrics.classification import F1, Recall, Precision
 os.environ['NUMEXPR_MAX_THREADS'] = '24'
 
 
-def make_oof(model, df, datadir, config, fold):
+def make_oof(model, val_df, datadir, config, fold):
+    df = val_df[~val_df["recording_id"].duplicated()].reset_index(drop=True)
     loader = C.get_loader(df, datadir, config, phase="test")
     output_key = config['model']['output_key']
     all_oof_df = pd.DataFrame()
@@ -87,7 +88,9 @@ def make_test(model, test_loader, datadir, config, fold):
 
 
 
-def make_fp(model, df, datadir, config, fold):
+def make_fp(model, fp_df, only_fp_fnames, datadir, config, fold):
+    fp_df = fp_df[fp_df["recording_id"].isin(only_fp_fnames)]
+    df = fp_df[~fp_df["recording_id"].duplicated()].reset_index(drop=True)
     loader = C.get_loader(df, datadir, config, phase="test")
     output_key = config['model']['output_key']
     all_fp_df = pd.DataFrame()
@@ -133,7 +136,8 @@ def main():
     device = C.get_device(global_config["device"])
 
     # data
-    tp_df, fp_df, datadir, tp_fnames, tp_labels = C.get_metadata(config)
+    tp_df, fp_df, datadir, tp_fnames, tp_labels, fp_fnames = C.get_metadata(config)
+    only_fp_fnames = list(set(fp_fnames) - set(tp_fnames))
     sub_df, test_datadir = C.get_test_metadata(config)
     test_loader = C.get_loader(sub_df, test_datadir, config, phase="test")
     splitter = C.get_split(config)
@@ -241,7 +245,7 @@ def main():
         # oof
         make_oof(model, val_df, datadir, config, fold)
         make_test(model, test_loader, test_datadir, config, fold)
-        make_fp(model, fp_df, datadir, config, fold)
+        make_fp(model, fp_df, only_fp_fnames, datadir, config, fold)
 
 
 if __name__ == '__main__':
