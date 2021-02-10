@@ -177,7 +177,7 @@ def main():
     warnings.filterwarnings('ignore')
 
     # config
-    config_filename = 'EfficientNetSED002.yaml'
+    config_filename = 'ResNeStSED002.yaml'
     config = utils.load_config(f"configs/{config_filename}")
     global_config = config['globals']
     hash_value = utils.get_hash(config)  # get git hash value(short ver.)
@@ -192,7 +192,8 @@ def main():
     device = C.get_device(global_config["device"])
 
     # data
-    tp_df, fp_df, datadir, tp_fnames, tp_labels = C.get_metadata(config)
+    tp_df, fp_df, datadir, tp_fnames, tp_labels, fp_fnames = C.get_metadata(config)
+    only_fp_fnames = list(set(fp_fnames) - set(tp_fnames))
     sub_df, test_datadir = C.get_test_metadata(config)
     test_loader = C.get_loader(sub_df, test_datadir, config, phase="test")
     splitter = C.get_split(config)
