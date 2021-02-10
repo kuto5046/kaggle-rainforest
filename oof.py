@@ -30,66 +30,6 @@ from pytorch_lightning.metrics.classification import F1, Recall, Precision
 os.environ['NUMEXPR_MAX_THREADS'] = '24'
 
 
-def valid_step(model, val_df, loaders, config, output_dir, fold):
-    # ckptのモデルでoof出力
-    preds = []
-    lwlrap_scores = []
-    recall_scores = []
-    precision_scores = []
-    recall = Recall(num_classes=24, multilabel=True)
-    precision = Precision(num_classes=24, multilabel=True)
-    output_key = config['model']['output_key']
-    with torch.no_grad():
-        # xは複数のlist
-        for x_list, y in tqdm(loaders['valid']):
-            batch_size = x_list.shape[0]
-            x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
-            x = x.to("cuda")
-            if "SED" in config["model"]["name"]:
-                output = model.model(x)
-                output = output[output_key]
-            output = output.view(batch_size, -1, 24)  # 24=num_classes
-            pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
-            pred = pred.cpu()
-            posi_mask = (y >= 0).float()  # TPのみ
-            y = y * posi_mask
-            pred = pred[y.sum(axis=1) > 0]
-            y = y[y.sum(axis=1) > 0]
-
-            lwlrap_score = LWLRAP(pred, y)
-            recall_score = recall(pred.sigmoid(), y)
-            precision_score = precision(pred.sigmoid(), y)
-            lwlrap_scores.append(lwlrap_score)
-            recall_scores.append(recall_score)
-            precision_scores.append(precision_score)
-            pred = torch.argsort(pred, dim=-1, descending=True)
-            preds.append(pred.detach().cpu().numpy())
-
-        # log
-        lwlrap_score = np.mean(lwlrap_scores, axis=0)
-        recall_score = np.mean(recall_scores, axis=0)
-        precision_score = np.mean(precision_scores, axis=0)
-        # make oof
-        # oof_df = val_df.copy()
-        # pred_columns = [f'rank_{i}' for i in range(24)]
-        # for col in pred_columns:
-        #     oof_df[col] = 0
-        # oof_df.loc[:, 'rank_0':] = np.vstack(preds) # 全データを１つのarrayにつなげてfoldの予測とする
-        
-        # # pecies_idに対応する予測結果のrankingを取り出す
-        # rankings = []
-        # top_ids = []
-        # for _, raw in oof_df.iterrows():
-        #     species_id = raw['species_id']
-        #     rankings.append(int(list(raw['rank_0':][raw==species_id].index)[0][5:]))  # speicesの順番(rank番号を取得)
-        #     top_ids.append(np.argmin(raw['rank_0':].values))
-        # oof_df['ranking'] = rankings
-        # oof_df['top_id'] = top_ids
-        # oof_df.to_csv(output_dir / f'oof_fold{fold}.csv', index=False)
-    
-        return lwlrap_score, recall_score, precision_score
-
-
 def make_oof(model, df, datadir, config, fold):
     loader = C.get_loader(df, datadir, config, phase="test")
     output_key = config['model']['output_key']
@@ -145,30 +85,34 @@ def make_test(model, test_loader, datadir, config, fold):
             all_test_df = pd.concat([all_test_df, test_df])
     all_test_df.to_csv(f"./oof/fold{fold}_test.csv", index=False)
 
-def test_step(model, sub_df, test_loader, config, output_dir, fold):
-    # 推論結果出力
-    
-    preds = []
+
+
+def make_fp(model, df, datadir, config, fold):
+    loader = C.get_loader(df, datadir, config, phase="test")
+    output_key = config['model']['output_key']
+    all_fp_df = pd.DataFrame()
+    os.makedirs("./oof", exist_ok=True)
     with torch.no_grad():
         # xは複数のlist
-        for x_list, _ in tqdm(test_loader):
+        for x_list, recording_id in tqdm(loader):
+            fp_df = pd.DataFrame()
+            fp_df["patch"] = [0,1,2,3,4,5,6,7]
+            fp_df["recording_id"] = recording_id[0]
+            columns = [f"s{i}" for i in range(24)]
+            for col in columns:
+                fp_df[col] = 0
+
             batch_size = x_list.shape[0]
             x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
-            x = x.to(config["globals"]["device"])
-            if "SED" in config["model"]["name"]:
-                output = model.model(x)
-                output = output["logit"]
-            output = output.view(batch_size, -1, 24)  # 24=num_classes
-            pred = torch.max(output, dim=1)[0]  # 1次元目(分割sしたやつ)で各クラスの最大を取得
-            pred = pred.detach().cpu().numpy()
-            preds.append(pred)
-        
-        preds = np.vstack(preds)  # 全データを１つのarrayにつなげてfoldの予測とする
-        fold_df = sub_df.copy()
-        fold_df.iloc[:, 1:] = preds
-        fold_df.to_csv(output_dir / f'fold{fold}.csv', index=False)
-    return preds 
+            x = x.to("cuda")
+ 
+            output = model.model(x)
+            output = output[output_key]
+            output = output.view(batch_size, -1, 24).cpu().sigmoid()[0]  # 24=num_classes
 
+            fp_df.loc[:, 's0':] = output
+            all_fp_df = pd.concat([all_fp_df, fp_df])
+    all_fp_df.to_csv(f"./oof/fold{fold}_fp.csv", index=False)
 
 def main():
     warnings.filterwarnings('ignore')
@@ -208,7 +152,10 @@ def main():
     del config_params['data'], config_params['globals'], config_params['mlflow']
     mlf_logger.log_hyperparams(config_params)
 
-
+    all_preds = []  # 全体の結果を格納
+    all_lwlrap_score = []  # val scoreを記録する用
+    all_recall_score = []  # val scoreを記録する用
+    all_precision_score = []  # val scoreを記録する用
     # for fold, (trn_idx, val_idx) in enumerate(splitter.split(df, y=df['species_id'])):
     for fold, (trn_idx, val_idx) in enumerate(splitter.split(tp_fnames, y=tp_labels)):
         # 指定したfoldのみループを回す
@@ -233,7 +180,8 @@ def main():
         trn_fp_df = fp_df[~fp_df["recording_id"].isin(valid_fname)]
         trn_df = pd.concat([trn_tp_df, trn_fp_df]).reset_index(drop=True)
         print("trainがvalに含まれているか: {}".format(set(trn_df["recording_id"].unique()).issubset(val_df["recording_id"].unique())))
-        print("valがtrainに含まれているか: {}".format(set(val_df["recording_id"].unique()).issubset(trn_df["recording_id"].unique())))
+        # trn_df = df.loc[trn_idx, :].reset_index(drop=True)
+        # val_df = df.loc[val_idx, :].reset_index(drop=True)
         loaders = {
             phase: C.get_loader(df_, datadir, config, phase)
             for df_, phase in zip([trn_df, val_df], ["train", "valid"])
@@ -282,67 +230,19 @@ def main():
         ##############
         """
         # load model
-        pretrained_dir = Path(f"./backup/{timestamp}")
         try:
-            ckpt = torch.load(pretrained_dir / f'{model_name}-{fold}-v0.ckpt')
+            ckpt = torch.load(output_dir / f'{model_name}-{fold}-v0.ckpt')
         except:
-            ckpt = torch.load(pretrained_dir / f'{model_name}-{fold}.ckpt')
+            ckpt = torch.load(output_dir / f'{model_name}-{fold}.ckpt')
         model.load_state_dict(ckpt['state_dict'])
         model.eval().to(device)
         
-        # valid
-        # lwlrap_score, recall_score, precision_score = valid_step(model, val_df, loaders, config, output_dir, fold)
-        # mlf_logger.log_metrics({f'LWLRAP/fold{fold}':lwlrap_score}, step=None)
-        # all_lwlrap_score.append(lwlrap_score)
-        # all_recall_score.append(recall_score)
-        # all_precision_score.append(precision_score)
+
+        # oof
         make_oof(model, val_df, datadir, config, fold)
         make_test(model, test_loader, test_datadir, config, fold)
-        # test
-        # preds = test_step(model, sub_df, test_loader, config, output_dir, fold)
-        # all_preds.append(preds)  # foldの予測結果を格納
-        # utils.send_slack_message_notification(f'[FINISH] fold{fold}-lwlrap:{lwlrap_score:.3f}')
+        make_fp(model, fp_df, datadir, config, fold)
 
-
-    # ループ抜ける
-    # final logger 
-    # valの結果で加重平均
-    # mean_method = 'weight_mean'
-    # if mean_method == 'mean':
-    #     val_lwlrap_score = np.mean(all_lwlrap_score, axis=0)
-    #     sub_preds = np.mean(all_preds, axis=0)  # foldで平均を取る
-    # elif mean_method == 'weight_mean':
-    #     weights = []
-    #     val_lwlrap_score = 0
-    #     for i, score in enumerate(all_lwlrap_score):
-    #         weight = score / np.sum(all_lwlrap_score)
-    #         val_lwlrap_score += all_lwlrap_score[i] * weight
-    #         weights.append(weight)
-    #     # for submission
-    #     sub_preds = 0
-    #     for i, pred in enumerate(all_preds):
-    #         sub_preds += pred * weights[i]
-        
-    #     val_recall_score = 0
-    #     val_precision_score = 0
-    #     for rec, prec in zip(all_recall_score, all_precision_score):
-    #         val_recall_score += rec
-    #         val_precision_score += prec
-        
-    #     val_recall_score = val_recall_score / len(val_recall_score)
-    #     val_precision_score = val_precision_score / len(val_precision_score)
-    # else:
-    #     raise NotImplementedError
-
-    # mlf_logger.log_metrics({f'LWLRAP/all':val_lwlrap_score}, step=None)
-    # mlf_logger.log_metrics({f'Recall/all':val_recall_score}, step=None)
-    # mlf_logger.log_metrics({f'Precision/all':val_precision_score}, step=None)
-    # mlf_logger.log_metrics({f'LWLRAP/LB_Score': 0.0}, step=None)
-    # mlf_logger.finalize()
-
-    # sub_df.iloc[:, 1:] = sub_preds
-    # sub_df.to_csv(output_dir / "submission.csv", index=False)
-        
 
 if __name__ == '__main__':
     with utils.timer('Total time'):
