@@ -36,7 +36,7 @@ class ImprovedPANNsLoss(nn.Module):
 
 # based https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/213075
 class FocalLoss(nn.Module):
-    def __init__(self, output_key="logit", gamma=2.0, alpha=1.0, posi_weight=1.0, nega_weight=1.0, zero_weight=0.2, zero_smoothing_label=0.2):
+    def __init__(self, output_key="logit", gamma=2.0, alpha=1.0, posi_weight=1.0, nega_weight=1.0, easy_nega_weight=1.0, zero_weight=0.0, zero_smoothing_label=0.0):
         super().__init__()
         self.posi_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
@@ -47,6 +47,8 @@ class FocalLoss(nn.Module):
         self.alpha = alpha
         self.posi_weight = posi_weight
         self.zero_weight = zero_weight
+        self.nega_weight = nega_weight
+        self.easy_nega_weight = easy_nega_weight
         self.zero_smoothing_label = zero_smoothing_label
 
     def forward(self, inputs, target, phase='train'):
@@ -75,7 +77,7 @@ class FocalLoss(nn.Module):
         easy_nega_loss = (easy_nega_loss * easy_nega_mask).sum()  # ラベルのついているクラスのみlossを残す
         zero_loss = (zero_loss * zero_mask).sum()
         
-        return posi_loss, nega_loss, easy_nega_loss, zero_loss
+        return posi_loss*self.posi_weight, nega_loss*self.nega_weight, easy_nega_loss*self.easy_nega_weight, zero_loss*self.zero_weight
 
 # sigmoidを内包しているのでlogitを入力とする
 class BCEWithLogitsLoss(nn.Module):

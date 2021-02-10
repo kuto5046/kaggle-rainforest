@@ -65,10 +65,11 @@ loss:
     output_key: logit
     gamma: 2.0
     alpha: 1.0
-    posi_weight: 2.0
+    posi_weight: 1.0
     nega_weight: 1.0
-    zero_weight: 1.0
-    zero_smoothing_label: 0.2
+    easy_nega_weight: 1.0
+    zero_weight: 0.0
+    zero_smoothing_label: 0.0
 
 optimizer:
   name: Adam
