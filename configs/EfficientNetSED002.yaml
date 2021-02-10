@@ -3,10 +3,10 @@ globals:
   device: cuda
   max_epochs: 5
   output_dir: output
-  timestamp: None # "0201_213254"
-  pretrained: True
-  pretrained_model_dir: ./backup/0210_082535/
-  only_pred: False
+  timestamp: "0210_102233"
+  pretrained: False  # True
+  pretrained_model_dir: None # ./backup/0210_102233/
+  only_pred: True
   folds:
     - 0
     - 1

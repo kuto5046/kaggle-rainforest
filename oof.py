@@ -90,8 +90,7 @@ def valid_step(model, val_df, loaders, config, output_dir, fold):
         return lwlrap_score, recall_score, precision_score
 
 
-def make_oof(model, val_df, datadir, config, fold):
-    df = val_df[val_df["data_type"] == "tp"]
+def make_oof(model, df, datadir, config, fold):
     loader = C.get_loader(df, datadir, config, phase="test")
     output_key = config['model']['output_key']
     all_oof_df = pd.DataFrame()
@@ -119,7 +118,32 @@ def make_oof(model, val_df, datadir, config, fold):
     all_oof_df.to_csv(f"./oof/fold{fold}_oof.csv", index=False)
 
 
+def make_test(model, test_loader, datadir, config, fold):
 
+    output_key = config['model']['output_key']
+    all_test_df = pd.DataFrame()
+    os.makedirs("./oof", exist_ok=True)
+    with torch.no_grad():
+        # xは複数のlist
+        for x_list, recording_id in tqdm(test_loader):
+            test_df = pd.DataFrame()
+            test_df["patch"] = [0,1,2,3,4,5,6,7]
+            test_df["recording_id"] = recording_id[0]
+            columns = [f"s{i}" for i in range(24)]
+            for col in columns:
+                test_df[col] = 0
+
+            batch_size = x_list.shape[0]
+            x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
+            x = x.to("cuda")
+ 
+            output = model.model(x)
+            output = output[output_key]
+            output = output.view(batch_size, -1, 24).cpu().sigmoid()[0]  # 24=num_classes
+
+            test_df.loc[:, 's0':] = output
+            all_test_df = pd.concat([all_test_df, test_df])
+    all_test_df.to_csv(f"./oof/fold{fold}_test.csv", index=False)
 
 def test_step(model, sub_df, test_loader, config, output_dir, fold):
     # 推論結果出力
@@ -165,7 +189,7 @@ def main():
     device = C.get_device(global_config["device"])
 
     # data
-    df, datadir = C.get_metadata(config)
+    tp_df, fp_df, datadir, tp_fnames, tp_labels = C.get_metadata(config)
     sub_df, test_datadir = C.get_test_metadata(config)
     test_loader = C.get_loader(sub_df, test_datadir, config, phase="test")
     splitter = C.get_split(config)
@@ -184,11 +208,9 @@ def main():
     del config_params['data'], config_params['globals'], config_params['mlflow']
     mlf_logger.log_hyperparams(config_params)
 
-    all_preds = []  # 全体の結果を格納
-    all_lwlrap_score = []  # val scoreを記録する用
-    all_recall_score = []  # val scoreを記録する用
-    all_precision_score = []  # val scoreを記録する用
-    for fold, (trn_idx, val_idx) in enumerate(splitter.split(df, y=df['species_id'])):
+
+    # for fold, (trn_idx, val_idx) in enumerate(splitter.split(df, y=df['species_id'])):
+    for fold, (trn_idx, val_idx) in enumerate(splitter.split(tp_fnames, y=tp_labels)):
         # 指定したfoldのみループを回す
         if fold not in global_config['folds']:
             continue
@@ -204,8 +226,14 @@ def main():
         logger.info('=' * 20)
 
         # dataloader
-        trn_df = df.loc[trn_idx, :].reset_index(drop=True)
-        val_df = df.loc[val_idx, :].reset_index(drop=True)
+        train_fname = np.array(tp_fnames)[trn_idx]
+        valid_fname = np.array(tp_fnames)[val_idx]
+        trn_tp_df = tp_df[tp_df["recording_id"].isin(train_fname)] 
+        val_df = tp_df[tp_df["recording_id"].isin(valid_fname)].reset_index(drop=True)
+        trn_fp_df = fp_df[~fp_df["recording_id"].isin(valid_fname)]
+        trn_df = pd.concat([trn_tp_df, trn_fp_df]).reset_index(drop=True)
+        print("trainがvalに含まれているか: {}".format(set(trn_df["recording_id"].unique()).issubset(val_df["recording_id"].unique())))
+        print("valがtrainに含まれているか: {}".format(set(val_df["recording_id"].unique()).issubset(trn_df["recording_id"].unique())))
         loaders = {
             phase: C.get_loader(df_, datadir, config, phase)
             for df_, phase in zip([trn_df, val_df], ["train", "valid"])
@@ -269,6 +297,7 @@ def main():
         # all_recall_score.append(recall_score)
         # all_precision_score.append(precision_score)
         make_oof(model, val_df, datadir, config, fold)
+        make_test(model, test_loader, test_datadir, config, fold)
         # test
         # preds = test_step(model, sub_df, test_loader, config, output_dir, fold)
         # all_preds.append(preds)  # foldの予測結果を格納
