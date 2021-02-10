@@ -5,7 +5,7 @@ globals:
   output_dir: output
   timestamp: None # "0201_213254"
   pretrained: True
-  pretrained_model_dir: ./backup/0123_181828/
+  pretrained_model_dir: ./backup/0210_082535/
   only_pred: False
   folds:
     - 0
@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage2
+      message: stage2 fixed cv
 data:
   root: ./
   use_train_data:
@@ -99,12 +99,12 @@ loader:
       pin_memory: True
 
   valid:
-    batch_size: 1
+    batch_size: 20
     shuffle: False
     num_workers: 10
     pin_memory: True
   test:
-    batch_size: 1
+    batch_size: 20
     shuffle: False
     num_workers: 10
     pin_memory: True
