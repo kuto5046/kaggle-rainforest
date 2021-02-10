@@ -133,17 +133,26 @@ def get_loader(df: pd.DataFrame,
     else:
         raise NotImplementedError
 
-    if phase in ['train', 'valid']:
+    if phase == 'train':
         sampler_config = config['loader'][phase]['sampler']
         loader_config = config["loader"][phase]['params']
         labeled_idxs = df[df["data_type"]=="tp"].index
         unlabeled_idxs = df[df["data_type"]=="fp"].index
         batch_sampler = TwoStreamBatchSampler(labeled_idxs, unlabeled_idxs, **sampler_config)
         loader = data.DataLoader(dataset, batch_sampler=batch_sampler, **loader_config, worker_init_fn=worker_init_fn)
+    elif phase == 'valid':
+        sampler_config = config['loader'][phase]['sampler']
+        loader_config = config["loader"][phase]['params']
+        labeled_idxs = df[(df["data_type"]=="tp") & (df['patch']==0)].index
+        unlabeled_idxs = df[(df["data_type"]=="fp") & (df['patch']==0)].index
+        batch_sampler = TwoStreamBatchSampler(labeled_idxs, unlabeled_idxs, **sampler_config)
+        loader = data.DataLoader(dataset, batch_sampler=batch_sampler, **loader_config, worker_init_fn=worker_init_fn)
     else:
         loader_config = config["loader"][phase]
         loader = data.DataLoader(dataset, **loader_config, worker_init_fn=worker_init_fn) 
 
+    # loader_config = config["loader"][phase]
+    # loader = data.DataLoader(dataset, **loader_config, worker_init_fn=worker_init_fn) 
     return loader
 
 
