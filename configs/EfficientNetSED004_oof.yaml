@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage3 fixed cv
+      message: stage3 ex2
 data:
   root: ./
   use_train_data:
