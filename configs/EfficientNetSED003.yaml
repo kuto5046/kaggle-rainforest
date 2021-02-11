@@ -1,7 +1,7 @@
 globals:
   seed: 42
   device: cuda
-  max_epochs: 5
+  max_epochs: 3
   output_dir: output
   timestamp: None
   pretrained: True
@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage3 ex4 5fold
+      message: stage3 ex6
 data:
   root: ./
   use_train_data:
@@ -65,9 +65,9 @@ loss:
     output_key: logit
     gamma: 2.0
     alpha: 1.0
-    posi_weight: 2.0
+    posi_weight: 1.0
     nega_weight: 1.0
-    easy_nega_weight: 0.0
+    easy_nega_weight: 1.0
     zero_weight: 1.0
     zero_smoothing_label: 0.45
 
@@ -100,7 +100,7 @@ loader:
   train:
     sampler:
       batch_size: 8
-      secondary_batch_size: 6
+      secondary_batch_size: 4
     params:
       num_workers: 10
       pin_memory: True
