@@ -112,7 +112,7 @@ loader:
       num_workers: 10
       pin_memory: True
   test:
-    batch_size: 1
+    batch_size: 20
     shuffle: False
     num_workers: 10
     pin_memory: True
