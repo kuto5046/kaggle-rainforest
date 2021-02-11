@@ -117,7 +117,7 @@ def extract_patch(t_min, t_max):
         start_patch = 2
     elif 22 <= t_min < 30:
         start_patch = 3
-    elif 29 <= t_min < 27:
+    elif 29 <= t_min < 37:
         start_patch = 4
     elif 37 <= t_min < 45:
         start_patch = 5
@@ -126,6 +126,7 @@ def extract_patch(t_min, t_max):
     elif 51 <= t_min < 60:
         start_patch = 7
     else:
+        print(t_min)
         raise NotImplementedError
 
 
@@ -146,6 +147,7 @@ def extract_patch(t_min, t_max):
     elif 0 < t_max <= 8:
         end_patch = 0
     else:
+        print(t_max)
         raise NotImplementedError
 
     patch = [i for i in range(start_patch, end_patch+1)]
