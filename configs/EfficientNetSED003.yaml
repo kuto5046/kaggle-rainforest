@@ -19,7 +19,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage3 ex3 add tp label
+      message: stage3 ex4 config fix(before ver)
 data:
   root: ./
   use_train_data:
@@ -96,7 +96,7 @@ loader:
   train:
     sampler:
       batch_size: 8
-      secondary_batch_size: 4
+      secondary_batch_size: 6
     params:
       num_workers: 10
       pin_memory: True
@@ -108,7 +108,7 @@ loader:
       num_workers: 10
       pin_memory: True
   test:
-    batch_size: 20
+    batch_size: 1
     shuffle: False
     num_workers: 10
     pin_memory: True
