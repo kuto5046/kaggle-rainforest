@@ -3,7 +3,7 @@ globals:
   device: cuda
   max_epochs: 5
   output_dir: output
-  timestamp: "0211_095250"
+  timestamp: "0211_130555"
   pretrained: False
   pretrained_model_dir: None  # ./output/0123_181828/
   only_pred: True
@@ -43,7 +43,7 @@ dataset:
   width: 400
   period: 8
   shift_time: 7.4
-  test_shift_time: 4
+  test_shift_time: 7.4
   strong_label_prob: 1.0
   params:
     melspec:

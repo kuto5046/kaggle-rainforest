@@ -30,7 +30,7 @@ from pytorch_lightning.metrics.classification import F1, Recall, Precision
 os.environ['NUMEXPR_MAX_THREADS'] = '24'
 
 
-def make_oof(model, val_df, datadir, config, fold):
+def make_oof(model, val_df, datadir, config, fold, output_dir):
     df = val_df[~val_df["recording_id"].duplicated()].reset_index(drop=True)
     loader = C.get_loader(df, datadir, config, phase="test")
     output_key = config['model']['output_key']
@@ -56,11 +56,11 @@ def make_oof(model, val_df, datadir, config, fold):
 
             oof_df.loc[:, 's0':] = output
             all_oof_df = pd.concat([all_oof_df, oof_df])
-    all_oof_df.to_csv(f"./oof/fold{fold}_oof.csv", index=False)
+    all_oof_df.to_csv(output_dir / f"/fold{fold}_oof.csv", index=False)
     return all_oof_df
 
 
-def make_test(model, test_loader, datadir, config, fold):
+def make_test(model, test_loader, datadir, config, fold, output_dir):
 
     output_key = config['model']['output_key']
     all_test_df = pd.DataFrame()
@@ -85,7 +85,7 @@ def make_test(model, test_loader, datadir, config, fold):
 
             test_df.loc[:, 's0':] = output
             all_test_df = pd.concat([all_test_df, test_df])
-    all_test_df.to_csv(f"./oof/fold{fold}_test.csv", index=False)
+    all_test_df.to_csv(output_dir / f"./oof/fold{fold}_test.csv", index=False)
 
 
 
@@ -160,12 +160,12 @@ def main():
         
 
         # oof
-        fold_oof = make_oof(model, val_df, datadir, config, fold)
+        fold_oof = make_oof(model, val_df, datadir, config, fold, output_dir)
         all_oof = pd.concat([all_oof, fold_oof])
-        # make_test(model, test_loader, test_datadir, config, fold)
+        make_test(model, test_loader, test_datadir, config, fold, output_dir)
 
     all_oof = all_oof.reset_index(drop=True)
-    all_oof.to_csv("./oof/all_oof.csv", index=False)
+    all_oof.to_csv(output_dir / "all_oof.csv", index=False)
 
 
 if __name__ == '__main__':
