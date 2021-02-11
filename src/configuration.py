@@ -80,24 +80,76 @@ def get_metadata(config: dict):
     train_new = pd.read_csv(Path(data_config["root"]) / Path(data_config["train_new_df_path"])).reset_index(drop=True)
 
     # multilabel cv用
-    # 1st stage data
+    # 1st stage data for using cv
     tp_fnames, tp_labels = [], []
     for recording_id, df in train_tp.groupby("recording_id"):
         v = sum([np.eye(24)[i] for i in df["species_id"].tolist()])
-        v = (v  == 1).astype(int).tolist()
+        v = (v  >= 1).astype(int).tolist()
         tp_fnames.append(recording_id)
         tp_labels.append(v)
+        # merge tp label and pseudo label(overwrite by tp label)
+        for _, row in df.iterrows():
+            labels = np.zeros((8,24))
+            patch = extract_patch(row["t_min"], row["t_max"])
+            labels[patch] = np.eye(24)[row["species_id"]].tolist() # tp labels
+            pseudo = train_new.loc[train_new["recording_id"]==recording_id, "s0":"s23"].values
+            updated_pseudo = np.where(labels > 0, 1, pseudo)  # tp labelが1のところのみ１に更新し,それ以外はpseudoをつかう
+            train_new.loc[train_new["recording_id"]==recording_id, "s0":"s23"] = updated_pseudo
 
     # FP data
     fp_only_fnames = list(set(train_new['recording_id'].values) - set(tp_fnames))
-    fp_positive_labels = [((train_new.loc[train_new['recording_id']==fnames, "s0":] == 1).sum() > 0).astype(int).values for fnames in fp_only_fnames]
+    fp_positive_labels = [((train_new.loc[train_new['recording_id']==fnames, "s0":"s23"] == 1).sum() > 0).astype(int).values for fnames in fp_only_fnames]
     
     train_new['data_type'] = 'unknown'
     train_new.loc[train_new["recording_id"].isin(tp_fnames), 'data_type'] = "tp"
     train_new.loc[train_new["recording_id"].isin(fp_only_fnames), 'data_type'] = "fp"
 
+
     return train_new, train_audio_path, tp_fnames, tp_labels, fp_only_fnames, fp_positive_labels
 
+
+def extract_patch(t_min, t_max):
+    if 0 <= t_min < 8:
+        start_patch = 0
+    elif 7 <= t_min < 15:
+        start_patch = 1
+    elif 14 <= t_min < 23:
+        start_patch = 2
+    elif 22 <= t_min < 30:
+        start_patch = 3
+    elif 29 <= t_min < 27:
+        start_patch = 4
+    elif 37 <= t_min < 45:
+        start_patch = 5
+    elif 44 <= t_min < 52:
+        start_patch = 6
+    elif 51 <= t_min < 60:
+        start_patch = 7
+    else:
+        raise NotImplementedError
+
+
+    if 51 < t_max <= 60:
+        end_patch = 7
+    elif 44 < t_max <= 52:
+        end_patch = 6
+    elif 37 < t_max <= 45:
+        end_patch = 5
+    elif 29 < t_max <= 37:
+        end_patch = 4
+    elif 22 < t_max <= 30:
+        end_patch = 3
+    elif 14 < t_max <= 23:
+        end_patch = 2
+    elif 7 < t_max <= 15:
+        end_patch = 1
+    elif 0 < t_max <= 8:
+        end_patch = 0
+    else:
+        raise NotImplementedError
+
+    patch = [i for i in range(start_patch, end_patch+1)]
+    return patch
 
 def get_test_metadata(config: dict):
     data_config = config["data"]

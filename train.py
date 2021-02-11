@@ -29,6 +29,63 @@ from pytorch_lightning.loggers import MLFlowLogger
 from pytorch_lightning.metrics.classification import F1, Recall, Precision
 os.environ['NUMEXPR_MAX_THREADS'] = '24'
 
+def make_oof(model, val_df, datadir, config, fold, output_dir):
+    df = val_df[~val_df["recording_id"].duplicated()].reset_index(drop=True)
+    loader = C.get_loader(df, datadir, config, phase="test")
+    output_key = config['model']['output_key']
+    all_oof_df = pd.DataFrame()
+    os.makedirs("./oof", exist_ok=True)
+    with torch.no_grad():
+        # xは複数のlist
+        for x_list, recording_id in tqdm(loader):
+            oof_df = pd.DataFrame()
+            oof_df["patch"] = [0,1,2,3,4,5,6,7]
+            oof_df["recording_id"] = recording_id[0]
+            columns = [f"s{i}" for i in range(24)]
+            for col in columns:
+                oof_df[col] = 0
+
+            batch_size = x_list.shape[0]
+            x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
+            x = x.to("cuda")
+ 
+            output = model.model(x, None, False)
+            output = output[output_key]
+            output = output.view(batch_size, -1, 24).cpu().sigmoid()[0]  # 24=num_classes
+
+            oof_df.loc[:, 's0':] = output
+            all_oof_df = pd.concat([all_oof_df, oof_df])
+    all_oof_df.to_csv(output_dir / f"/fold{fold}_oof.csv", index=False)
+    return all_oof_df
+
+
+def make_test(model, test_loader, datadir, config, fold, output_dir):
+
+    output_key = config['model']['output_key']
+    all_test_df = pd.DataFrame()
+    os.makedirs("./oof", exist_ok=True)
+    with torch.no_grad():
+        # xは複数のlist
+        for x_list, recording_id in tqdm(test_loader):
+            test_df = pd.DataFrame()
+            test_df["patch"] = [0,1,2,3,4,5,6,7]
+            test_df["recording_id"] = recording_id[0]
+            columns = [f"s{i}" for i in range(24)]
+            for col in columns:
+                test_df[col] = 0
+
+            batch_size = x_list.shape[0]
+            x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
+            x = x.to("cuda")
+ 
+            output = model.model(x)
+            output = output[output_key]
+            output = output.view(batch_size, -1, 24).cpu().sigmoid()[0]  # 24=num_classes
+
+            test_df.loc[:, 's0':] = output
+            all_test_df = pd.concat([all_test_df, test_df])
+    all_test_df.to_csv(output_dir / f"./oof/fold{fold}_test.csv", index=False)
+
 
 def valid_step(model, val_df, loaders, config, output_dir, fold):
     # ckptのモデルでoof出力
@@ -232,13 +289,24 @@ def main():
         all_lwlrap_score.append(lwlrap_score)
         all_recall_score.append(recall_score)
         all_precision_score.append(precision_score)
+
         # test
         preds = test_step(model, sub_df, test_loader, config, output_dir, fold)
         all_preds.append(preds)  # foldの予測結果を格納
         utils.send_slack_message_notification(f'[FINISH] fold{fold}-lwlrap:{lwlrap_score:.3f}')
 
+        # oof
+        fold_oof = make_oof(model, val_df, datadir, config, fold, output_dir)
+        all_oof = pd.concat([all_oof, fold_oof])
+        make_test(model, test_loader, test_datadir, config, fold, output_dir)
+
 
     # ループ抜ける
+    # save oof 
+    all_oof = all_oof.reset_index(drop=True)
+    all_oof.to_csv(output_dir / "all_oof.csv", index=False)
+
+
     # final logger 
     # valの結果で加重平均
     mean_method = 'weight_mean'
