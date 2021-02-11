@@ -9,10 +9,6 @@ globals:
   only_pred: False
   folds:
     - 0
-    - 1
-    - 2
-    - 3
-    - 4
   debug: False
   kaggle: False
 
@@ -65,11 +61,11 @@ loss:
     output_key: logit
     gamma: 2.0
     alpha: 1.0
-    posi_weight: 1.0
+    posi_weight: 2.0
     nega_weight: 1.0
     easy_nega_weight: 0.0
-    zero_weight: 0.0
-    zero_smoothing_label: 0.0
+    zero_weight: 1.0
+    zero_smoothing_label: 0.45
 
 optimizer:
   name: Adam
