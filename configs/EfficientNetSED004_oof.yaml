@@ -3,16 +3,12 @@ globals:
   device: cuda
   max_epochs: 5
   output_dir: output
-  timestamp: "0211_130555"
+  timestamp: "0211_191236"
   pretrained: False
   pretrained_model_dir: None  # ./output/0123_181828/
   only_pred: True
   folds:
     - 0
-    - 1
-    - 2
-    - 3
-    - 4
   debug: False
   kaggle: False
 

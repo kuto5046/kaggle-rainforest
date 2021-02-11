@@ -56,7 +56,7 @@ def make_oof(model, val_df, datadir, config, fold, output_dir):
 
             oof_df.loc[:, 's0':] = output
             all_oof_df = pd.concat([all_oof_df, oof_df])
-    all_oof_df.to_csv(output_dir / f"/fold{fold}_oof.csv", index=False)
+    all_oof_df.to_csv(f"./oof/fold{fold}_oof.csv", index=False)
     return all_oof_df
 
 
@@ -79,13 +79,13 @@ def make_test(model, test_loader, datadir, config, fold, output_dir):
             x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
             x = x.to("cuda")
  
-            output = model.model(x)
+            output = model.model(x, None, False)
             output = output[output_key]
             output = output.view(batch_size, -1, 24).cpu().sigmoid()[0]  # 24=num_classes
 
             test_df.loc[:, 's0':] = output
             all_test_df = pd.concat([all_test_df, test_df])
-    all_test_df.to_csv(output_dir / f"./oof/fold{fold}_test.csv", index=False)
+    all_test_df.to_csv(f"./oof/fold{fold}_test.csv", index=False)
 
 
 
@@ -165,7 +165,7 @@ def main():
         make_test(model, test_loader, test_datadir, config, fold, output_dir)
 
     all_oof = all_oof.reset_index(drop=True)
-    all_oof.to_csv(output_dir / "all_oof.csv", index=False)
+    all_oof.to_csv("./oof/all_oof.csv", index=False)
 
 
 if __name__ == '__main__':
