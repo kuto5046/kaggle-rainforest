@@ -65,11 +65,11 @@ loss:
     output_key: logit
     gamma: 2.0
     alpha: 1.0
-    posi_weight: 1.0
+    posi_weight: 2.0
     nega_weight: 1.0
-    easy_nega_weight: 1.0
-    zero_weight: 0.0
-    zero_smoothing_label: 0.0
+    easy_nega_weight: 0.0
+    zero_weight: 1.0
+    zero_smoothing_label: 0.45
 
 optimizer:
   name: Adam
@@ -99,8 +99,8 @@ model:
 loader:
   train:
     sampler:
-      batch_size: 16
-      secondary_batch_size: 8
+      batch_size: 8
+      secondary_batch_size: 4
     params:
       num_workers: 10
       pin_memory: True

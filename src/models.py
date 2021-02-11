@@ -43,8 +43,10 @@ class Learner(pl.LightningModule):
 
     
     def training_step(self, batch, batch_idx):
-        x, y = batch
-        batch_size = x.shape[0]
+        x_list, y_list = batch
+        batch_size = x_list.shape[0]
+        x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # (batch*8,3,244,400)
+        y = y_list.view(-1, y_list.shape[2])  # (batch*8, 24)
 
         p = random.random()
         do_mixup = True if (p < self.config['mixup']['prob']) and (self.config['mixup']['flag']) else False

@@ -46,45 +46,32 @@ class SpectrogramDataset(data.Dataset):
         
 
     def __len__(self):
-        return len(self.df)
+        return len(self.df['recording_id'].unique())
 
     def __getitem__(self, idx: int):
 
-        if self.phase == 'train':
-            sample = self.df.loc[idx, :]
-            recording_id = sample["recording_id"]
-            y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
-            image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
-            labels = sample['s0':'s23'].values.astype(int)
-            return image, labels
-
-        elif self.phase == 'valid':
-            sample = self.df.loc[idx, :]  # patch=0のidxをとってくる
-            recording_id = sample['recording_id']
-            y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
+        sample = self.df.loc[idx, :]  # patch=0のidxをとってくる
+        recording_id = sample["recording_id"]
+        y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
+        if self.phase in ['train', 'valid']:
             split_y = split_audio(y, 60, self.period, self.shift_time, sr)
             # 分割した音声を一つずつ画像化してリストで返す
             images = []
             for y in split_y:
                 image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
                 images.append(image)
-            
+
             query_string = f"recording_id == '{recording_id}'"
             all_events = self.df.query(query_string).sort_values("patch")
             labels = all_events.loc[:,'s0':'s23'].values
             return np.asarray(images), labels
-
         else:
-            sample = self.df.loc[idx, :]
-            recording_id = sample["recording_id"]
-            y, sr = sf.read(self.datadir / f"{recording_id}.flac")  # for default
             split_y = split_audio(y, 60, self.period, self.test_shift_time, sr)
             # 分割した音声を一つずつ画像化してリストで返す
             images = []
             for y in split_y:
                 image = wave2image_normal(y, sr, self.width, self.height, self.melspectrogram_parameters)
                 images.append(image)
-
             return np.asarray(images), recording_id
 
 
