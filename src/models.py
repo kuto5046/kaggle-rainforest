@@ -57,10 +57,10 @@ class Learner(pl.LightningModule):
     
         if do_mixup:
             y, y_shuffle, lam = output['y1'], output['y2'], output['lam']  # for mixup
-            posi_loss, nega_loss, zero_loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
+            posi_loss, nega_loss, easy_nega_loss, zero_loss = mixup_criterion(self.criterion, output, y, y_shuffle, lam, phase='train')
         else:
-            posi_loss, nega_loss, zero_loss = self.criterion(output, y, phase="train")
-        loss = posi_loss + nega_loss + zero_loss
+            posi_loss, nega_loss, easy_nega_loss, zero_loss = self.criterion(output, y, phase="train")
+        loss = posi_loss + nega_loss + easy_nega_loss + zero_loss
 
         posi_mask = (y >= 0).float()  
         y = y * posi_mask  # 負例を除く(-1 -> 0)
@@ -74,6 +74,7 @@ class Learner(pl.LightningModule):
         self.log(f'loss/train', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'posi_loss/train', posi_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'nega_loss/train', nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'easy_nega_loss/train', easy_nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'zero_loss/train', zero_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/train', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/train', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -89,8 +90,8 @@ class Learner(pl.LightningModule):
         x = x_list.view(-1, x_list.shape[2], x_list.shape[3], x_list.shape[4])  # batch>1でも可
     
         output = self.model(x, None, do_mixup=False)
-        posi_loss, nega_loss, zero_loss = self.criterion(output, y, phase='valid')
-        loss = posi_loss + nega_loss + zero_loss
+        posi_loss, nega_loss, easy_nega_loss, zero_loss = self.criterion(output, y, phase='valid')
+        loss = posi_loss + nega_loss + easy_nega_loss + zero_loss
         pred = output[self.output_key]
         if 'framewise' in self.output_key:
             pred, _ = pred.max(dim=1)
@@ -109,6 +110,7 @@ class Learner(pl.LightningModule):
         self.log(f'loss/val', loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'posi_loss/val', posi_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'nega_loss/val', nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        self.log(f'easy_nega_loss/val', easy_nega_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'zero_loss/val', zero_loss, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'LWLRAP/val', lwlrap, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         self.log(f'F1/val', f1_score, on_step=False, on_epoch=True, prog_bar=False, logger=True)
@@ -860,7 +862,7 @@ def mixup_data(x, y, alpha=1.0, use_cuda=True):
 
 # def mixup_criterion(criterion, pred, y_a, y_b, lam, phase='train'):
     # return lam * criterion(pred, y_a, phase) + (1 - lam) * criterion(pred, y_b, phase)
-
+"""
 def mixup_criterion(criterion, pred, y_a, y_b, lam, phase='train'):
     loss1, loss2, loss3 = criterion(pred, y_a, phase)
     loss4, loss5, loss6 = criterion(pred, y_b, phase)
@@ -869,7 +871,17 @@ def mixup_criterion(criterion, pred, y_a, y_b, lam, phase='train'):
     nega_loss = loss2
     zero_loss = lam*loss3 + (1-lam)*loss6
     return posi_loss, nega_loss, zero_loss
+"""
 
+def mixup_criterion(criterion, pred, y_a, y_b, lam, phase='train'):
+    loss1, loss2, loss3, loss4 = criterion(pred, y_a, phase)
+    loss5, loss6, loss7, loss8 = criterion(pred, y_b, phase)
+
+    posi_loss = lam*loss1 + (1-lam)*loss5
+    nega_loss = loss2
+    easy_nega_loss = loss3
+    zero_loss = lam*loss4 + (1-lam)*loss8
+    return posi_loss, nega_loss, easy_nega_loss, zero_loss
 
 
 def get_model(config: dict):

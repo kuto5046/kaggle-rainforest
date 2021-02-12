@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: smoothing=0.2
+      message: new pseudo label
 data:
   root: ./
   use_train_data:
@@ -65,8 +65,9 @@ loss:
     alpha: 1.0
     posi_weight: 2.0
     nega_weight: 1.0
+    easy_nega_weight: 1.0
     zero_weight: 1.0
-    zero_smoothing_label: 0.2
+    zero_smoothing_label: 0.45
 
 optimizer:
   name: Adam

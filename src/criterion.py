@@ -33,7 +33,7 @@ class ImprovedPANNsLoss(nn.Module):
 
         return self.weights[0] * normal_loss + self.weights[1] * auxiliary_loss
 
-
+"""
 # based https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/213075
 class FocalLoss(nn.Module):
     def __init__(self, output_key="logit", gamma=2.0, alpha=1.0, posi_weight=1.0, nega_weight=1.0, zero_weight=0.2, zero_smoothing_label=0.2):
@@ -78,6 +78,57 @@ class FocalLoss(nn.Module):
         # nega_w = 0 if nega_mask.sum() == 0 else 1/nega_mask.sum()
         # zero_w = 0 if zero_mask.sum() == 0 else 1/zero_mask.sum()
         return posi_loss*self.posi_weight, nega_loss, zero_loss*self.zero_weight
+"""
+
+# based https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/213075
+class FocalLoss(nn.Module):
+    def __init__(self, output_key="logit", gamma=2.0, alpha=1.0, posi_weight=1.0, nega_weight=1.0, easy_nega_weight=1.0, zero_weight=0.2, zero_smoothing_label=0.2):
+        super().__init__()
+        self.posi_loss = nn.BCEWithLogitsLoss(reduction='none')
+        self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
+        self.easy_nega_loss = nn.BCEWithLogitsLoss(reduction='none')
+        self.zero_loss = nn.BCEWithLogitsLoss(reduction='none')
+        self.output_key = output_key
+        self.gamma = gamma
+        self.alpha = alpha
+        self.posi_weight = posi_weight
+        self.nega_weight = nega_weight
+        self.easy_nega_weight = easy_nega_weight
+        self.zero_weight = zero_weight
+        self.zero_smoothing_label = zero_smoothing_label
+
+    def forward(self, inputs, target, phase='train'):
+        input = inputs[self.output_key]
+        target = target.float()
+    
+        posi_mask = (target == 1).float()
+        nega_mask = (target == -1).float()  # (20, 24)
+        easy_nega_mask = (target == -2).float()
+        zero_mask = (target == 0).float()  # 明確にラベルがついていないちょっとあやふやな箇所
+        
+        # validの場合view, maxで分割したデータを１つのデータとして集約する必要がある
+        if phase == 'valid':
+            input = C.split2one(input, target)
+        
+        posi_y = torch.ones(input.shape).to('cuda')
+        nega_y = torch.zeros(input.shape).to('cuda')  # dummy
+        easy_nega_y = torch.zeros(input.shape).to('cuda')
+        zero_y = torch.full(input.shape, self.zero_smoothing_label).to('cuda')   # zero labelにsmoothingをかける
+        # zero_y = torch.zeros(input.shape).to('cuda')  # dummy
+
+        posi_loss = self.posi_loss(input, posi_y)
+        nega_loss = self.nega_loss(input, nega_y)  # 全て負例と見做してloss計算
+        easy_nega_loss = self.nega_loss(input, easy_nega_y)
+        zero_loss = self.zero_loss(input, zero_y)
+
+        probas = input.sigmoid()
+        focal_pw = (1. - probas)**self.gamma
+        posi_loss = (posi_loss * posi_mask * focal_pw).sum()
+        nega_loss = (nega_loss * nega_mask).sum()  # ラベルのついているクラスのみlossを残す
+        easy_nega_loss = (easy_nega_loss * easy_nega_mask).sum()
+        zero_loss = (zero_loss * zero_mask).sum()
+
+        return posi_loss*self.posi_weight, nega_loss*self.nega_weight, easy_nega_loss*self.easy_nega_weight, zero_loss*self.zero_weight
 
 # sigmoidを内包しているのでlogitを入力とする
 class BCEWithLogitsLoss(nn.Module):
