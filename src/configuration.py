@@ -1,4 +1,5 @@
 import pandas as pd
+import random
 import numpy as np
 import itertools
 import torch
@@ -84,7 +85,7 @@ def get_metadata(config: dict):
     tp_fnames, tp_labels = [], []
     for recording_id, df in train_tp.groupby("recording_id"):
         v = sum([np.eye(24)[i] for i in df["species_id"].tolist()])
-        v = (v >= 1).astype(int).tolist()  # TODO v >= 1
+        v = (v == 1).astype(int).tolist()  # TODO v >= 1
         tp_fnames.append(recording_id)
         tp_labels.append(v)
         # merge tp label and pseudo label(overwrite by tp label)
@@ -192,7 +193,10 @@ def get_loader(df: pd.DataFrame,
         loader_config = config["loader"][phase]['params']
         labeled_idxs = df[(df["data_type"]=="tp") & (df['patch']==0)].index
         unlabeled_idxs = df[(df["data_type"]=="fp") & (df['patch']==0)].index
-        batch_sampler = TwoStreamBatchSampler(labeled_idxs, unlabeled_idxs, **sampler_config)
+        sample_size = len(labeled_idxs)/2
+        sampled_labeled_idxs = random.sample(labeled_idxs, sample_size)
+        sampled_unlabeled_idxs = random.sample(unlabeled_idxs, sample_size)
+        batch_sampler = TwoStreamBatchSampler(sampled_labeled_idxs, sampled_unlabeled_idxs, **sampler_config)
         loader = data.DataLoader(dataset, batch_sampler=batch_sampler, **loader_config, worker_init_fn=worker_init_fn)
     else:
         loader_config = config["loader"][phase]
