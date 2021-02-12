@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage3 ex8 sampling=0.5
+      message: stage3 ex9 sampling=0.5 3loss
 data:
   root: ./
   use_train_data:
@@ -67,7 +67,7 @@ loss:
     alpha: 1.0
     posi_weight: 1.0
     nega_weight: 1.0
-    easy_nega_weight: 0.0
+    easy_nega_weight: 1.0
     zero_weight: 0.0
     zero_smoothing_label: 0.0
 
