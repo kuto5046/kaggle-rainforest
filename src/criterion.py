@@ -36,7 +36,7 @@ class ImprovedPANNsLoss(nn.Module):
 
 # based https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/213075
 class FocalLoss(nn.Module):
-    def __init__(self, output_key="logit", gamma=2.0, alpha=1.0, posi_weight=1.0, nega_weight=1.0, easy_nega_weight=1.0, zero_weight=0.0, zero_smoothing_label=0.0):
+    def __init__(self, output_key="logit", gamma=2.0, alpha=1.0, posi_weight=1.0, nega_weight=1.0, easy_nega_weight=1.0, easy_nega_smoothing_label=0.0, zero_weight=0.0, zero_smoothing_label=0.0):
         super().__init__()
         self.posi_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
@@ -49,6 +49,7 @@ class FocalLoss(nn.Module):
         self.zero_weight = zero_weight
         self.nega_weight = nega_weight
         self.easy_nega_weight = easy_nega_weight
+        self.easy_nega_smoothing_label = easy_nega_smoothing_label
         self.zero_smoothing_label = zero_smoothing_label
 
     def forward(self, inputs, target, phase='train'):
@@ -62,7 +63,8 @@ class FocalLoss(nn.Module):
         
         posi_y = torch.ones(input.shape).to('cuda')
         nega_y = torch.zeros(input.shape).to('cuda')  # dummy
-        easy_nega_y = torch.zeros(input.shape).to('cuda')  # dummy
+        # easy_nega_y = torch.zeros(input.shape).to('cuda')  # dummy
+        easy_nega_y = torch.full(input.shape, self.easy_nega_smoothing_label).to('cuda')  # dummy
         zero_y = torch.full(input.shape, self.zero_smoothing_label).to('cuda')   # zero labelにsmoothingをかける
 
         posi_loss = self.posi_loss(input, posi_y)
