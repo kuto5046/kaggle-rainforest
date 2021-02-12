@@ -191,9 +191,9 @@ def get_loader(df: pd.DataFrame,
     if phase in ['train', 'valid']:
         sampler_config = config['loader'][phase]['sampler']
         loader_config = config["loader"][phase]['params']
-        labeled_idxs = df[(df["data_type"]=="tp") & (df['patch']==0)].index
-        unlabeled_idxs = df[(df["data_type"]=="fp") & (df['patch']==0)].index
-        sample_size = len(labeled_idxs)/2
+        labeled_idxs = df[(df["data_type"]=="tp") & (df['patch']==0)].index.tolist()
+        unlabeled_idxs = df[(df["data_type"]=="fp") & (df['patch']==0)].index.tolist()
+        sample_size = int(len(labeled_idxs)/2)
         sampled_labeled_idxs = random.sample(labeled_idxs, sample_size)
         sampled_unlabeled_idxs = random.sample(unlabeled_idxs, sample_size)
         batch_sampler = TwoStreamBatchSampler(sampled_labeled_idxs, sampled_unlabeled_idxs, **sampler_config)
