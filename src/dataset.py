@@ -359,12 +359,11 @@ def add_pseudo_label(labels, recording_id, pseudo_df, beginning_time=None, endin
 
         # 同じrecording_idのものを
         all_tp_events = pseudo_df.query(query_string)
-        pseudo_labels = (np.sum(all_tp_events.loc[:, "0":"23"].values, axis=0) > 0).astype('float32')
-        pseudo_labels = np.where(pseudo_labels > 0, PSEUDO_LABEL_VALUE, pseudo_labels)  # label smoothing
+        pseudo_labels = np.max(all_tp_events.loc[:, "0":"23"].values, axis=0)
     # pseudo_dfがNoneだったり該当のrecording_idのpseudo_labelがない場合はスキップされる    
     except:
         print("pseudo label something wrong")
         pseudo_labels = np.zeros(24)
-    labels = np.sum([labels, pseudo_labels], axis=0)  # labelsとpseudo labelを合体
-    labels = np.where(labels >= 1.0, 1.0, labels).astype('float32')  # 1以上のものは1にする 
+    labels = np.where(labels > 0, 1, -2)  # -2はdummy
+    labels = np.max([labels, pseudo_labels], axis=0)  # labelsとpseudo labelを合体 
     return labels
