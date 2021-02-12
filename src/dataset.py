@@ -44,9 +44,8 @@ class SpectrogramDataset(data.Dataset):
         
         # pseudo labeling
         self.train_pseudo = pd.read_csv('./input/rfcx-species-audio-detection/train_labels_v1.csv').reset_index(drop=True)
-        label_columns = [f"{col}" for col in range(24)]
-        self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
-        
+        # label_columns = [f"{col}" for col in range(24)]
+        # self.train_pseudo[label_columns] = np.where(self.train_pseudo[label_columns] > 0, PSEUDO_LABEL_VALUE, 0)  # label smoothing
         # self.train_pseudo = None
 
     def __len__(self):
