@@ -82,7 +82,7 @@ class FocalLoss(nn.Module):
 
 # based https://www.kaggle.com/c/rfcx-species-audio-detection/discussion/213075
 class FocalLoss(nn.Module):
-    def __init__(self, output_key="logit", gamma=2.0, alpha=1.0, posi_weight=1.0, nega_weight=1.0, easy_nega_weight=1.0, zero_weight=0.2, zero_smoothing_label=0.2):
+    def __init__(self, output_key="logit", gamma=2.0, alpha=1.0, posi_weight=1.0, nega_weight=1.0, easy_nega_weight=1.0, easy_nega_smoothing_label=0.0, zero_weight=1.0, zero_smoothing_label=0.0):
         super().__init__()
         self.posi_loss = nn.BCEWithLogitsLoss(reduction='none')
         self.nega_loss = nn.BCEWithLogitsLoss(reduction='none')
@@ -94,6 +94,7 @@ class FocalLoss(nn.Module):
         self.posi_weight = posi_weight
         self.nega_weight = nega_weight
         self.easy_nega_weight = easy_nega_weight
+        self.easy_nega_smoothing_label = easy_nega_smoothing_label
         self.zero_weight = zero_weight
         self.zero_smoothing_label = zero_smoothing_label
 
@@ -112,18 +113,20 @@ class FocalLoss(nn.Module):
         
         posi_y = torch.ones(input.shape).to('cuda')
         nega_y = torch.zeros(input.shape).to('cuda')  # dummy
-        easy_nega_y = torch.zeros(input.shape).to('cuda')
+        # easy_nega_y = torch.zeros(input.shape).to('cuda')
+        easy_nega_y = torch.full(input.shape, self.easy_nega_smoothig_label).to('cuda')
         zero_y = torch.full(input.shape, self.zero_smoothing_label).to('cuda')   # zero labelにsmoothingをかける
         # zero_y = torch.zeros(input.shape).to('cuda')  # dummy
 
         posi_loss = self.posi_loss(input, posi_y)
         nega_loss = self.nega_loss(input, nega_y)  # 全て負例と見做してloss計算
-        easy_nega_loss = self.nega_loss(input, easy_nega_y)
+        easy_nega_loss = self.easy_nega_loss(input, easy_nega_y)
         zero_loss = self.zero_loss(input, zero_y)
 
         probas = input.sigmoid()
-        focal_pw = (1. - probas)**self.gamma
-        posi_loss = (posi_loss * posi_mask * focal_pw).sum()
+        focal_pw1 = (1. - probas)**self.gamma
+        focal_pw2 = probas**self.gamma
+        posi_loss = (posi_loss * posi_mask * focal_pw1).sum()
         nega_loss = (nega_loss * nega_mask).sum()  # ラベルのついているクラスのみlossを残す
         easy_nega_loss = (easy_nega_loss * easy_nega_mask).sum()
         zero_loss = (zero_loss * zero_mask).sum()

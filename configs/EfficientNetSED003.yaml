@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: new pseudo label
+      message: custom loss(-2 is as zero label)
 data:
   root: ./
   use_train_data:
@@ -66,6 +66,7 @@ loss:
     posi_weight: 2.0
     nega_weight: 1.0
     easy_nega_weight: 1.0
+    easy_nega_smoothing_label: 0.45
     zero_weight: 1.0
     zero_smoothing_label: 0.45
 
