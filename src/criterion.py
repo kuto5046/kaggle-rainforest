@@ -114,7 +114,7 @@ class FocalLoss(nn.Module):
         posi_y = torch.ones(input.shape).to('cuda')
         nega_y = torch.zeros(input.shape).to('cuda')  # dummy
         # easy_nega_y = torch.zeros(input.shape).to('cuda')
-        easy_nega_y = torch.full(input.shape, self.easy_nega_smoothig_label).to('cuda')
+        easy_nega_y = torch.full(input.shape, self.easy_nega_smoothing_label).to('cuda')
         zero_y = torch.full(input.shape, self.zero_smoothing_label).to('cuda')   # zero labelにsmoothingをかける
         # zero_y = torch.zeros(input.shape).to('cuda')  # dummy
 
