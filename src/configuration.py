@@ -89,13 +89,13 @@ def get_metadata(config: dict):
         tp_fnames.append(recording_id)
         tp_labels.append(v)
         # merge tp label and pseudo label(overwrite by tp label)
-        for _, row in df.iterrows():
-            labels = np.zeros((8,24))
-            patch = extract_patch(row["t_min"], row["t_max"])
-            labels[patch] = np.eye(24)[row["species_id"]].tolist() # tp labels
-            pseudo = train_new.loc[train_new["recording_id"]==recording_id, "s0":"s23"].values
-            updated_pseudo = np.where(labels > 0, 1, pseudo)  # tp labelが1のところのみ１に更新し,それ以外はpseudoをつかう
-            train_new.loc[train_new["recording_id"]==recording_id, "s0":"s23"] = updated_pseudo
+        # for _, row in df.iterrows():
+        #     labels = np.zeros((8,24))
+        #     patch = extract_patch(row["t_min"], row["t_max"])
+        #     labels[patch] = np.eye(24)[row["species_id"]].tolist() # tp labels
+        #     pseudo = train_new.loc[train_new["recording_id"]==recording_id, "s0":"s23"].values
+        #     updated_pseudo = np.where(labels > 0, 1, pseudo)  # tp labelが1のところのみ１に更新し,それ以外はpseudoをつかう
+        #     train_new.loc[train_new["recording_id"]==recording_id, "s0":"s23"] = updated_pseudo
 
     # FP data
     fp_only_fnames = list(set(train_new['recording_id'].values) - set(tp_fnames))

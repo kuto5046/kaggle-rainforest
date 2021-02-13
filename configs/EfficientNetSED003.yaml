@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: stage3 ex10 4 loss
+      message: stage3 ex11 3 loss
 data:
   root: ./
   use_train_data:
@@ -31,7 +31,7 @@ data:
     - fp
   train_tp_df_path: input/rfcx-species-audio-detection/train_tp.csv
   train_fp_df_path: input/rfcx-species-audio-detection/train_fp.csv
-  train_new_df_path: input/rfcx-species-audio-detection/train_labels_v0.csv
+  train_new_df_path: input/rfcx-species-audio-detection/train_labels_v2.csv
   train_audio_path: input/rfcx-species-audio-detection/train
   test_audio_path: input/rfcx-species-audio-detection/test
   sub_df_path: input/rfcx-species-audio-detection/sample_submission.csv
@@ -68,9 +68,9 @@ loss:
     posi_weight: 1.0
     nega_weight: 1.0
     easy_nega_weight: 1.0
-    easy_nega_smoothing_label: 0.2
-    zero_weight: 1.0
-    zero_smoothing_label: 0.45
+    easy_nega_smoothing_label: 0.0
+    zero_weight: 0.0
+    zero_smoothing_label: 0.0
 
 optimizer:
   name: Adam
