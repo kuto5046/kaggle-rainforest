@@ -1,5 +1,5 @@
 globals:
-  seed: 1000
+  seed: 0
   device: cuda
   max_epochs: 30
   output_dir: output
@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: baseline seed=1000
+      message: baseline seed=0
 data:
   root: ./
   use_train_data:
