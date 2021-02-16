@@ -23,7 +23,7 @@ mlflow:
       model_name: None
       loss_name: None
       hash_value: None
-      message: baseline seed=0
+      message: baseline seed=1000
 data:
   root: ./
   use_train_data:
