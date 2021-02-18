@@ -4,13 +4,15 @@ https://www.kaggle.com/c/rfcx-species-audio-detection/overview
 
 
 ### Note for my GitHub repository
-My repository is separated each branch, and main-branch is not up to date.
+**My repository is separated each branch, and main-branch is not up to date**.
 - stage1 (stage1 which are little leaky)
 - stage1_v2 (stage1 which was fixed cross validation scheme to remove leakage)
 - stage2 (stage2 which are little leaky)
 - stage2_v2 (stage2 which was fixed cross validation scheme to remove leakage)
 - stage3 (stage3 which are little leaky)
 - stage3_v2 (stage3 which was fixed cross validation scheme to remove leakage)
+
+following solution was used stage1,2,3 not v2.
 
 ### result
 5th/1154
