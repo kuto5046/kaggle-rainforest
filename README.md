@@ -4,7 +4,7 @@ https://www.kaggle.com/c/rfcx-species-audio-detection/overview
 
 
 ### Note for my GitHub repository
-My repository was separated each branch, and main-branch is not up to date.
+My repository is separated each branch, and main-branch is not up to date.
 - stage1 (stage1 which are little leaky)
 - stage1_v2 (stage1 which was fixed cross validation scheme to remove leakage)
 - stage2 (stage2 which are little leaky)
@@ -77,5 +77,5 @@ nega loss is using negative(FP) label and pseudo negative label.
 zero loss is using other label.(It is ambiguous Labels)
 
 ### ensemble
-public LB:0.963/Private LB: 0.968
+public LB:0.963/Private LB: 0.968  
 ensemble model(Resnet128, Efficientnet-b2, ResNeSt50, ViT, WaveNet)
